@@ -190,6 +190,10 @@ from .schema_v4 import add_tables
 model_calls, method_drafts, conversation_events, document_chapters = add_tables(metadata)
 
 
+from .schema_v5 import add_tables as add_governance
+users, sessions, project_policies, audit, workspaces, comments, change_proposals = add_governance(metadata)
+
+
 def engine_for(url: str, *, test=False):
     if not url or (not test and not url.startswith('postgresql+psycopg://')):
         raise ValueError('SCRIPTORIUM_DATABASE_URL must use postgresql+psycopg://')

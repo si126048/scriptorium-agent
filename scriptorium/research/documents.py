@@ -8,6 +8,12 @@ ALLOWED = {'doc', 'paragraph', 'heading', 'text', 'bulletList', 'orderedList', '
 def validate_editor(node, depth=0):
     if not isinstance(node, dict) or node.get('type') not in ALLOWED or depth > 40:
         raise ResearchError('INVALID_EDITOR_DOCUMENT', 422)
+    if not isinstance(node.get('content', []), list) or not isinstance(node.get('attrs', {}), dict) or not isinstance(node.get('marks', []), list):
+        raise ResearchError('INVALID_EDITOR_DOCUMENT', 422)
+    if node.get('type') == 'heading' and (type(node.get('attrs', {}).get('level', 2)) is not int or not 1 <= node.get('attrs', {}).get('level', 2) <= 6):
+        raise ResearchError('INVALID_HEADING_LEVEL', 422)
+    if node.get('type') == 'text' and not isinstance(node.get('text'), str):
+        raise ResearchError('INVALID_EDITOR_TEXT', 422)
     for mark in node.get('marks', []):
         if mark.get('type') not in {'bold', 'italic', 'strike', 'code', 'link'}:
             raise ResearchError('INVALID_EDITOR_MARK', 422)

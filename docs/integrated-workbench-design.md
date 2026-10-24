@@ -1,0 +1,31 @@
+# 集成工作台设计与实现记录
+
+## 工作空间
+
+工作台采用项目导航、研究对话和文档区。导航宽 232px；文档可拖动或键盘调整。聊天、并置、专注阅读是布局状态，不是新的业务入口。1180px 以下导航进入抽屉，960px 以下对话和文档采用单区切换；480px 保留完整的输入及文稿操作。
+
+设置与项目治理采用独立 Radix 对话框，命令面板使用方向键和 Enter；Esc 关闭后恢复焦点。文稿、消息与设置分别隔离错误。项目、会话和用户构成工作区身份；文稿修订构成恢复草稿身份。
+
+## 视觉与动效
+
+暖白纸面、暖灰导航、深色正文及橙色重点。UI 使用系统无衬线，研究正文 16px、原文 18px、长文行距约 1.85；档案技术信息降低存在感。所有新工作台规则集中于 `workbench.css` 的 token/base/components/layout 层，不加载旧 workspace/experience 两套覆盖样式。
+
+点击约 120ms，弹层约 180ms，文档面板约 220ms；流式正文批量更新，无逐字布局动画。系统减少动态效果和安静模式均关闭转场，包括 Portal 弹层。启动动画沿用现有品牌入口，可跳过。
+
+## 组件与数据层
+
+项目导航、输入、进度、文档框、文稿编辑、治理、命令面板和弹层分别拆分；编辑器、公式和研究图按需加载。服务端查询继续用 TanStack Query，Zustand 保存布局偏好。OpenAPI 生成请求模型及端点映射，稳定资源响应模型先覆盖项目、材料、记录、任务与工作区；旧复杂业务仍有 dict 适配返回，不能声称全部接口已完成严格模型化。
+
+文稿编辑源 JSON 使用 Tiptap 开源核心、自定义引用与脚注节点；未能解析的旧 Markdown 作为原文块保留。建议版本与正式版本分开，未接受的内容不写入正文。
+
+## 外部参考与许可证
+
+本轮没有复制第三方应用源码。交互吸收“对话与产物并置、可展开任务卡、人工决定、持久检查点”的已有方案；实现沿用当前 React/FastAPI 内核。
+
+- LibreChat：https://www.librechat.ai/docs/features/artifacts （设计参考，未复制代码）
+- Dify：https://github.com/langgenius/dify （事件与状态参考，未复制代码）
+- OpenHands：https://github.com/OpenHands/OpenHands （服务与客户端分层参考，未复制代码）
+- LangGraph：https://docs.langchain.com/oss/python/langgraph/persistence （检查点参考，不引入执行引擎）
+- Misaka-Agent：https://github.com/Luciole-Studio/Misaka-Agent （研究分支参考，未复制代码）
+
+本轮实际新增运行依赖 PyJWT[crypto]；其许可证随 Python 包分发。Pandoc 3.12.1 清单固定官方 URL 与 SHA-256，运行时下载保留完整许可证；应用内置 CSL 为本项目编写并附 CC BY-SA 4.0 声明。Tiptap、Radix、Motion 沿用当前锁文件，不新增付费编辑服务。

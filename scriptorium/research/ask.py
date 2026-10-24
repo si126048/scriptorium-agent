@@ -182,6 +182,14 @@ def execute(service, job):
                                      'retrieval': plan.get('retrieval'),
                                      'segments': len(readable), 'coverage': coverage})
 
+    # Persist the actual retrieval scope before any external call, so policy checks,
+    # withdrawal and billing see exactly the material being transmitted.
+    bound = {**payload, 'scope_snapshot': snapshot, 'asset_ids': sorted({x['asset_id'] for x in readable}),
+             'segment_ids': sorted({x['id'] for x in readable})}
+    with service.engine.begin() as c:
+        service.locked_job(c, job)
+        c.execute(db.jobs.update().where(db.jobs.c.id == job['id']).values(payload=bound))
+    job = {**job, 'payload': bound}
     usage, model = None, 'deterministic-demo'
     if mode == 'demo':
         result = demo_result(readable)

@@ -13,6 +13,8 @@ class OllamaProvider:
     def __init__(self, base_url: str | None = None, model: str | None = None, embed_model: str | None = None, temperature: float | None = None):
         from ..config import get_settings
         cfg = get_settings()
+        self.transport = httpx.post
+        self.stream_transport = httpx.stream
         self.base_url = (base_url or cfg.topostyle_ollama_url).rstrip("/")
         self.model = model or cfg.topostyle_model
         self.embed_model = embed_model or cfg.topostyle_embed_model
@@ -33,7 +35,7 @@ class OllamaProvider:
         try:
             values = []
             for text in texts:
-                response = httpx.post(f"{self.base_url}/api/embeddings", json={"model": self.embed_model, "prompt": text}, timeout=60)
+                response = self.transport(f"{self.base_url}/api/embeddings", json={"model": self.embed_model, "prompt": text}, timeout=60)
                 response.raise_for_status()
                 values.append(response.json()["embedding"])
             return values
@@ -44,21 +46,18 @@ class OllamaProvider:
         payload = {"model": self.model, "messages": messages, "stream": stream, "options": {"temperature": self.temperature}}
         try:
             if not stream:
-                response = httpx.post(f"{self.base_url}/api/chat", json=payload, timeout=180)
+                response = self.transport(f"{self.base_url}/api/chat", json=payload, timeout=180)
                 response.raise_for_status()
                 return response.json()["message"]["content"]
-            response = httpx.stream("POST", f"{self.base_url}/api/chat", json=payload, timeout=180)
-            response.__enter__()
             def chunks() -> Iterator[str]:
-                try:
+                with self.stream_transport("POST", f"{self.base_url}/api/chat", json=payload, timeout=180) as response:
+                    response.raise_for_status()
                     for line in response.iter_lines():
                         if line:
                             data = json.loads(line)
                             content = data.get("message", {}).get("content", "")
                             if content:
                                 yield content
-                finally:
-                    response.__exit__(None, None, None)
             return chunks()
         except Exception as exc:
             raise self._error(exc) from exc

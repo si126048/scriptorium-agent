@@ -1,0 +1,108 @@
+# Standalone small-team deployment. No database/service ports are published.
+x-app: &app
+  build: {context: ., dockerfile: Dockerfile.research}
+  restart: unless-stopped
+  environment: &app-env
+    SCRIPTORIUM_DATABASE_URL: postgresql+psycopg://scriptorium:${SCRIPTORIUM_POSTGRES_PASSWORD:?Set database password}@postgres:5432/scriptorium
+    SCRIPTORIUM_OBJECT_ROOT: /data/objects
+    SCRIPTORIUM_ELASTICSEARCH_URL: http://elasticsearch:9200
+    SCRIPTORIUM_OIDC_ISSUER: https://${SCRIPTORIUM_AUTH_DOMAIN:?Set login hostname}/realms/scriptorium
+    SCRIPTORIUM_OIDC_CLIENT_ID: scriptorium
+    SCRIPTORIUM_PUBLIC_URL: ${SCRIPTORIUM_PUBLIC_URL:?Set HTTPS application URL}
+    SCRIPTORIUM_ADMIN_SUBJECTS: ${SCRIPTORIUM_ADMIN_SUBJECTS:-}
+    SCRIPTORIUM_COOKIE_SECURE: "1"
+    SCRIPTORIUM_PANDOC_CACHE: /data/pandoc
+  volumes: ["team-objects:/data/objects", "team-pandoc:/data/pandoc"]
+services:
+  postgres:
+    image: postgres:17.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: scriptorium
+      POSTGRES_USER: scriptorium
+      POSTGRES_PASSWORD: ${SCRIPTORIUM_POSTGRES_PASSWORD:?Set database password}
+    volumes: ["team-pg:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scriptorium -d scriptorium"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.3
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.ml.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    volumes: ["team-es:/usr/share/elasticsearch/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+  keycloak-db:
+    image: postgres:17.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${SCRIPTORIUM_KEYCLOAK_DB_PASSWORD:?Set identity database password}
+    volumes: ["team-identity:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.7
+    restart: unless-stopped
+    command: ["start", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${SCRIPTORIUM_KEYCLOAK_DB_PASSWORD:?Set identity database password}
+      KC_HOSTNAME: https://${SCRIPTORIUM_AUTH_DOMAIN:?Set login hostname}
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${SCRIPTORIUM_KEYCLOAK_ADMIN:?Set bootstrap administrator}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${SCRIPTORIUM_KEYCLOAK_ADMIN_PASSWORD:?Set bootstrap password}
+      SCRIPTORIUM_PUBLIC_URL: ${SCRIPTORIUM_PUBLIC_URL:?Set HTTPS application URL}
+    depends_on:
+      keycloak-db: {condition: service_healthy}
+    volumes: ["./deploy/team/scriptorium-realm.json:/opt/keycloak/data/import/scriptorium-realm.json:ro"]
+  migrate:
+    <<: *app
+    restart: "no"
+    command: ["scriptorium-research", "init-db"]
+    depends_on:
+      postgres: {condition: service_healthy}
+  api:
+    <<: *app
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      elasticsearch: {condition: service_healthy}
+  worker:
+    <<: *app
+    command: ["scriptorium-research", "worker"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      elasticsearch: {condition: service_healthy}
+  proxy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      SCRIPTORIUM_DOMAIN: ${SCRIPTORIUM_DOMAIN:?Set application hostname}
+      SCRIPTORIUM_AUTH_DOMAIN: ${SCRIPTORIUM_AUTH_DOMAIN:?Set login hostname}
+    volumes: ["./deploy/team/Caddyfile:/etc/caddy/Caddyfile:ro", "team-tls:/data", "team-proxy:/config"]
+    depends_on: [api, keycloak]
+volumes:
+  team-pg:
+  team-es:
+  team-objects:
+  team-pandoc:
+  team-identity:
+  team-tls:
+  team-proxy:

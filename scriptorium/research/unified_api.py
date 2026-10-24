@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from . import schema as db
 from .legacy_store import PostgresStore
 from .service import ResearchError, row, rows
+from .contracts import MessageOut, ScopeItem, RecordOut
 from .workspace import add_message, conversation, create_conversation, submit
 
 
@@ -30,7 +31,7 @@ class SendIn(BaseModel):
     tool: Literal['ask', 'chat', 'research', 'theory', 'subject', 'persona'] = 'ask'
     asset_ids: list[str] = Field(default_factory=list, max_length=100)
     segment_ids: list[str] = Field(default_factory=list, max_length=2000)
-    scope: list[dict] | None = Field(default=None, max_length=2000)
+    scope: list[ScopeItem] | None = Field(default=None, max_length=2000)
     provider_mode: Literal['live', 'demo'] = 'live'
     participant_id: str | None = None
     persona_id: str | None = None
@@ -105,7 +106,8 @@ def install(app, service, identity):
     def conversations(project_id: str, principal=Depends(identity), s=Depends(service)):
         with s.engine.connect() as c:
             s.access(c, project_id, principal)
-            return [dict(x) for x in c.execute(sa.select(db.conversations).where(
+            project = row(c, db.projects, db.projects.c.id == project_id)
+            return [{**dict(x), 'workspace': x['workspace'] if project['owner_id'] == principal else {}} for x in c.execute(sa.select(db.conversations).where(
                 db.conversations.c.project_id == project_id).order_by(db.conversations.c.created_at.desc())).mappings()]
 
     @router.post('/conversations', status_code=201)
@@ -118,6 +120,9 @@ def install(app, service, identity):
         with s.engine.begin() as c:
             s.access(c, project_id, principal, True)
             old = conversation(s, c, project_id, cid)
+            project = row(c, db.projects, db.projects.c.id == project_id)
+            if body.workspace is not None and project['owner_id'] != principal:
+                raise ResearchError('USE_PERSONAL_WORKSPACE_ENDPOINT', 403)
             values = body.model_dump(exclude_none=True, exclude={'revision'})
             if len(json.dumps(values)) > 100000:
                 raise ResearchError('WORKSPACE_TOO_LARGE', 413)
@@ -126,13 +131,23 @@ def install(app, service, identity):
             c.execute(db.conversations.update().where(db.conversations.c.id == cid).values(**values, revision=old['revision'] + 1))
             return {**old, **values, 'revision': old['revision'] + 1}
 
-    @router.get('/conversations/{cid}/messages')
-    def messages(project_id: str, cid: str, principal=Depends(identity), s=Depends(service)):
+    @router.get('/conversations/{cid}/messages', response_model=list[MessageOut])
+    def messages(project_id: str, cid: str, before: str | None = None, limit: int | None = None,
+                 principal=Depends(identity), s=Depends(service)):
         with s.engine.connect() as c:
             s.access(c, project_id, principal)
             conversation(s, c, project_id, cid)
-            return [dict(x) for x in c.execute(sa.select(db.messages).where(db.messages.c.conversation_id == cid)
-                .order_by(db.messages.c.created_at, db.messages.c.id)).mappings()]
+            query = sa.select(db.messages).where(db.messages.c.conversation_id == cid)
+            if before:
+                cursor = row(c, db.messages, db.messages.c.id == before, db.messages.c.conversation_id == cid)
+                if not cursor:
+                    raise ResearchError('MESSAGE_CURSOR_NOT_FOUND', 404)
+                query = query.where(sa.or_(db.messages.c.created_at < cursor['created_at'],
+                    sa.and_(db.messages.c.created_at == cursor['created_at'], db.messages.c.id < before)))
+            if limit is not None:
+                page = [dict(x) for x in c.execute(query.order_by(db.messages.c.created_at.desc(), db.messages.c.id.desc()).limit(max(1, min(limit, 200)))).mappings()]
+                return list(reversed(page))
+            return [dict(x) for x in c.execute(query.order_by(db.messages.c.created_at, db.messages.c.id)).mappings()]
 
     @router.post('/conversations/{cid}/messages', status_code=202)
     def send(project_id: str, cid: str, body: SendIn, idempotency_key: str = Header(min_length=1, max_length=128),
@@ -144,7 +159,7 @@ def install(app, service, identity):
                 p = store.get_persona(body.persona_id or '')
                 participant_id = (p or {}).get('participant_id')
             require_consent(store, participant_id, 'profile_analysis' if body.tool == 'subject' else 'agent_simulation')
-        return submit(s, project_id, principal, cid, body.model_dump(), idempotency_key)
+        return submit(s, project_id, principal, cid, body.model_dump(exclude_none=True), idempotency_key)
 
     @router.get('/research-runs')
     def research_runs(project_id: str, principal=Depends(identity), s=Depends(service)):
@@ -180,7 +195,10 @@ def install(app, service, identity):
     def decisions(project_id: str, principal=Depends(identity), s=Depends(service)):
         with s.engine.connect() as c:
             s.access(c, project_id, principal)
-            return rows(c, db.decisions, db.decisions.c.project_id == project_id, db.decisions.c.state == 'pending')
+            return [dict(r) for r in c.execute(sa.select(db.decisions, db.research_runs.c.conversation_id)
+                .join(db.research_runs, db.research_runs.c.id == db.decisions.c.run_id)
+                .where(db.decisions.c.project_id == project_id, db.research_runs.c.project_id == project_id,
+                       db.decisions.c.state == 'pending')).mappings()]
 
     @router.post('/decisions/{did}')
     def answer_decision(project_id: str, did: str, body: DecisionIn, principal=Depends(identity), s=Depends(service)):
@@ -224,7 +242,7 @@ def install(app, service, identity):
             return s.enqueue(c, project_id, 'workspace', {'tool': 'research', 'text': run['question'],
                 'principal': principal, 'conversation_id': run['conversation_id'], 'resume_run_id': run['id']}, f'resume-{did}')
 
-    @router.get('/artifacts/{aid}')
+    @router.get('/artifacts/{aid}', response_model=RecordOut, response_model_exclude_unset=True)
     def artifact(project_id: str, aid: str, principal=Depends(identity), s=Depends(service)):
         with s.engine.connect() as c:
             s.access(c, project_id, principal)
@@ -376,8 +394,9 @@ def install(app, service, identity):
         class FixedQuestions:
             def generate_structured(self, *args):
                 return {'should_follow_up': False, 'question_text': '', 'reason': 'Fixed questions only', 'tags': []}
-        import os
-        p = provider(mode) if mode == 'demo' or os.getenv('DASHSCOPE_API_KEY') else FixedQuestions()
+        from .providers import provider_config
+        from .calls import synchronous_job
+        p = provider(mode, s, synchronous_job(s, pid, principal, 'interview')) if mode == 'demo' or provider_config()['ready'] else FixedQuestions()
         return InterviewManager(store_for(s, pid, principal), p)
 
     @router.get('/interviews')
@@ -465,7 +484,8 @@ def install(app, service, identity):
         require_consent(store, persona['participant_id'], 'agent_simulation')
         with s.engine.begin() as c:
             s.access(c, project_id, principal, True)
-            return s.enqueue(c, project_id, 'persona_train', {'persona_id': persona_id, 'principal': principal}, db.uid())
+            sources = [a['id'] for a in rows(c, db.assets, db.assets.c.project_id == project_id) if a['metadata'].get('participant_id') == persona['participant_id'] and a['status'] == 'ready']
+            return s.enqueue(c, project_id, 'persona_train', {'persona_id': persona_id, 'principal': principal, 'asset_ids': sources}, db.uid())
 
     @router.delete('/personas/{persona_id}')
     def delete_persona(project_id: str, persona_id: str, principal=Depends(identity), s=Depends(service)):

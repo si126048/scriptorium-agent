@@ -21,6 +21,8 @@ from .config import ResearchSettings
 from .methods import PROTOCOLS
 from .service import ResearchError, ResearchService, SUPPORTED_JOB_KINDS, row, rows
 
+from .contracts import ProjectOut, RecordOut, MaterialOut, AnchorOut, JobOut
+
 SERVICE_VERSION = '4.0.0-dev'
 
 KINDS = Literal['question', 'annotation', 'concept', 'context', 'claim', 'position', 'criterion',
@@ -124,7 +126,7 @@ def create_app(settings=None, engine=None):
     app = FastAPI(title='Scriptorium Research', version=SERVICE_VERSION, lifespan=lifespan)
     app.add_middleware(CORSMiddleware, allow_origins=list(settings.allowed_origins),
         allow_methods=['GET', 'POST', 'PUT', 'DELETE'],
-        allow_headers=['Authorization', 'Content-Type', 'Idempotency-Key', 'Last-Event-ID'])
+        allow_headers=['Authorization', 'Content-Type', 'Idempotency-Key', 'Last-Event-ID'], allow_credentials=True)
 
     @app.exception_handler(ResearchError)
     async def research_error(request, exc):
@@ -138,6 +140,11 @@ def create_app(settings=None, engine=None):
         return request.app.state.research
 
     def identity(request: Request, authorization: str = Header(default='')):
+        from .auth import principal as authenticate
+        actor = authenticate(request, settings, request.app.state.research, authorization)
+        if actor:
+            request.state.principal = actor
+            return actor
         if settings.api_key:
             if not secrets.compare_digest(authorization, f'Bearer {settings.api_key}'):
                 raise HTTPException(401, 'Invalid research API key')
@@ -149,7 +156,25 @@ def create_app(settings=None, engine=None):
             if origin and origin.rstrip('/') not in {*settings.allowed_origins, own_origin}:
                 raise HTTPException(403, 'Origin not allowed')
         # Identity is server configured; an arbitrary client header cannot impersonate a member.
+        request.state.principal = settings.principal
         return settings.principal
+
+    def admin(principal=Depends(identity)):
+        from .governance import administrator
+        if not administrator(principal, settings):
+            raise ResearchError('SYSTEM_ADMIN_REQUIRED', 403)
+        return principal
+
+    @app.middleware('http')
+    async def audit_write(request, call_next):
+        response = await call_next(request)
+        actor = getattr(request.state, 'principal', None)
+        parts = request.url.path.split('/')
+        if actor and request.method not in {'GET', 'HEAD', 'OPTIONS'} and response.status_code < 400 and len(parts) > 4 and parts[1:4] == ['api', 'v2', 'projects']:
+            from .governance import audit
+            with request.app.state.research.engine.begin() as c:
+                audit(c, parts[4], actor, 'http.' + request.method.lower(), parts[-1][:128], {'path': request.url.path[:500]})
+        return response
 
     @app.get('/health')
     def health(s=Depends(service)):
@@ -168,10 +193,11 @@ def create_app(settings=None, engine=None):
     def model_status(principal=Depends(identity)):
         """Provider catalogue and key state. Secrets are never returned, only their source."""
         from .providers import public
-        return public()
+        from .governance import administrator
+        return {**public(), 'editable': administrator(principal, settings)}
 
     @app.put('/api/v2/system/model')
-    def model_config(body: ModelKeyIn, principal=Depends(identity)):
+    def model_config(body: ModelKeyIn, principal=Depends(admin)):
         from . import providers
         provider_id = body.provider or providers.active_id()
         if body.key:
@@ -179,12 +205,12 @@ def create_app(settings=None, engine=None):
         return providers.update(provider=provider_id, base_url=body.base_url, model=body.model)
 
     @app.delete('/api/v2/system/model')
-    def model_delete(provider: str | None = None, principal=Depends(identity)):
+    def model_delete(provider: str | None = None, principal=Depends(admin)):
         from . import providers
         return providers.delete_key(provider or providers.active_id())
 
     @app.post('/api/v2/system/model/test')
-    def model_test(provider: str | None = None, principal=Depends(identity)):
+    def model_test(provider: str | None = None, principal=Depends(admin)):
         from . import providers
         return providers.probe(provider)
 
@@ -192,17 +218,17 @@ def create_app(settings=None, engine=None):
     def methods(principal=Depends(identity)):
         return PROTOCOLS
 
-    @app.get('/api/v2/projects')
+    @app.get('/api/v2/projects', response_model=list[ProjectOut])
     def projects(principal=Depends(identity), s=Depends(service)):
         return s.list_projects(principal)
 
-    @app.post('/api/v2/projects', status_code=201)
+    @app.post('/api/v2/projects', status_code=201, response_model=ProjectOut)
     def create_project(body: ProjectIn, principal=Depends(identity), s=Depends(service)):
         return s.create_project(principal, body.name, body.description)
 
     prefix = '/api/v2/projects/{project_id}'
 
-    @app.post(prefix + '/imports', status_code=202)
+    @app.post(prefix + '/imports', status_code=202, response_model=JobOut, response_model_exclude_unset=True)
     async def import_material(project_id: str, file: UploadFile = File(...),
         idempotency_key: str = Header(min_length=1, max_length=128), principal=Depends(identity), s=Depends(service)):
         with s.engine.connect() as c:
@@ -210,7 +236,7 @@ def create_app(settings=None, engine=None):
         raw = await file.read(settings.max_upload_bytes + 1)
         return s.import_material(project_id, principal, raw, file.filename or 'material.txt', idempotency_key)
 
-    @app.get(prefix + '/materials')
+    @app.get(prefix + '/materials', response_model=list[MaterialOut], response_model_exclude_unset=True)
     def materials(project_id: str, principal=Depends(identity), s=Depends(service)):
         return s.list_materials(project_id, principal)
 
@@ -265,7 +291,7 @@ def create_app(settings=None, engine=None):
         s.revoke(project_id, principal, asset_id)
         return {'status': 'revoked', 'physical_cleanup': 'run gc after retention; backups follow documented retention'}
 
-    @app.post(prefix + '/anchors', status_code=201)
+    @app.post(prefix + '/anchors', status_code=201, response_model=AnchorOut)
     def anchor(project_id: str, body: AnchorIn, principal=Depends(identity), s=Depends(service)):
         with s.engine.begin() as c:
             s.access(c, project_id, principal, True)
@@ -283,7 +309,7 @@ def create_app(settings=None, engine=None):
             s.asset(c, project_id, segment['asset_id'])
             return {**a, 'segment': segment}
 
-    @app.get(prefix + '/records')
+    @app.get(prefix + '/records', response_model=list[RecordOut], response_model_exclude_unset=True)
     def records(project_id: str, kind: KINDS | None = None, principal=Depends(identity), s=Depends(service)):
         with s.engine.connect() as c:
             s.access(c, project_id, principal)
@@ -308,11 +334,11 @@ def create_app(settings=None, engine=None):
                 raise ResearchError('REVISION_REQUIRED', 422)
             return s.put_record(c, project_id, body.kind, payload, record_id, body.revision)
 
-    @app.post(prefix + '/records', status_code=201)
+    @app.post(prefix + '/records', status_code=201, response_model=RecordOut, response_model_exclude_unset=True)
     def new_record(project_id: str, body: RecordIn, principal=Depends(identity), s=Depends(service)):
         return save(project_id, body, principal, s)
 
-    @app.put(prefix + '/records/{record_id}')
+    @app.put(prefix + '/records/{record_id}', response_model=RecordOut, response_model_exclude_unset=True)
     def update_record(project_id: str, record_id: str, body: RecordIn, principal=Depends(identity), s=Depends(service)):
         return save(project_id, body, principal, s, record_id)
 
@@ -343,7 +369,7 @@ def create_app(settings=None, engine=None):
             return [dict(r) for r in c.execute(sa.select(db.jobs).where(db.jobs.c.project_id == project_id)
                 .order_by(db.jobs.c.created_at.desc()).limit(100)).mappings()]
 
-    @app.get(prefix + '/jobs/{job_id}')
+    @app.get(prefix + '/jobs/{job_id}', response_model=JobOut, response_model_exclude_unset=True)
     def get_job(project_id: str, job_id: str, principal=Depends(identity), s=Depends(service)):
         with s.engine.connect() as c:
             s.access(c, project_id, principal)
@@ -550,6 +576,10 @@ def create_app(settings=None, engine=None):
         return Response('\n'.join(lines), media_type='text/markdown; charset=utf-8',
             headers={'Content-Disposition': 'attachment; filename=research.md', 'Cache-Control': 'no-store'})
 
+    from .auth import install as install_auth
+    install_auth(app, service, identity)
+    from .workbench_api import install as install_workbench
+    install_workbench(app, service, identity)
     from .unified_api import install
     install(app, service, identity)
     from .experience_api import install as install_experience

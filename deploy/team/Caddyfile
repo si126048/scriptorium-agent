@@ -1,0 +1,8 @@
+{$SCRIPTORIUM_DOMAIN} {
+    encode zstd gzip
+    reverse_proxy api:8010
+}
+{$SCRIPTORIUM_AUTH_DOMAIN} {
+    encode zstd gzip
+    reverse_proxy keycloak:8080
+}

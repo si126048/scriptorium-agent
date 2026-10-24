@@ -98,6 +98,8 @@ def package(root, name, cache=None):
 def install(root, cache=None, autostart=True):
     root = root.resolve()
     root.mkdir(parents=True, exist_ok=True)
+    from .exporting import ensure_pandoc
+    ensure_pandoc(root / 'runtime' / 'pandoc')
     state_file = root / 'installation.json'
     if state_file.exists():
         if not vault.read(target(root)):
@@ -150,7 +152,7 @@ def environment(root, state):
         'SCRIPTORIUM_RESEARCH_API_KEY': credentials['api_key'], 'SCRIPTORIUM_PORT': str(state['api_port']),
         'SCRIPTORIUM_ELASTICSEARCH_URL': f"http://127.0.0.1:{state['es_port']}",
         'SCRIPTORIUM_ELASTICSEARCH_USERNAME': 'elastic', 'SCRIPTORIUM_ELASTICSEARCH_PASSWORD': credentials['elastic'],
-        'PGPASSWORD': credentials['database'], 'SCRIPTORIUM_LOCAL_RUNTIME_ROOT': str(root)}
+        'PGPASSWORD': credentials['database'], 'SCRIPTORIUM_LOCAL_RUNTIME_ROOT': str(root), 'SCRIPTORIUM_PANDOC_CACHE': str(root / 'runtime' / 'pandoc')}
 
 
 def supervise(root):

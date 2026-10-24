@@ -12,7 +12,7 @@ from .texts import build_tei, extract, project_tei, quote_hash
 
 
 # A worker from an older build must never convert a newer job kind into a permanent failure.
-SUPPORTED_JOB_KINDS = frozenset({'import', 'ocr', 'method', 'workspace', 'persona_train'})
+SUPPORTED_JOB_KINDS = frozenset({'import', 'ocr', 'method', 'workspace', 'persona_train', 'edit', 'export'})
 
 
 class ResearchError(Exception):
@@ -376,6 +376,12 @@ class ResearchService:
         elif job['kind'] == 'method':
             from .methods import execute
             execute(self, job)
+        elif job['kind'] == 'export':
+            from .exporting import execute
+            execute(self, job)
+        elif job['kind'] == 'edit':
+            from .editing import execute
+            execute(self, job)
         elif job['kind'] == 'workspace':
             from .workspace import execute_workspace
             execute_workspace(self, job)
@@ -391,7 +397,10 @@ class ResearchService:
                     raise ResearchError('PERSONA_NO_LONGER_AVAILABLE')
                 store.put_persona({**persona, 'status': 'ready', 'latest_artifact_id': artifact['id']})
             else:
-                artifact = train_persona(store, job['payload']['persona_id'])
+                from .calls import accounted_ollama
+                from scriptorium.topostyle.provider import OllamaProvider
+                persona = store.get_persona(job['payload']['persona_id'])
+                artifact = train_persona(store, job['payload']['persona_id'], accounted_ollama(self, job, OllamaProvider(model=persona['model'])))
             with self.engine.begin() as c:
                 self.locked_job(c, job)
                 self.finish(c, job, {'artifact_id': artifact['id']})
@@ -519,6 +528,8 @@ class ResearchService:
                 if len(remove) == previous:
                     break
             if remove:
+                for related in (db.comments, db.change_proposals):
+                    c.execute(related.delete().where(related.c.record_id.in_(remove)))
                 c.execute(db.document_chapters.delete().where(db.document_chapters.c.record_id.in_(remove)))
                 c.execute(db.record_history.delete().where(db.record_history.c.record_id.in_(remove)))
                 c.execute(db.records.delete().where(db.records.c.id.in_(remove)))
@@ -571,6 +582,8 @@ class ResearchService:
                     c.execute(db.conversation_events.update().where(
                         db.conversation_events.c.conversation_id == m['conversation_id']).values(
                         type='redacted', payload={'withdrawn': True}))
+                    from .events import emit
+                    emit(c, project_id, m['conversation_id'], 'material.withdrawn', {'asset_id': asset_id})
             c.execute(db.assets.update().where(db.assets.c.id == asset_id).values(
                 status='revoked', object_key='', metadata={}, revision=a['revision'] + 1))
             c.execute(db.outbox.insert().values(id=db.uid(), project_id=project_id, asset_id=asset_id,

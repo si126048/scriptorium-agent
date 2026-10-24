@@ -25,7 +25,7 @@ def execute_capability(s, pid, principal, body, job=None):
     mode = body.get('provider_mode', 'live')
     tool = body['tool']
     if tool == 'persona':
-        return persona_reply(s, pid, principal, body)
+        return persona_reply(s, pid, principal, body, job)
     if tool == 'subject':
         return subject_analysis(s, pid, principal, body, job)
     if tool in {'theory', 'subject'}:
@@ -103,7 +103,7 @@ def execute_capability(s, pid, principal, body, job=None):
     return {'text': answer, 'metadata': {'provider_mode': mode, 'asset_ids': body.get('asset_ids', [])}}
 
 
-def persona_reply(s, pid, principal, body):
+def persona_reply(s, pid, principal, body, job=None):
     from scriptorium.topostyle.provider import OllamaProvider
     from scriptorium.topostyle.service import ensure_consent, prompt_context
     store = PostgresStore(s, pid, principal)
@@ -114,7 +114,17 @@ def persona_reply(s, pid, principal, body):
     artifacts = store.list_persona_artifacts(persona['id'])
     if not artifacts:
         raise ResearchError('PERSONA_NOT_TRAINED')
-    p = OllamaProvider(model=persona['model'])
+    from .calls import accounted_ollama, synchronous_job
+    scoped_job = dict(job or synchronous_job(s, pid, principal, 'persona'))
+    with s.engine.connect() as c:
+        sources = [a['id'] for a in c.execute(sa.select(db.assets).where(db.assets.c.project_id == pid)).mappings()
+                   if a['metadata'].get('participant_id') == persona['participant_id']]
+        # Older training artifacts have no exact version provenance. Require every historical
+        # source version for external processing rather than authorizing only the newest text.
+        windows = [{'asset_id': v['asset_id'], 'version_id': v['id']} for v in c.execute(
+            sa.select(db.versions).where(db.versions.c.asset_id.in_(sources))).mappings()]
+    scoped_job['payload'] = {**scoped_job['payload'], 'asset_ids': sources, 'scope_snapshot': windows}
+    p = accounted_ollama(s, scoped_job, OllamaProvider(model=persona['model']))
     context = prompt_context(artifacts[0], body['text'])
     context[1:1] = [{'role': m['role'], 'content': m['content']}
                     for m in store.list_messages(body['conversation_id'])[-12:]]

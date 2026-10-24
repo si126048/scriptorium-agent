@@ -2,7 +2,7 @@
 
 **人文研究 Agent** — 面向人文学科的证据锚定、多视角批判性解读工作台：把版本化原文、理论文本、访谈与文稿，转化为可回溯到原文精确位置、可核验引文的研究论证。
 
-> v3.1 · Python 3.12+ · 371 tests · MIT · 本地优先（默认仅绑定 127.0.0.1）
+> v3.1.1 · Python 3.12+ · 312 tests · MIT · 本地优先（默认仅绑定 127.0.0.1）
 
 Scriptorium（缮写室）把「细读 → 批判性解读 → 论证构建」放进同一条证据链：每个结论都能回跳到原文的 code point 级锚点，每条引文都必须通过核验，每个结构性主张默认都是 `candidate`，只有人工审核通过才进入论证。它不做临床诊断，也不把语言口癖等同于人格——它做的是**把解读锚定到证据**。
 
@@ -47,6 +47,8 @@ Scriptorium 的解读能力组织为可单独或组合调用的**方法**，全�
 - **方法化解读** — 上表六种方法产出结构化记录（构境档案、转化候选、视差裂隙、辩证综合……），每条都带依据。
 - **引文核验** — 引文草稿必须绑定到已核验的原文摘录才算通过，未核验的引文不进入文稿。
 - **人工审核门禁** — 结构性主张默认 `candidate`，人工批准后才进入论证与文稿；撤回参与者授权会级联清理其派生数据。
+- **文稿与导出** — Tiptap JSON 编辑源 + 引用/脚注节点，章节独立修订、自动保存与冲突保留；AI「建议修改」只产生候选，接受后才写入正式稿；Pandoc 导出 DOCX / Markdown / HTML（内置中英文 CSL）。
+- **团队治理** — OIDC（Keycloak）登录、负责人/研究者/评议者/只读四级角色、外部模型外发预算与敏感材料限制、模型调用审计账本。
 
 同时内置 PageIndex 文档系统，支持长篇理论文本的导入、检索和引文验证。
 
@@ -65,7 +67,11 @@ Scriptorium 的解读能力组织为可单独或组合调用的**方法**，全�
 | **多格式文档提取** | PageIndex 文档系统支持 txt / md / pdf / html / epub / docx / xlsx / pptx（分析材料导入限 txt / md / pdf） |
 | **人工审核门禁** | CLI + JSON 审核文件驱动，所有结构候选必须人工批准 |
 | **同意管理** | 细粒度同意 scope、过期、撤回与派生数据清理 |
-| **统一研究工作台** | Vite + React + TypeScript：材料库 / 阅读区 / 笔记编辑三区布局，方法化解读、证据锚点回跳、引文核验、文稿导出（MD / JSON / TEI） |
+| **集成工作台** | 项目/会话导航 + 研究对话 + 文档区三位一体：专注阅读、文档标签、命令面板（Ctrl+K）、响应式至 480px、安静模式与减少动态效果 |
+| **统一研究工作台** | Vite + React + TypeScript：材料库 / 阅读区 / 笔记编辑三区布局，方法化解读、证据锚点回跳、引文核验 |
+| **文稿写作** | Tiptap JSON 编辑源、引用与脚注节点、章节修订与历史版本比较恢复、AI 建议修改（接受前不入正文） |
+| **导出** | 固定 Pandoc 3.12.1（官方散列校验）+ 内置 CSL：DOCX / Markdown / HTML；保留 JSON / TEI 档案导出 |
+| **团队与治理** | OIDC code + PKCE 登录（Keycloak）、四级项目角色、外发政策与累计预算、调用账本与审计；服务器不保存 OIDC token |
 | **TopoStyle 风格模拟** | 基于本地 Ollama 的拓扑人格建模，训练 + SSE 流式对话，复用项目/参与者/授权体系 |
 | **研究对话** | 专门化话语分析 Agent，围绕所选材料进行连贯的批判性对话 |
 | **SSE 流式输出** | 实时流式显示分析阶段、观察、假设、反例和报告 |
@@ -338,11 +344,11 @@ curl -X POST http://localhost:8000/api/v1/dialectical/run \
 
 ## 研究工作台（Web）
 
-图形界面是**统一研究工作台**（`web/src/features/workspace/`），由研究服务提供：启动 `scriptorium research serve` 后浏览器访问 `http://127.0.0.1:8010`。工作台围绕「材料 → 证据 → 解读 → 论证」组织，取代了早期以聊天为中心的界面。
+图形界面是**集成研究工作台**（`web/src/features/workspace/`），由研究服务提供：启动 `scriptorium research serve` 后浏览器访问 `http://127.0.0.1:8010`。工作台围绕「材料 → 证据 → 解读 → 论证 → 文稿」组织，取代了早期以聊天为中心的界面。设计与实现记录见 [`docs/integrated-workbench-design.md`](docs/integrated-workbench-design.md)，部署与运维见 [`docs/integrated-workbench-runbook.md`](docs/integrated-workbench-runbook.md)。
 
 ### 布局
 
-三区响应式布局，可折叠：
+项目导航（232px）+ 研究对话 + 文档区，文档宽度可拖动或键盘调整；聊天、并置、专注阅读是布局状态而非业务入口。1180px 以下导航进入抽屉，960px 以下对话与文档单区切换，480px 保留完整输入与文稿操作。设置与项目治理为独立弹层，命令面板 Ctrl+K；安静模式与系统减少动态效果会关闭全部转场。
 
 - **材料库 / 项目导航**（左）— 项目、会话、材料、历史分析、研究文档树
 - **对话与方法区**（中）— 研究对话流、方法调用、决定点（decision）、任务进度、引文核验卡片
@@ -361,11 +367,19 @@ curl -X POST http://localhost:8000/api/v1/dialectical/run \
 | 工具 | 提问（默认） · 研究对话 · 完整研究 · 理论视角比较 · 主体分析 · 风格模拟 |
 | 方法 | 思想构境 · 内在批判 · 视差分析 |
 
-选中原文即可保存为证据锚点，结论与引文绑定锚点后可一键回跳原文；运行模式可切换「真实模型 / 演示（不产生学术结论）」。文稿与论证支持导出 Markdown / JSON / TEI。
+选中原文即可保存为证据锚点，结论与引文绑定锚点后可一键回跳原文；运行模式可切换「真实模型 / 演示（不产生学术结论）」。
+
+### 文稿、建议与导出
+
+文稿默认进入可视化编辑：Tiptap JSON 为编辑源、Markdown 为派生文本，章节独立修订，自动保存约 1.2 秒，冲突保留本机草稿不覆盖远端，历史版本可比较并恢复为新修订。AI「建议修改」只创建候选版本，展示前后内容与理由，接受后才写入正式稿；过期修订拒绝写入。导出在后台运行固定 Pandoc（官方 URL + SHA-256 校验），支持 DOCX / Markdown / HTML 与内置中文脚注、英文脚注、作者年份 CSL；DOCX 脚注与书目来自文稿引用节点和材料书目信息，JSON / TEI 沿用项目档案导出。
+
+### 项目与成员治理
+
+团队部署下（见 [团队部署](#团队部署-linux)），项目负责人可在「项目与成员」面板按 `user_id` 邀请成员，角色为负责人 / 研究者 / 评议者 / 只读，最后一名负责人受保护。模型外发受政策约束：负责人指定允许的服务商主机、材料、文本版本、用途说明与累计预算，敏感材料禁止外发；全部模型调用与项目变更进入审计账本，普通成员不能修改模型地址或密钥。
 
 ### 技术栈
 
-- **前端**: Vite 8 + React 19 + TypeScript + Tailwind CSS 4 + Zustand + TanStack Query + Radix UI
+- **前端**: Vite 8 + React 19 + TypeScript + Tailwind CSS 4 + Zustand + TanStack Query + Radix UI + Motion + Tiptap（开源核心）
 - **后端**: 研究服务 FastAPI + PostgreSQL + Elasticsearch，SSE 推送任务与对话事件
 - **流式输出**: 原生 fetch + ReadableStream；任务进度经 SSE 续传
 
@@ -527,11 +541,13 @@ MCP 客户端配置示例（Qoder / Claude Desktop）：
 | **对象存储** | 可选 S3 后端（`SCRIPTORIUM_OBJECT_BACKEND=s3`），兼容 SeaweedFS |
 | **OCR** | rapidocr / tesseract 双后端，支持扫描版文献 |
 | **统一工作台** | Web 端研究工作台（`web/src/features/workspace/`），服务自动挂载前端构建产物 |
+| **文稿与导出** | Tiptap JSON 编辑源与章节修订、AI 建议修改、后台 Pandoc DOCX / Markdown / HTML（内置 CSL） |
+| **治理与账本** | OIDC 登录、项目角色、外发政策与预算、模型调用与项目变更审计（研究 / 问答 / 访谈 / Persona 全部接入记账） |
 | **平滑迁移** | `migrate-sqlite` 从本地单机的 SQLite 快照非破坏式迁移，Alembic 版本化 schema |
 
 ### 接口
 
-API 前缀 `/api/v2/projects/{project_id}/...`（materials、anchors、records、method-runs、jobs、conversations、research-runs、decisions、participants、personas、citation-drafts 等），并提供 `/api/v1` 兼容层与 `/health`、`/api/v2/system/*`。
+API 前缀 `/api/v2/projects/{project_id}/...`（materials、anchors、records、method-runs、jobs、conversations、research-runs、decisions、participants、personas、citation-drafts 等），工作台治理接口在同前缀下的 `membership` / `members` / `policy` / `classification` / `audit` / `workspace` / `tasks` / `artifacts/{rid}`（comments、restore、change-proposals、exports），登录为 `/api/v2/auth/{session,login,callback,logout}`，并提供 `/api/v1` 兼容层与 `/health`、`/api/v2/system/*`。请求/响应模型由 OpenAPI 生成（`scripts/generate-api-types.py` → `web/src/features/workspace/api/generated.ts`）。
 
 ### 启动
 
@@ -553,6 +569,10 @@ docker compose -f compose.research.yml up
 ```
 
 配置项见 [`.env.research.example`](.env.research.example)。运维、迁移与恢复流程详见 [`docs/research-service.md`](docs/research-service.md)；架构决策见 [`docs/adr/`](docs/adr/)。
+
+### 团队部署（Linux）
+
+课题组多人协作使用独立的 `compose.team.yml`（不要与个人 `compose.research.yml` 叠加）：PostgreSQL + Elasticsearch + Keycloak 26.4.7（OIDC，realm 导入 `deploy/team/scriptorium-realm.json`）+ Caddy 2.10.2 HTTPS 反向代理，仅发布 80/443，数据库与身份服务端口不暴露。登录采用 authorization code + PKCE，不使用客户端秘密；管理员由 `SCRIPTORIUM_ADMIN_SUBJECTS` 指定。完整步骤见 [`docs/integrated-workbench-runbook.md`](docs/integrated-workbench-runbook.md)。
 
 ### 验收与质量
 
@@ -580,7 +600,7 @@ docker compose -f compose.research.yml up
 ## 开发
 
 ```bash
-pytest tests/ -q          # 运行全部测试 (371)
+pytest tests/ -q          # 运行全部测试 (312)
 ruff check scriptorium/     # 代码检查
 ```
 

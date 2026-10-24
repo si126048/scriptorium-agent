@@ -102,6 +102,7 @@ def test_long_material_budget_decision_and_resume(research, client):
     assert run['state'] == 'awaiting_input'
     assert sum(w['end']-w['start'] for w in run['scope']) == len('自由😀e\u0301' * 2200)
     d = client.get(path + '/decisions').json()[0]
+    assert d['conversation_id'] == cid
     resumed = client.post(path + '/decisions/' + d['id'], json={'accept': True, 'additional_tokens': 50000})
     assert resumed.status_code == 200, resumed.text
     run_one(research, resumed.json()['id'])
@@ -141,18 +142,23 @@ def test_interview_pause_resume_and_material(research, client):
 
 def test_theory_compatibility_and_persona_continue(research, client, monkeypatch):
     import numpy as np
+    import json
     from scriptorium.research.legacy_store import PostgresStore
     import scriptorium.topostyle.provider as module
     import scriptorium.topostyle.service as training
-    class LocalTestModel:
+    class LocalTestModel(module.OllamaProvider):
         def __init__(self, **kwargs):
-            pass
-        def embed(self, texts):
-            return np.arange(len(texts)*12).reshape(len(texts),12).tolist()
-        def generate_structured(self, *args):
-            return {'core':'学习','expression':'解释','evidence':'自由'}
-        def generate(self, messages):
-            return '模拟表达，仅供测试'
+            super().__init__(**kwargs)
+            from types import SimpleNamespace
+            def transport(url, **options):
+                payload=options['json']
+                if url.endswith('/embeddings'):
+                    result={'embedding': np.arange(12,dtype=float).tolist(), 'prompt_eval_count': 5}
+                else:
+                    structured='Extract one JSON' in payload['messages'][0]['content']
+                    result={'message': {'content': json.dumps({'core':'学习','expression':'解释','evidence':'自由'},ensure_ascii=False) if structured else '模拟表达，仅供测试'},'prompt_eval_count': 12,'eval_count': 6}
+                return SimpleNamespace(raise_for_status=lambda:None,json=lambda:result)
+            self.transport=transport
     monkeypatch.setattr(module, 'OllamaProvider', LocalTestModel)
     monkeypatch.setattr(training, 'OllamaProvider', LocalTestModel)
     path,cid,aid = setup_workspace(research,client)

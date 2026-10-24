@@ -16,12 +16,15 @@ def usage_totals(c, run_id):
             'unknown_calls': sum(x['state'] == 'unknown' for x in calls), 'calls': len(calls)}
 
 
-def complete(s, job, provider, messages, output_tokens, response_format=None, run_id=None, on_text=None):
-    estimate = len(json.dumps(messages, ensure_ascii=False).encode('utf-8')) + output_tokens
+def reserve(s, job, provider, messages, output_tokens, run_id=None):
     identifier = db.uid()
+    estimate = len(json.dumps(messages, ensure_ascii=False).encode('utf-8')) + output_tokens
     with s.engine.begin() as c:
         s.access(c, job['project_id'], job['payload'].get('principal', s.settings.principal), True)
-        s.locked_job(c, job)
+        if not job.get('_synchronous'):
+            s.locked_job(c, job)
+        from .governance import check_egress, audit
+        source_assets = check_egress(s, c, job, provider, estimate)
         validation_limit = os.getenv('SCRIPTORIUM_VALIDATION_TOKEN_LIMIT')
         if validation_limit:
             # A dedicated validation schema is used for the entire paid evaluation batch.
@@ -39,7 +42,13 @@ def complete(s, job, provider, messages, output_tokens, response_format=None, ru
                 raise ResearchError('CALL_BUDGET_REQUIRED', 409)
         c.execute(db.model_calls.insert().values(id=identifier, project_id=job['project_id'], job_id=job['id'],
             run_id=run_id, model=provider.model, state='reserved', reserved_tokens=estimate,
-            source_assets=job['payload'].get('asset_ids', []), created_at=db.now()))
+            source_assets=source_assets, created_at=db.now()))
+        audit(c, job['project_id'], job['payload'].get('principal', s.settings.principal), 'model.reserved', identifier, {'model': provider.model, 'reserved_tokens': estimate})
+    return identifier
+
+
+def complete(s, job, provider, messages, output_tokens, response_format=None, run_id=None, on_text=None):
+    identifier = reserve(s, job, provider, messages, output_tokens, run_id)
     try:
         options = {'response_format': response_format} if response_format else {}
         if on_text:
@@ -101,4 +110,61 @@ def accounted_provider(service, job, provider):
         except (TypeError, ValueError):
             raise ResearchError('MODEL_STRUCTURE_INVALID', 422) from None
     provider._call = call
+    return provider
+
+
+def synchronous_job(s, pid, principal, kind, asset_ids=None):
+    return {'id': 'sync-' + db.uid(), 'project_id': pid, '_synchronous': True,
+            'payload': {'principal': principal, 'kind': kind, 'asset_ids': asset_ids or []}}
+
+
+def accounted_ollama(s, job, provider):
+    raw = provider.transport
+    def transport(url, **kwargs):
+        payload = kwargs.get('json', {})
+        active = SimpleNamespace(model=payload.get('model', provider.model), base_url=provider.base_url)
+        identifier = reserve(s, job, active, payload.get('messages') or [{'role': 'user', 'content': payload.get('prompt', '')}], 4000)
+        try:
+            response = raw(url, **kwargs); response.raise_for_status(); data = response.json()
+            known = data.get('prompt_eval_count') is not None or data.get('eval_count') is not None
+            usage = {'total_tokens': data.get('prompt_eval_count', 0) + data.get('eval_count', 0)} if known else None
+            with s.engine.begin() as c:
+                c.execute(db.model_calls.update().where(db.model_calls.c.id == identifier).values(
+                    state='returned' if known else 'unknown', usage=usage, finished_at=db.now()))
+            return response
+        except Exception as exc:
+            with s.engine.begin() as c:
+                c.execute(db.model_calls.update().where(db.model_calls.c.id == identifier).values(
+                    state='unknown', error=type(exc).__name__[:128], finished_at=db.now()))
+            raise
+    from contextlib import contextmanager
+    raw_stream = provider.stream_transport
+    @contextmanager
+    def stream_transport(method, url, **kwargs):
+        payload = kwargs.get('json', {})
+        active = SimpleNamespace(model=payload.get('model', provider.model), base_url=provider.base_url)
+        identifier = reserve(s, job, active, payload.get('messages', []), 4000)
+        usage = None
+        class AccountedResponse:
+            def __init__(self, response):
+                self.response = response
+            def raise_for_status(self):
+                return self.response.raise_for_status()
+            def iter_lines(self):
+                nonlocal usage
+                for line in self.response.iter_lines():
+                    if line:
+                        data = json.loads(line)
+                        if data.get('done') and ('prompt_eval_count' in data or 'eval_count' in data):
+                            usage = {'total_tokens': data.get('prompt_eval_count', 0) + data.get('eval_count', 0)}
+                    yield line
+        try:
+            with raw_stream(method, url, **kwargs) as response:
+                yield AccountedResponse(response)
+        finally:
+            with s.engine.begin() as c:
+                c.execute(db.model_calls.update().where(db.model_calls.c.id == identifier).values(
+                    state='returned' if usage is not None else 'unknown', usage=usage, finished_at=db.now()))
+    provider.transport = transport
+    provider.stream_transport = stream_transport
     return provider

@@ -47,7 +47,7 @@ def main(argv=None):
         from .migration import migrate as run
         result = run(None, args.source, settings.principal)
     elif args.command == 'serve':
-        if args.host not in {'localhost', '127.0.0.1', '::1'} and not settings.api_key:
+        if args.host not in {'localhost', '127.0.0.1', '::1'} and not settings.api_key and not __import__('os').getenv('SCRIPTORIUM_OIDC_ISSUER'):
             parser.error('Remote binding requires SCRIPTORIUM_RESEARCH_API_KEY')
         import uvicorn
         uvicorn.run('scriptorium.research.api:app', host=args.host, port=args.port)
@@ -132,6 +132,7 @@ def main(argv=None):
                     c.execute(sa.text('LOCK TABLE r_assets, r_text_versions IN EXCLUSIVE MODE'))
                     keys = set(c.execute(sa.select(db.assets.c.object_key)).scalars())
                     keys.update(c.execute(sa.select(db.versions.c.object_key)).scalars())
+                    keys.update(r['result']['object_key'] for r in c.execute(sa.select(db.jobs)).mappings() if (r['result'] or {}).get('object_key'))
                     removed = []
                     cutoff = db.now() - args.retention_hours * 3600
                     for path in service.objects.root.glob('*/*'):

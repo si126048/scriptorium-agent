@@ -1,5 +1,8 @@
 """Shared runtime selection for CLI, ACP and MCP. SQLite is an explicit compatibility mode."""
 import os
+from contextvars import ContextVar
+
+_account_context = ContextVar("scriptorium_account_context", default=None)
 
 import sqlalchemy as sa
 
@@ -31,6 +34,7 @@ def open_store(project_id, *, resource_id=None, corpus=False):
         existing = row(c, db.projects, db.projects.c.id == project_id)
     if not existing:
         service.create_project(cfg.principal, project_id, project_id=project_id)
+    _account_context.set((service, project_id, cfg.principal))
     return PostgresStore(service, project_id, cfg.principal, corpus=corpus)
 
 
@@ -38,7 +42,13 @@ def get_provider(mock=False):
     from .capabilities import provider
     if mock:
         return provider('demo')
-    if os.getenv('DASHSCOPE_API_KEY'):
+    from .providers import provider_config
+    if provider_config()['ready']:
+        context = _account_context.get()
+        if context:
+            from .calls import synchronous_job
+            s, pid, principal = context
+            return provider('live', s, synchronous_job(s, pid, principal, 'legacy'))
         return provider('live')
     class MissingProvider:
         def generate_structured(self, *args, **kwargs):

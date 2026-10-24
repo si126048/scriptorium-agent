@@ -9,7 +9,7 @@ const Citation=Node.create({name:'citation',group:'inline',inline:true,atom:true
  renderHTML:({HTMLAttributes})=>['span',mergeAttributes(HTMLAttributes,{'data-citation':HTMLAttributes.anchorId,'class':'uw-inline-citation',role:'button',tabindex:0}),'原文↗']});
 const Footnote=Node.create({name:'footnote',group:'inline',inline:true,atom:true,
  addAttributes:()=>({text:{default:''}}),parseHTML:()=>[{tag:'span[data-footnote]'}],
- renderHTML:({HTMLAttributes})=>['span',mergeAttributes(HTMLAttributes,{'data-footnote':'',class:'uw-footnote-node',title:HTMLAttributes.text}),'[注]']});
+ renderHTML:({HTMLAttributes})=>['span',mergeAttributes(HTMLAttributes,{'data-footnote':'',class:'uw-footnote-node',title:HTMLAttributes.text,role:'button',tabindex:0,'aria-label':'编辑脚注：'+HTMLAttributes.text}),'[注]']});
 const Raw=Node.create({name:'rawBlock',group:'block',atom:true,addAttributes:()=>({source:{default:''}}),
  parseHTML:()=>[{tag:'pre[data-original]'}],renderHTML:({HTMLAttributes})=>['pre',{'data-original':'',class:'uw-original-block'},HTMLAttributes.source]});
 function fromSource(source:string):JSONContent{
@@ -24,11 +24,11 @@ export function ManuscriptEditor({value,source,onChange,evidenceIds,onLocate,rec
  useEffect(()=>{handler.current=onChange;},[onChange]);
  const editor=useEditor({extensions:[StarterKit,Citation,Footnote,Raw,Placeholder.configure({placeholder:'从材料和论点开始写作…'})],
  content:(value || fromSource(source)) as JSONContent,editorProps:{attributes:{class:'uw-prose-editor','aria-label':'文稿可视化编辑器'},
- handleKeyDown:(_view,event)=>{const id=(event.target as HTMLElement).closest('[data-citation]')?.getAttribute('data-citation');if(id&&(event.key==='Enter'||event.key===' ')){event.preventDefault();onLocate(id);return true;}return false;},
- handleClick:(_view,_pos,event)=>{const id=(event.target as HTMLElement).closest('[data-citation]')?.getAttribute('data-citation');if(id){onLocate(id);return true;}return false;}},
+ handleKeyDown:(view,event)=>{const footnote=(event.target as HTMLElement).closest('[data-footnote]');if(footnote&&(event.key==='Enter'||event.key===' ')){event.preventDefault();const position=view.posAtDOM(footnote,0);const node=view.state.doc.nodeAt(position);if(node?.type.name==='footnote')void ask('编辑脚注',node.attrs.text).then(text=>{if(text!==null)view.dispatch(view.state.tr.setNodeMarkup(position,undefined,{text}));});return true;}const id=(event.target as HTMLElement).closest('[data-citation]')?.getAttribute('data-citation');if(id&&(event.key==='Enter'||event.key===' ')){event.preventDefault();onLocate(id);return true;}return false;},
+ handleClick:(view,_pos,event)=>{const footnote=(event.target as HTMLElement).closest('[data-footnote]');if(footnote){const position=view.posAtDOM(footnote,0);const node=view.state.doc.nodeAt(position);if(node?.type.name==='footnote')void ask('编辑脚注',node.attrs.text).then(text=>{if(text!==null)view.dispatch(view.state.tr.setNodeMarkup(position,undefined,{text}));});return true;}const id=(event.target as HTMLElement).closest('[data-citation]')?.getAttribute('data-citation');if(id){onLocate(id);return true;}return false;}},
  onUpdate:({editor})=>handler.current(editor.getJSON(),editor.getText({blockSeparator:'\n\n'}))});
- useEffect(()=>{if(editor&&value&&JSON.stringify(editor.getJSON())!==JSON.stringify(value))editor.commands.setContent(value as JSONContent,{emitUpdate:false});},[editor,value]);
- if(!editor)return <p>正在准备编辑器…</p>;
+ useEffect(()=>{if(editor&&!editor.isDestroyed&&value&&JSON.stringify(editor.getJSON())!==JSON.stringify(value))editor.commands.setContent(value as JSONContent,{emitUpdate:false});},[editor,value]);
+ if(!editor||editor.isDestroyed)return <p>正在准备编辑器…</p>;
  return <div className="uw-writing" data-record={recordId}><div className="uw-editor-toolbar" role="toolbar" aria-label="文稿格式">
  <button type="button" aria-label="粗体" aria-pressed={editor.isActive('bold')} onClick={()=>editor.chain().focus().toggleBold().run()}><b>B</b></button>
  <button type="button" aria-label="斜体" onClick={()=>editor.chain().focus().toggleItalic().run()}><i>I</i></button>

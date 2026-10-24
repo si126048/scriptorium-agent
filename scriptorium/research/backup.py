@@ -20,7 +20,7 @@ def backup(service, destination: Path):
     destination = destination.resolve()
     destination.mkdir(parents=True, exist_ok=False)
     archive_objects = FileObjects(destination / 'objects')
-    manifest = {'format': 'scriptorium-backup.v1', 'schema': 'research_0004',
+    manifest = {'format': 'scriptorium-backup.v1', 'schema': 'research_0005',
                 'created_at': db.now(), 'tables': {}, 'objects': []}
     with service.engine.connect().execution_options(isolation_level='REPEATABLE READ') as c, c.begin():
         names = ', '.join(table.name for table in db.metadata.sorted_tables)
@@ -35,6 +35,8 @@ def backup(service, destination: Path):
             with target.open('w', encoding='utf-8', newline='\n') as handle:
                 for value in c.execute(query).mappings():
                     data = dict(value)
+                    if table is db.jobs and (data.get('result') or {}).get('object_key'):
+                        keys.add(data['result']['object_key'])
                     if table in (db.assets, db.versions) and data.get('object_key'):
                         keys.add(data['object_key'])
                     handle.write(json.dumps(data, ensure_ascii=False) + '\n')
@@ -55,12 +57,13 @@ def backup(service, destination: Path):
 def restore(service, source: Path, withdrawal_ledger: Path | None = None):
     source = source.resolve(strict=True)
     manifest = json.loads((source / 'manifest.json').read_text(encoding='utf-8'))
-    if manifest.get('format') != 'scriptorium-backup.v1' or manifest.get('schema') not in {'research_0002', 'research_0003', 'research_0004'}:
+    if manifest.get('format') != 'scriptorium-backup.v1' or manifest.get('schema') not in {'research_0002', 'research_0003', 'research_0004', 'research_0005'}:
         raise ValueError('UNSUPPORTED_BACKUP')
     expected = {t.name for t in db.metadata.sorted_tables}
-    v3_tables = expected - {'r_model_calls', 'r_method_drafts', 'r_conversation_events', 'r_document_chapters'}
+    v4_tables = expected - {'r_users', 'r_sessions', 'r_project_policies', 'r_audit', 'r_workspaces', 'r_comments', 'r_change_proposals'}
+    v3_tables = v4_tables - {'r_model_calls', 'r_method_drafts', 'r_conversation_events', 'r_document_chapters'}
     older_tables = v3_tables - {'r_conversations', 'r_messages', 'r_entities', 'r_research_runs', 'r_research_steps', 'r_decisions'}
-    if set(manifest['tables']) not in (expected, v3_tables, older_tables):
+    if set(manifest['tables']) not in (expected, v4_tables, v3_tables, older_tables):
         raise ValueError('BACKUP_TABLE_SET_MISMATCH')
     for name in manifest['tables']:
         path = source / f'{name}.jsonl'

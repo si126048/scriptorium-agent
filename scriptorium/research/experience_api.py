@@ -26,12 +26,16 @@ def install(app, service, identity):
     router = APIRouter(prefix='/api/v2/projects/{project_id}')
 
     @router.get('/conversations/{cid}/snapshot')
-    def snapshot(project_id: str, cid: str, principal=Depends(identity), s=Depends(service)):
+    def snapshot(project_id: str, cid: str, principal=Depends(identity), s=Depends(service), limit: int = 80):
         with s.engine.connect().execution_options(isolation_level='REPEATABLE READ') as c, c.begin():
             s.access(c, project_id, principal)
             conv = conversation(s, c, project_id, cid)
+            personal = row(c, db.workspaces, db.workspaces.c.project_id == project_id, db.workspaces.c.user_id == principal, db.workspaces.c.conversation_id == cid)
+            project = row(c, db.projects, db.projects.c.id == project_id)
+            conv = {**conv, 'workspace': personal['payload'] if personal else (conv['workspace'] if project['owner_id'] == principal else {})}
             messages = [dict(m) for m in c.execute(sa.select(db.messages).where(db.messages.c.conversation_id == cid)
-                .order_by(db.messages.c.created_at, db.messages.c.id)).mappings()]
+                .order_by(db.messages.c.created_at.desc(), db.messages.c.id.desc()).limit(max(1,min(limit,200)))).mappings()]
+            messages.reverse()
             cursor = c.execute(sa.select(sa.func.coalesce(sa.func.max(db.conversation_events.c.sequence), 0))
                 .where(db.conversation_events.c.conversation_id == cid)).scalar()
             active = {j['id'] for j in c.execute(sa.select(db.jobs).where(db.jobs.c.project_id == project_id,
@@ -183,6 +187,21 @@ def install(app, service, identity):
             s.validate_evidence(c, project_id, r['payload'])
             return [dict(x) for x in c.execute(sa.select(db.document_chapters).where(
                 db.document_chapters.c.record_id == record_id).order_by(db.document_chapters.c.ordinal)).mappings()]
+
+    @router.get('/artifacts/{record_id}/chapters/{chapter_id}/history')
+    def chapter_history(project_id: str, record_id: str, chapter_id: str,
+                        principal=Depends(identity), s=Depends(service)):
+        with s.engine.connect() as c:
+            s.access(c, project_id, principal)
+            chapter = row(c, db.document_chapters, db.document_chapters.c.id == chapter_id,
+                db.document_chapters.c.record_id == record_id, db.document_chapters.c.project_id == project_id)
+            if not chapter:
+                raise ResearchError('CHAPTER_NOT_FOUND', 404)
+            s.validate_evidence(c, project_id, chapter['payload'])
+            versions = [r['payload']['previous_chapter'] for r in rows(c, db.records,
+                db.records.c.project_id == project_id, db.records.c.kind == 'review')
+                if r['payload'].get('chapter_id') == chapter_id and r['payload'].get('previous_chapter')]
+            return sorted(versions, key=lambda r: r['revision'], reverse=True)
 
     @router.put('/artifacts/{record_id}/chapters/{chapter_id}')
     def save_chapter(project_id: str, record_id: str, chapter_id: str, body: ChapterIn,

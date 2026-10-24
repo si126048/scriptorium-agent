@@ -1,4 +1,4 @@
-import type {Schemas} from './generated';
+import type {Schemas,Endpoints} from './generated';
 import {queryClient} from './query';
 let localKey='';
 let localUrl='';
@@ -53,7 +53,7 @@ export interface Payload {
   rebuttal_conditions?: string; source_record_ids?: string[]; author_id?: string;
   relation?: string; target_id?: string;
 }
-export interface Job { id: string; kind: string; state: string; error: string | null; result?: { record_id?: string } }
+export interface Job { payload?:{conversation_id?:string;[key:string]:unknown}; id: string; kind: string; state: string; error: string | null; result?: { record_id?: string } }
 export interface LegacyRecord { id: string; table_name: string; legacy_key: string; status: string; payload: unknown }
 
 export function serviceUrl() {
@@ -68,7 +68,7 @@ export async function response(path: string, init: RequestInit = {}) {
   const key = localKey || localStorage.getItem('scriptorium_research_key');
   if (key) headers.set('Authorization', `Bearer ${key}`);
   if (typeof init.body === 'string') headers.set('Content-Type', 'application/json');
-  const r = await fetch(`${serviceUrl()}${path}`, { ...init, headers, signal: timeoutSignal(init, 30000) });
+  const r = await fetch(`${serviceUrl()}${path}`, { ...init, credentials:'include', headers, signal: timeoutSignal(init, 30000) });
   if (!r.ok) throw new Error(`${r.status}：${await r.text()}`);
   return r;
 }
@@ -111,4 +111,16 @@ export async function persistDesktopConnection(url: string) {
 export function sendMessage(pid:string,cid:string,body:Schemas['SendIn'],idempotencyKey:string){
  return request<Job>(`${projectPath(pid)}/conversations/${encodeURIComponent(cid)}/messages`,{
  method:'POST',headers:{'Idempotency-Key':idempotencyKey},body:JSON.stringify(body)});
+}
+
+export async function configureConnection(url:string,key:string){
+ resetConnection();localUrl=url;localKey=key;localStorage.setItem('scriptorium_research_url',url);
+ localStorage.removeItem('scriptorium_research_key');
+ await queryClient.cancelQueries();queryClient.clear();await persistDesktopConnection(url);
+}
+
+/** Route contracts come from the same OpenAPI document as the service. */
+export function endpoint<K extends keyof Endpoints>(route:K,params:Record<string,string>,body?:Endpoints[K]['request']):Promise<Endpoints[K]['response']>{
+ const split=route.indexOf(' ');const method=route.slice(0,split);const path=route.slice(split+1).replace(/\{([^}]+)\}/g,(_,name:string)=>{if(!(name in params))throw new Error('Missing path parameter: '+name);return encodeURIComponent(params[name]);});
+ return request<Endpoints[K]['response']>(path,{method,...(body===undefined?{}:{body:JSON.stringify(body)})});
 }

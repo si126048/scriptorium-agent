@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -c requirements-research.lock '.[research]'
 COPY alembic-research.ini ./
 COPY migrations/research/ migrations/research/
 COPY --from=frontend /web/dist/ web/dist/
-RUN useradd -m -r scriptorium && mkdir -p /data/objects && chown -R scriptorium /data
+RUN useradd -m -r scriptorium && mkdir -p /data/objects /data/pandoc && chown -R scriptorium /data
 USER scriptorium
 EXPOSE 8010
 CMD ["scriptorium-research", "serve", "--host", "0.0.0.0", "--port", "8010"]
