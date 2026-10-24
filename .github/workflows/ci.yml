@@ -34,3 +34,19 @@ jobs:
       - run: cd web && npm run lint
       - run: cd web && npx tsc --noEmit
       - run: cd web && npm run build
+
+  deployment:
+    name: Deployment manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate compose files
+        run: |
+          printf 'SCRIPTORIUM_POSTGRES_PASSWORD=test-password\n' > .env.compose
+          docker compose -f compose.research.lite.yml --env-file .env.compose config -q
+          docker compose -f compose.research.yml --env-file .env.compose config -q
+      - name: Quickstart diagnostics
+        run: python scripts/quickstart.py --check || true

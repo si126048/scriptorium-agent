@@ -182,6 +182,7 @@ def create_app(settings=None, engine=None):
             c.execute(sa.select(db.projects.c.id).limit(1))
         # Kind list lets an operator compare API and Worker builds before queueing new work.
         return {'status': 'ok', 'service': 'research', 'version': SERVICE_VERSION,
+                'search': 'enabled' if str(s.settings.elasticsearch_url or '').strip() else 'disabled',
                 'job_kinds': sorted(SUPPORTED_JOB_KINDS)}
 
     @app.get('/api/v2/system/status')
@@ -438,7 +439,9 @@ def create_app(settings=None, engine=None):
                author: str | None = None, year_from: int | None = None, year_to: int | None = None,
                purpose: str | None = None,
                principal=Depends(identity), s=Depends(service)):
-        from .search import search as execute_search
+        from .search import enabled as search_enabled, search as execute_search
+        if not search_enabled(s):
+            raise ResearchError('SEARCH_DISABLED', 503)
         if not q.strip() or len(q) > 1000:
             raise ResearchError('INVALID_QUERY', 422)
         return execute_search(s, project_id, principal, q, asset_id, version_id, author, year_from, year_to, purpose)

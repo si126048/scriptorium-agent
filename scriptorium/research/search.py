@@ -17,7 +17,14 @@ MAPPING = {'properties': {
 }}
 
 
+def enabled(service):
+    """Search is optional: an empty SCRIPTORIUM_ELASTICSEARCH_URL disables indexing and querying."""
+    return bool(str(getattr(service.settings, 'elasticsearch_url', '') or '').strip())
+
+
 def client(service):
+    if not enabled(service):
+        raise ResearchError('SEARCH_DISABLED', 503)
     auth = {'basic_auth': (service.settings.elasticsearch_username, service.settings.elasticsearch_password)} if service.settings.elasticsearch_password else {}
     return Elasticsearch(service.settings.elasticsearch_url, request_timeout=15, max_retries=0, **auth)
 
@@ -47,6 +54,8 @@ def index_asset(service, es, c, asset_id, index=ALIAS):
 
 
 def sync_one(service):
+    if not enabled(service):
+        return False
     with service.engine.begin() as c:
         event = c.execute(sa.select(db.outbox).where(db.outbox.c.done.is_(False), db.outbox.c.attempts < 3)
             .order_by(db.outbox.c.created_at).with_for_update(skip_locked=True).limit(1)).mappings().first()
@@ -67,6 +76,8 @@ def sync_one(service):
 
 def search(service, project_id, principal, query, asset_id=None, version_id=None,
            author=None, year_from=None, year_to=None, purpose=None):
+    if not enabled(service):
+        raise ResearchError('SEARCH_DISABLED', 503)
     with service.engine.connect() as c:
         service.access(c, project_id, principal)
         filters = [{'term': {'project_id': project_id}}, {'exists': {'field': 'segment_id'}},

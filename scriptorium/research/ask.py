@@ -57,9 +57,9 @@ def retrieve(service, pid, principal, question):
     try:
         hits = search(service, pid, principal, question)['items']
     except ResearchError as exc:
-        if exc.code != 'SEARCH_UNAVAILABLE':
+        if exc.code not in {'SEARCH_UNAVAILABLE', 'SEARCH_DISABLED'}:
             raise
-        plan.update(retrieval='material_scan', source='materials', warning='SEARCH_UNAVAILABLE')
+        plan.update(retrieval='material_scan', source='materials', warning=exc.code)
     selected, seen, size = [], set(), 0
     for hit in hits:
         if len(selected) >= RETRIEVAL_LIMIT or size >= RETRIEVAL_BUDGET:
