@@ -2,7 +2,7 @@ import {useEffect,useRef} from 'react';
 import {EditorContent,useEditor} from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import {Node,mergeAttributes,type JSONContent} from '@tiptap/core';
-import {useDialogs} from './Dialogs';
+import {useDialogs} from './dialog-context';
 import Placeholder from '@tiptap/extension-placeholder';
 const Citation=Node.create({name:'citation',group:'inline',inline:true,atom:true,
  addAttributes:()=>({anchorId:{default:''}}),parseHTML:()=>[{tag:'span[data-citation]'}],
@@ -15,12 +15,13 @@ const Raw=Node.create({name:'rawBlock',group:'block',atom:true,addAttributes:()=
 function fromSource(source:string):JSONContent{
  return {type:'doc',content:source.split(/\n\s*\n/).filter(Boolean).map(block=>{
  if(/^#{1,6} /.test(block)){const m=block.match(/^(#{1,6}) (.*)$/s)!;return {type:'heading',attrs:{level:m[1].length},content:[{type:'text',text:m[2]}]};}
- if(/[\[\]`*<>]|^[-|>]/m.test(block))return {type:'rawBlock',attrs:{source:block}};
+ if(/(\[|\]|`|\*|<|>)|^[-|>]/m.test(block))return {type:'rawBlock',attrs:{source:block}};
  return {type:'paragraph',content:[{type:'text',text:block}]};})};
 }
 export function ManuscriptEditor({value,source,onChange,evidenceIds,onLocate,recordId}:{value?:Record<string,unknown>;source:string;recordId:string;evidenceIds:string[];onChange:(v:Record<string,unknown>,text:string)=>void;onLocate:(id:string)=>void}){
  const {ask}=useDialogs();
- const handler=useRef(onChange);handler.current=onChange;
+ const handler=useRef(onChange);
+ useEffect(()=>{handler.current=onChange;},[onChange]);
  const editor=useEditor({extensions:[StarterKit,Citation,Footnote,Raw,Placeholder.configure({placeholder:'从材料和论点开始写作…'})],
  content:(value || fromSource(source)) as JSONContent,editorProps:{attributes:{class:'uw-prose-editor','aria-label':'文稿可视化编辑器'},
  handleKeyDown:(_view,event)=>{const id=(event.target as HTMLElement).closest('[data-citation]')?.getAttribute('data-citation');if(id&&(event.key==='Enter'||event.key===' ')){event.preventDefault();onLocate(id);return true;}return false;},

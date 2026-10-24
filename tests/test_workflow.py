@@ -1,5 +1,4 @@
 import uuid
-from pathlib import Path
 from scriptorium.db import Store
 from scriptorium.models import (
     ConsentScope, Participant, Project, ReviewDecision, ReviewRequest,

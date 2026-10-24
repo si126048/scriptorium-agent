@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 
 from scriptorium.annotation import CulturalAnnotator, load_gazetteer, GazetteerEntry
 from scriptorium.models import EvidenceSpan

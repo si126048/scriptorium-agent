@@ -1,7 +1,7 @@
 import uuid
 from scriptorium.db import Store
 from scriptorium.models import (
-    ConsentScope, Participant, Project, RunState,
+    ConsentScope, Participant, Project,
 )
 from scriptorium.rag import ingest
 from scriptorium.llm import FakeProvider
@@ -103,7 +103,7 @@ def test_single_perspective_no_cross_critique(tmp_path):
 
 
 def test_unknown_source_raises(tmp_path):
-    s, d = _setup(tmp_path)
+    s, _d = _setup(tmp_path)
     provider = FakeProvider()
     reg = PerspectiveRegistry()
     perspectives = reg.load_many(['lacan', 'deleuze'])

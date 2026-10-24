@@ -1,9 +1,7 @@
 import json
-from pathlib import Path
 
-import pytest
 
-from scriptorium.behavioral import BehavioralProfiler, ConsentPolicy, SubjectProfiler
+from scriptorium.behavioral import BehavioralProfiler, SubjectProfiler
 from scriptorium.behavioral.chat_parser import load_participant_messages, load_normalized_messages
 from scriptorium.behavioral.config import load_participant_manifest
 from scriptorium.behavioral.inference import infer_claims

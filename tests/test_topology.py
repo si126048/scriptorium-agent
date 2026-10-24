@@ -3,13 +3,13 @@ from __future__ import annotations
 import pytest
 
 from scriptorium.topology.borromean import (
-    Register, RegisterCoherenceMonitor, UnknottingEvent, RSI_MARKERS,
+    Register, RegisterCoherenceMonitor, RSI_MARKERS,
 )
 from scriptorium.topology.mathemes import (
     Matheme, MathemeKind, MathemeRelation, MATHEME_DEFAULT_REGISTERS,
 )
 from scriptorium.topology.discourses import (
-    Discourse, TermKind,
+    TermKind,
     MASTER, UNIVERSITY, HYSTERIC, ANALYST,
     DISCOURSE_ROTATION, identify_discourse,
 )

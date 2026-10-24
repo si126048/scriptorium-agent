@@ -8,12 +8,10 @@ import subprocess
 import sys
 import time
 
-import pytest
 
 from scriptorium.acp.server import (
-    Transport, Session, SessionManager, Intent,
+    Transport, SessionManager, Intent,
     parse_intent, _extract_text, _format_help, _format_perspectives,
-    ACPServer, _configure_console,
 )
 
 

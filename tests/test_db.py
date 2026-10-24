@@ -1,7 +1,5 @@
-import json
 import uuid
-from pathlib import Path
-from scriptorium.db import Store, checksum, new_id
+from scriptorium.db import Store, checksum
 from scriptorium.models import (
     ConsentScope, Participant, Project, SourceDocument,
     EvidenceSpan, AnalysisRun, RunState,

@@ -2,21 +2,15 @@
 from __future__ import annotations
 
 import asyncio
-import os
 
 import pytest
 
 from scriptorium.mcp_server import (
     handle_list_tools,
     handle_call_tool,
-    _format_packet,
-    _format_dialectical,
     _perspectives,
     _search_docs,
-    _ingest_text,
     _ensure_setup,
-    DEFAULT_PROJECT,
-    DEFAULT_PARTICIPANT,
 )
 
 

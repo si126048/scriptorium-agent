@@ -290,7 +290,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const s = get();
     const stripped = s.tasks.map((t) => ({
       ...t,
-      messages: t.messages.slice(-MAX_STORED).map(({ streaming, ...rest }) => rest),
+      messages: t.messages.slice(-MAX_STORED).map(({ streaming: _streaming, ...rest }) => rest),
     }));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
   },

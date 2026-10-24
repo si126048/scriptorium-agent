@@ -14,8 +14,8 @@ function tauriInvoke(cmd: string, args?: Record<string, unknown>): Promise<unkno
 }
 
 export function SettingsPanel() {
-  const [apiKey, setApiKey] = useState('');
-  const [dataDir, setDataDir] = useState('');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('scriptorium_dashscope_key') || '');
+  const [dataDir, setDataDir] = useState(() => ('__TAURI__' in window ? '' : 'Browser mode (data stored in backend)'));
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
   const [startupCfg, setStartupCfg] = useState<StartupConfig>(loadConfig());
@@ -25,13 +25,8 @@ export function SettingsPanel() {
   const inputCls = 'w-full bg-transparent border-0 border-b border-border dark:border-border-dark px-0 py-1.5 text-sm text-ink dark:text-ink-dark placeholder-muted outline-none focus:border-accent transition-colors';
 
   useEffect(() => {
-    const saved = localStorage.getItem('scriptorium_dashscope_key');
-    if (saved) setApiKey(saved);
-
     if (isTauri) {
       tauriInvoke('get_data_dir')?.then((d) => setDataDir(String(d))).catch(console.error);
-    } else {
-      setDataDir('Browser mode (data stored in backend)');
     }
   }, [isTauri]);
 

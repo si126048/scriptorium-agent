@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 from scriptorium.models import (
     ConsentScope, EvidenceSpan, RunState, ReviewStatus, ReviewDecision,
-    Project, Participant, SourceDocument, Observation, Hypothesis,
+    Project, Observation, Hypothesis,
     AnalysisPacket, AnalysisRun, ErrorBody, ErrorResponse,
 )
 from scriptorium.db import checksum

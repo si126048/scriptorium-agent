@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import pytest
-import asyncio
 
 from scriptorium.concurrent import ConcurrentAnalyzer, AnalysisTask, BatchResult
-from scriptorium.db import Store, new_id
+from scriptorium.db import Store
 from scriptorium.models import (
-    Project, Participant, ConsentScope, SourceDocument, RunState,
+    Project, Participant, ConsentScope, RunState,
 )
 from scriptorium.rag import ingest
 

@@ -3,7 +3,7 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { StartupAnimation } from './components/startup/StartupAnimation';
 import {QueryClientProvider} from '@tanstack/react-query';
 import {MotionConfig} from 'motion/react';
-import {DialogProvider} from './features/workspace/components/Dialogs';
+import {DialogProvider} from './features/workspace/components/dialog-provider';
 import {queryClient} from './features/workspace/api/query';
 import {useWorkspaceUI} from './features/workspace/state';
 import {loadConfig} from './components/startup/startupConfig';

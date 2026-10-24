@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import uuid
-from pathlib import Path
 
-from scriptorium.db import Store, new_id
+from scriptorium.db import Store
 from scriptorium.models import (
     ConsentScope, Participant, Project, ReviewDecision, ReviewRequest,
-    RunState, EvidenceSpan, Observation, Hypothesis,
+    RunState, EvidenceSpan, Hypothesis,
 )
 from scriptorium.rag import ingest
 from scriptorium.workflow import Workflow
 from scriptorium.fuzzy import (
-    MembershipFunction, aggregate_grounding, HallucinationGuard,
+    HallucinationGuard,
     FuzzyGrounding,
 )
 from scriptorium.annotation import CulturalAnnotator

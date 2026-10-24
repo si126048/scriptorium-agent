@@ -127,7 +127,6 @@ def test_ingest_with_participant(tmp_path):
 
 
 def test_chat_format_detection(tmp_path):
-    from scriptorium.models import Project
     from scriptorium.rag import _is_chat_format
     chat = "[2024-01-01 10:00] Alice: hello\n[2024-01-01 10:01] Bob: hi there\n[2024-01-01 10:02] Alice: how are you?\n[2024-01-01 10:03] Bob: fine thanks"
     assert _is_chat_format(chat) is True

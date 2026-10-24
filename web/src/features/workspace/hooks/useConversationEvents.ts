@@ -3,8 +3,10 @@ import {projectPath,response} from '../api/client';
 import {queryClient} from '../api/query';
 interface Event {type:string;payload:{job_id:string;text:string;state?:string;message?:{metadata?:{job_id?:string}}}}
 export function useConversationEvents(pid:string,cid:string,onUpdate:()=>void,onEvent?:(event:Event)=>void){
- const handler=useRef(onUpdate);handler.current=onUpdate;
- const eventHandler=useRef(onEvent);eventHandler.current=onEvent;
+ const handler=useRef(onUpdate);
+ const eventHandler=useRef(onEvent);
+ useEffect(()=>{handler.current=onUpdate;},[onUpdate]);
+ useEffect(()=>{eventHandler.current=onEvent;},[onEvent]);
  useEffect(()=>{
  if(!pid||!cid)return;
  const controller=new AbortController();let cursor=0;let refresh:ReturnType<typeof setTimeout>|undefined;

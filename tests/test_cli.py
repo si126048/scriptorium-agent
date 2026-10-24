@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from scriptorium.cli import main
 
 def test_cli_workflow(tmp_path, capsys):
