@@ -22,6 +22,10 @@
 - **测试**：**383 passed**（新增 2 项检索禁用单测；旧静态界面断言改为工作台访谈面 + 构建提示页）。
 - **Ruff**：`scriptorium tests scripts migrations` 全通过。
 
+## CI
+
+推送后 GitHub Actions 三个 job 全部通过：Python lint & test、Frontend type check & build、Deployment manifests（`docker compose config` 校验两份清单 + quickstart 诊断）。
+
 ## 未验证
 
 - 本机没有 Docker：`compose` 只做了清单解析，未实际构建镜像或启动容器；CI 的 deployment job 会执行 `docker compose config`。
