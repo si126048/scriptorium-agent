@@ -3,12 +3,36 @@ import {queryClient} from './query';
 let localKey='';
 let localUrl='';
 let connection:Promise<void>|undefined;
+let connectionWarning='';
+const DEFAULT_LOCAL_URL='http://127.0.0.1:8010';
+function withTimeout<T>(work:Promise<T>,ms:number,message:string):Promise<T>{
+ let timer:ReturnType<typeof setTimeout>|undefined;
+ const timeout=new Promise<T>((_,reject)=>{timer=setTimeout(()=>reject(new Error(message)),ms);});
+ return Promise.race([work,timeout]).finally(()=>{if(timer)clearTimeout(timer);});
+}
+function timeoutSignal(init:RequestInit,ms:number){
+ const timeout=typeof AbortSignal.timeout==='function'?AbortSignal.timeout(ms):undefined;
+ if(!timeout)return init.signal;
+ if(!init.signal)return timeout;
+ return typeof AbortSignal.any==='function'?AbortSignal.any([init.signal,timeout]):timeout;
+}
 async function hydrateConnection(){
  const internal=(window as unknown as {__TAURI_INTERNALS__?:{invoke:(name:string)=>Promise<{url:string;api_key:string}>}}).__TAURI_INTERNALS__;
- if(!internal)return;
- if(!connection)connection=(async()=>{for(let i=0;i<60;i++){try{const value=await internal.invoke('get_research_connection');const probe=await fetch(value.url+'/health',{signal:AbortSignal.timeout(3000),headers:value.api_key?{Authorization:'Bearer '+value.api_key}:{}});if(!probe.ok||(await probe.json()).status!=='ok')throw new Error('研究服务仍在启动');localUrl=value.url;localKey=value.api_key;return;}catch{await new Promise(resolve=>setTimeout(resolve,1000));}}throw new Error('本机研究服务尚未就绪，请检查安装状态或连接已有服务。');})().catch(e=>{connection=undefined;throw e;});
+ if(!internal||localUrl)return;
+ if(!connection)connection=(async()=>{
+  // A slow or broken desktop IPC must never block the whole workbench: probe once, then fall back.
+  try{
+   const value=await withTimeout(internal.invoke('get_research_connection'),2500,'桌面服务地址读取超时');
+   localUrl=value.url;localKey=value.api_key;connectionWarning='';
+  }catch(e){
+   localUrl=DEFAULT_LOCAL_URL;
+   connectionWarning=`未能从桌面进程取得研究服务地址（${e instanceof Error?e.message:String(e)}）；已回退到 ${localUrl}。可在“设置与档案”保存连接地址。`;
+  }
+ })();
  await connection;
 }
+export function connectionWarningText(){return connectionWarning;}
+export function resetConnection(){connection=undefined;localUrl='';localKey='';connectionWarning='';}
 export interface Project { id: string; name: string; description: string }
 export interface Version { id: string; quality: Record<string, unknown>; created_at: number }
 export interface Material { id: string; name: string; status: string; revision: number; versions: Version[]; metadata: Record<string, unknown> }
@@ -44,7 +68,7 @@ export async function response(path: string, init: RequestInit = {}) {
   const key = localKey || localStorage.getItem('scriptorium_research_key');
   if (key) headers.set('Authorization', `Bearer ${key}`);
   if (typeof init.body === 'string') headers.set('Content-Type', 'application/json');
-  const r = await fetch(`${serviceUrl()}${path}`, { ...init, headers });
+  const r = await fetch(`${serviceUrl()}${path}`, { ...init, headers, signal: timeoutSignal(init, 30000) });
   if (!r.ok) throw new Error(`${r.status}：${await r.text()}`);
   return r;
 }

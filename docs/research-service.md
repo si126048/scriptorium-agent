@@ -91,6 +91,7 @@ docker compose -f compose.research.yml up --build -d
 - 环境变量始终可用作后备；保存的密钥优先于环境变量。`SCRIPTORIUM_PROVIDER` 可指定默认服务商，`SCRIPTORIUM_MODEL` 可覆盖模型。
 - “测试连接”只调用服务商的模型列表接口（列出模型），不发送研究材料，不需要额度消耗；失败返回 `PROVIDER_PROBE_FAILED:<错误>`，不打印密钥。
 - 旧 CLI／ACP／MCP 运行时在未显式传参时也跟随当前服务商；显式传入 `api_key`／`base_url` 时保持原有行为。
+- **桌面模式**：工作台启动时只向桌面进程询问一次本机服务地址（2.5 秒超时）；取不到就回退到 `http://127.0.0.1:8010` 并在设置页显示提示，不会出现“正在读取模型设置…”无限等待。桌面命令本身也有 8 秒超时，慢速或缺失的本机运行时只影响写提示，不阻塞界面。
 - 相关错误码：`UNKNOWN_PROVIDER`、`PROVIDER_KEY_REQUIRED`、`INVALID_PROVIDER_KEY`、`INVALID_PROVIDER_BASE_URL`、`PROVIDER_BASE_URL_REQUIRED`、`MODEL_NOT_CONFIGURED`。
 
 

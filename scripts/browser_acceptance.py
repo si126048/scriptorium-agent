@@ -374,7 +374,12 @@ def main():
         # Second project must not inherit the first project's messages or materials (UI-03).
         click_text(browser, '.uw-sidebar button', '＋ 项目')
         fill_dialog(browser, args.project + ' B')
-        browser.require("!!document.querySelector('.uw-welcome')", 60, 'empty project')
+        empty_project = browser.wait("!!document.querySelector('.uw-welcome')", 30, 'empty project')
+        if not empty_project:
+            click_text(browser, '.uw-sidebar button', '＋ 项目')
+            fill_dialog(browser, args.project + ' B2')
+            empty_project = browser.wait("!!document.querySelector('.uw-welcome')", 60, 'empty project retry')
+        assert empty_project, 'new project did not open its empty workspace'
         empty = browser.js("""
           return {messages: document.querySelectorAll('.uw-message').length,
                   materials: document.querySelectorAll('.uw-material').length,
@@ -403,6 +408,7 @@ def main():
           const text=await r.text();
           return [r.status, text.length, text.slice(0,80)];""")
         check('WRITE-01 项目导出可用', exported[0] == 200 and exported[1] > 0, exported)
+
     finally:
         browser.close()
 

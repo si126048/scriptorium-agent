@@ -60,14 +60,20 @@ pub async fn set_research_service(app: tauri::AppHandle, url: String) -> Result<
 
 #[tauri::command]
 pub async fn get_research_connection(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    use std::time::Duration;
     use tauri_plugin_shell::ShellExt;
     if let Some(value) = app.store(STORE_PATH).map_err(|_| "settings unavailable")?.get("research_service_url") {
         if let Some(url) = value.as_str() {
             if !url.is_empty() { return Ok(serde_json::json!({"url":url,"api_key":""})); }
         }
     }
+    // Never let a missing or slow local runtime block the workbench: the UI falls back to the
+    // default service address when this command fails or times out.
     let command = app.shell().sidecar("scriptorium-backend").map_err(|_| "research backend unavailable")?;
-    let result = command.args(["local-runtime", "connection"]).output().await.map_err(|_| "research services not ready")?;
+    let result = tokio::time::timeout(Duration::from_secs(8), command.args(["local-runtime", "connection"]).output())
+        .await
+        .map_err(|_| "research services not ready")?
+        .map_err(|_| "research services not ready")?;
     if !result.status.success() { return Err("research services not installed yet".to_string()); }
     serde_json::from_slice(&result.stdout).map_err(|_| "invalid local service connection".to_string())
 }

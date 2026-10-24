@@ -18,10 +18,15 @@ pub async fn start_sidecar(app: &AppHandle) {
     }
     if std::env::var("SCRIPTORIUM_RUNTIME").unwrap_or_default() != "sqlite" {
         match app.shell().sidecar("scriptorium-backend") {
-            Ok(cmd) => { match cmd.args(["local-runtime", "ensure"]).output().await {
-                Ok(output) if output.status.success() => {},
-                _ => eprintln!("[research] local services need setup or repair"),
-            }},
+            Ok(cmd) => {
+                let ensure = tokio::time::timeout(std::time::Duration::from_secs(180),
+                    cmd.args(["local-runtime", "ensure"]).output()).await;
+                match ensure {
+                    Ok(Ok(output)) if output.status.success() => {},
+                    Ok(_) => eprintln!("[research] local services need setup or repair"),
+                    Err(_) => eprintln!("[research] local services took too long to start"),
+                }
+            },
             Err(_) => eprintln!("[research] development mode: start the unified research service explicitly"),
         }
         return;
