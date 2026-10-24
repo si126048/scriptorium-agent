@@ -378,7 +378,7 @@ def test_backup_keeps_conversations_entities_and_decisions(research,client,tmp_p
     destination=tmp_path/'archive'
     backup(research,destination)
     manifest=json.loads((destination/'manifest.json').read_text(encoding='utf-8'))
-    assert manifest['schema']=='research_0004'
+    assert manifest['schema']=='research_0005'
     assert manifest['tables']['r_conversations']['rows']==1
     assert manifest['tables']['r_entities']['rows']==1
 

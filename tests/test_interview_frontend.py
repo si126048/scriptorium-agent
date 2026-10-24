@@ -1,14 +1,22 @@
 from pathlib import Path
 
+ROOT = Path(__file__).parents[1]
 
-def test_web_ui_contains_interview_surface_without_removing_existing_modules():
-    html = (Path(__file__).parents[1] / 'scriptorium' / 'static' / 'index.html').read_text(encoding='utf-8')
-    for marker in ('panel-interview', 'mode-interview', 'handleMainSend', 'interview-start', 'interview-reset', 'interview-complete', 'interview-withdraw'):
-        assert marker in html
-    for marker in ('panel-perspectives', 'panel-documents', 'panel-search', 'btn-analyze', 'btn-dialectical'):
-        assert marker in html
-    assert '/api/v1/interviews' in html
-    assert 'scriptorium_conversation_messages' in html
-    assert '清零当前访谈并重新开始' in html
-    assert 'prefers-reduced-motion' in html
-    assert '--paper: #f7f7f5' in html
+
+def test_static_fallback_is_a_build_notice_not_a_second_ui():
+    """The old single-file console was removed; the fallback must only explain how to build."""
+    html = (ROOT / 'scriptorium' / 'static' / 'index.html').read_text(encoding='utf-8')
+    assert '前端资源尚未构建' in html
+    assert 'npm --prefix web run build' in html
+    assert 'compose.research.lite.yml' in html
+    assert '/docs' in html
+    assert len(html) < 5000
+    assert 'panel-interview' not in html
+
+
+def test_workspace_keeps_the_interview_surface():
+    workspace = (ROOT / 'web/src/features/workspace/UnifiedWorkspace.tsx').read_text(encoding='utf-8')
+    composer = (ROOT / 'web/src/features/workspace/components/ResearchComposer.tsx').read_text(encoding='utf-8')
+    for marker in ("panel === 'interview'", "'pause'", "'resume'", "'complete'", "'reset'"):
+        assert marker in workspace
+    assert '研究问题或访谈回答' in composer
