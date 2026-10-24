@@ -5,8 +5,27 @@ use tauri_plugin_store::StoreExt;
 
 const STORE_PATH: &str = "settings.json";
 const API_KEY_FIELD: &str = "dashscope_api_key";
+const EXTERNAL_SERVICE_FIELD: &str = "research_service_url";
 
 pub async fn start_sidecar(app: &AppHandle) {
+    // External research mode connects from the workbench and does not start a legacy writer.
+    let external_mode = app.store(STORE_PATH).ok()
+        .and_then(|s| s.get(EXTERNAL_SERVICE_FIELD))
+        .and_then(|v| v.as_str().map(String::from))
+        .filter(|url| url.starts_with("http://") || url.starts_with("https://"));
+    if external_mode.is_some() {
+        return;
+    }
+    if std::env::var("HERMENEUT_RUNTIME").unwrap_or_default() != "sqlite" {
+        match app.shell().sidecar("hermeneut-backend") {
+            Ok(cmd) => { match cmd.args(["local-runtime", "ensure"]).output().await {
+                Ok(output) if output.status.success() => {},
+                _ => eprintln!("[research] local services need setup or repair"),
+            }},
+            Err(_) => eprintln!("[research] development mode: start the unified research service explicitly"),
+        }
+        return;
+    }
     let data_dir = Manager::path(app).app_data_dir().expect("failed to get app_data_dir");
     let db_path = data_dir.join("lacan.db");
     let storage_path = data_dir.join("storage");

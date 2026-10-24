@@ -1,0 +1,61 @@
+# Local, single-owner deployment. Set the three secret variables before running.
+services:
+  postgres:
+    image: postgres:17.6
+    environment:
+      POSTGRES_DB: hermeneut
+      POSTGRES_USER: hermeneut
+      POSTGRES_PASSWORD: ${HERMENEUT_POSTGRES_PASSWORD:?Set a URL-safe database password}
+    volumes: ["research-pg:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hermeneut -d hermeneut"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.3
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.ml.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    volumes: ["research-es:/usr/share/elasticsearch/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+  migrate:
+    build: { context: ., dockerfile: Dockerfile.research }
+    command: ["hermeneut-research", "init-db"]
+    environment: &research-env
+      HERMENEUT_DATABASE_URL: postgresql+psycopg://hermeneut:${HERMENEUT_POSTGRES_PASSWORD:?Set a URL-safe database password}@postgres:5432/hermeneut
+      HERMENEUT_OBJECT_ROOT: /data/objects
+      HERMENEUT_ELASTICSEARCH_URL: http://elasticsearch:9200
+      HERMENEUT_RESEARCH_OWNER: local-user
+      HERMENEUT_RESEARCH_API_KEY: ${HERMENEUT_RESEARCH_API_KEY:?Set a research API key}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      LACAN_MODEL: ${LACAN_MODEL:-qwen-plus}
+    depends_on:
+      postgres: { condition: service_healthy }
+    volumes: ["research-objects:/data/objects"]
+  api:
+    build: { context: ., dockerfile: Dockerfile.research }
+    environment: *research-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      elasticsearch: { condition: service_healthy }
+    ports: ["127.0.0.1:8010:8010"]
+    volumes: ["research-objects:/data/objects"]
+  worker:
+    build: { context: ., dockerfile: Dockerfile.research }
+    command: ["hermeneut-research", "worker"]
+    environment: *research-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      elasticsearch: { condition: service_healthy }
+    volumes: ["research-objects:/data/objects"]
+volumes:
+  research-pg:
+  research-es:
+  research-objects:

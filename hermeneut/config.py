@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -66,3 +67,15 @@ def get_settings() -> Settings:
 def reset_settings() -> None:
     global _settings
     _settings = None
+
+
+def frozen_source() -> str | None:
+    """Path of the legacy source database that must never be opened for writing.
+
+    Acceptance runs and tests set this to the frozen migration snapshot. Writing to it would
+    silently change the input of every later migration, so the legacy store refuses to open it.
+    """
+    raw = os.environ.get('HERMENEUT_FROZEN_SOURCE', '').strip()
+    if not raw:
+        return None
+    return str(Path(raw).expanduser().resolve())

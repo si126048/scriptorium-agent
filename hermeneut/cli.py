@@ -203,7 +203,11 @@ def execute(args: argparse.Namespace) -> Any:
     if args.command in {"interactive", "shell"}:
         from .interactive import run_interactive
         return run_interactive(args.db)
-    store = Store(args.db)
+    if os.getenv('HERMENEUT_DATABASE_URL') and os.getenv('HERMENEUT_RUNTIME') != 'sqlite':
+        from .research.runtime import open_store
+        store = open_store(getattr(args, 'project', 'cli-session'), resource_id=getattr(args, 'run', None) or getattr(args, 'doc_id', None))
+    else:
+        store = Store(args.db)
     provider = None
     if getattr(args, 'mock', False):
         from .llm import FakeProvider
@@ -211,6 +215,9 @@ def execute(args: argparse.Namespace) -> Any:
     elif os.environ.get("DASHSCOPE_API_KEY"):
         from .llm import QwenProvider
         provider = QwenProvider()
+    elif os.getenv('HERMENEUT_DATABASE_URL') and os.getenv('HERMENEUT_RUNTIME') != 'sqlite':
+        from .research.runtime import get_provider
+        provider = get_provider()
     flow = Workflow(store, provider)
     cmd = args.command
     if cmd == "init":
@@ -271,16 +278,27 @@ def execute(args: argparse.Namespace) -> Any:
                         generate_report=args.report)
         return result.model_dump(mode='json')
     if cmd == "doc-ingest":
+        if hasattr(store, 'service'):
+            from .research.worker import run_one
+            p = Path(args.path)
+            j = store.service.import_material(store.project_id, store.principal, p.read_bytes(), p.name, __import__('uuid').uuid4().hex)
+            run_one(store.service, j['id'])
+            return {'doc_id': j['payload']['asset_id'], 'status': 'indexed'}
         from .documents import DocumentStore
         doc_store = DocumentStore(store.conn)
         doc_id, page_count = doc_store.ingest(args.path, title=args.title)
         return {"doc_id": doc_id, "page_count": page_count, "status": "indexed"}
     if cmd == "doc-search":
+        if hasattr(store, 'service'):
+            return {'items': store.search_materials(args.query, store.project_id, args.limit)}
         from .documents import DocumentStore
         doc_store = DocumentStore(store.conn)
         results = doc_store.search(args.query, doc_id=args.doc_id, limit=args.limit)
         return {"items": results}
     if cmd == "doc-outline":
+        if hasattr(store, 'service'):
+            result = store.service.get_segments(store.project_id, store.principal, args.doc_id)
+            return {'doc_id': args.doc_id, 'outline': [{'id': s['xml_id'], 'page': s['page_label']} for s in result['segments']]}
         from .documents import DocumentStore
         doc_store = DocumentStore(store.conn)
         doc = doc_store.get_document(args.doc_id)
@@ -288,6 +306,10 @@ def execute(args: argparse.Namespace) -> Any:
             raise CliError(f"document not found: {args.doc_id}")
         return {"doc_id": args.doc_id, "title": doc['title'], "outline": doc.get('outline')}
     if cmd == "doc-verify":
+        if hasattr(store, 'service'):
+            from .documents.quote_verify import verify_quote
+            result = store.service.get_segments(store.project_id, store.principal, args.doc_id)
+            return {'doc_id': args.doc_id, 'result': verify_quote([s['text'] for s in result['segments']], args.quote, args.page)}
         from .documents import DocumentStore
         from .documents.quote_verify import verify_quote
         doc_store = DocumentStore(store.conn)

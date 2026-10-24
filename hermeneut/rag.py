@@ -78,7 +78,11 @@ def ingest(store: Store, path: str, project_id: str, participant_id: str|None=No
     text=read_source(path); kind=Path(path).suffix.lower().lstrip('.')
     if not text.strip(): raise ValueError('EMPTY_SOURCE')
     cs=checksum(text)
-    existing=store.conn.execute("SELECT data FROM documents WHERE project_id=? AND json_extract(data,'$.checksum')=?",(project_id,cs)).fetchone()
+    if hasattr(store, 'find_document_by_checksum'):
+        known = store.find_document_by_checksum(project_id, cs)
+        existing = {'data': known.model_dump_json()} if known else None
+    else:
+        existing=store.conn.execute("SELECT data FROM documents WHERE project_id=? AND json_extract(data,'$.checksum')=?",(project_id,cs)).fetchone()
     if existing: return SourceDocument.model_validate_json(existing['data'])
     d=SourceDocument(id=new_id('doc'),project_id=project_id,participant_id=participant_id,origin=str(Path(path).resolve()),type=kind,checksum=cs,text=text,consent_scope=consent or ConsentScope())
     store.put_document(d)
@@ -108,10 +112,14 @@ def ingest_text(store: Store, text: str, project_id: str, participant_id: str | 
     if not text:
         return []
     cs = checksum(text)
-    existing = store.conn.execute(
-        "SELECT data FROM documents WHERE project_id=? AND json_extract(data,'$.checksum')=?",
-        (project_id, cs),
-    ).fetchone()
+    if hasattr(store, 'find_document_by_checksum'):
+        known = store.find_document_by_checksum(project_id, cs)
+        existing = {'data': known.model_dump_json()} if known else None
+    else:
+        existing = store.conn.execute(
+            "SELECT data FROM documents WHERE project_id=? AND json_extract(data,'$.checksum')=?",
+            (project_id, cs),
+        ).fetchone()
     if existing:
         return [SourceDocument.model_validate_json(existing['data']).id]
     d = SourceDocument(
@@ -142,6 +150,8 @@ def ingest_text(store: Store, text: str, project_id: str, participant_id: str | 
 
 
 def search(store: Store, q: str, project_id: str | None = None, limit: int = 5) -> list[dict]:
+    if hasattr(store, 'search_materials'):
+        return store.search_materials(q, project_id, limit)
     q = q.strip()
     if not q:
         return []

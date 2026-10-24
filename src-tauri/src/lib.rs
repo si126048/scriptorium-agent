@@ -12,6 +12,8 @@ pub fn run() {
             commands::get_api_key,
             commands::set_api_key,
             commands::get_data_dir,
+            commands::set_research_service,
+            commands::get_research_connection,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

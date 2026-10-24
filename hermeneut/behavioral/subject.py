@@ -34,10 +34,12 @@ class SubjectProfiler:
         )
 
     def build(self, participant_id: str, provider=None, *, with_relations: bool = True,
-              batch_size: int = 80, aliases: dict[str, list[str]] | None = None) -> ProfileArtifact:
+              batch_size: int = 80, aliases: dict[str, list[str]] | None = None,
+              registered_materials=None) -> ProfileArtifact:
         if not self.consent.is_active():
             raise PermissionError('PROFILE_CONSENT_REQUIRED')
-        sources, spans = load_materials(self.sources_config, root=self.root, participant_id=participant_id)
+        sources, spans = (registered_materials if registered_materials is not None else
+                          load_materials(self.sources_config, root=self.root, participant_id=participant_id))
         for source in sources:
             scope = source.consent_scope
             if scope.get('withdrawn_at'):

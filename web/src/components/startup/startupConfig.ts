@@ -53,7 +53,7 @@ export const DEFAULT_CONFIG: StartupConfig = {
   mode: 'session',
   theme: 'light',
   speed: 1,
-  requireInteraction: true,
+  requireInteraction: false,
   allowSkip: true,
   sound: true,
   soundVolume: 0.5,

@@ -47,8 +47,14 @@ def _get_provider(mock: bool):
 
 
 def _ensure_setup():
-    global _store, _provider
+    global _store, _provider, DEFAULT_PARTICIPANT
     if _store is None:
+        if os.getenv('HERMENEUT_DATABASE_URL') and os.getenv('HERMENEUT_RUNTIME') != 'sqlite':
+            from .research.runtime import open_store, get_provider
+            DEFAULT_PARTICIPANT = '__corpus__'
+            _store = open_store(DEFAULT_PROJECT, corpus=True)
+            _provider = get_provider(os.getenv('LACAN_MOCK') == '1')
+            return
         db_path = os.getenv("LACAN_DB_PATH", DEFAULT_DB)
         _store = Store(db_path)
         _provider = _get_provider(os.getenv("LACAN_MOCK") == "1")
@@ -292,7 +298,10 @@ def main():
     parser = argparse.ArgumentParser(description="Hermeneut MCP Server")
     parser.add_argument("--db", default=os.getenv("LACAN_DB_PATH", DEFAULT_DB))
     parser.add_argument("--mock", action="store_true")
+    parser.add_argument('--legacy-sqlite', action='store_true')
     args = parser.parse_args()
+    if args.legacy_sqlite:
+        os.environ['HERMENEUT_RUNTIME'] = 'sqlite'
 
     if args.mock:
         os.environ["LACAN_MOCK"] = "1"

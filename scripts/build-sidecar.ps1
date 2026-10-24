@@ -1,24 +1,11 @@
-# Build PyInstaller sidecar
+# PyInstaller must already be installed in the pinned build environment.
 $ErrorActionPreference = 'Stop'
-Set-Location $PSScriptRoot/..
-
-Write-Host "Building Python sidecar with PyInstaller..." -ForegroundColor Cyan
-
-# Install PyInstaller if not present
-pip install pyinstaller --quiet
-
-# Build the sidecar
-pyinstaller hermeneut.spec --distpath src-tauri/bin --workpath desktop-build/pyinstaller-tmp --noconfirm
-
-# Rename for Tauri sidecar convention (Windows)
-$platform = "x86_64-pc-windows-msvc"
-$src = "src-tauri/bin/hermeneut-backend.exe"
-$dst = "src-tauri/bin/hermeneut-backend-$platform.exe"
-
-if (Test-Path $src) {
-    Copy-Item $src $dst -Force
-    Write-Host "Sidecar built: $dst" -ForegroundColor Green
-} else {
-    Write-Host "Error: Sidecar build failed" -ForegroundColor Red
-    exit 1
-}
+Set-Location (Join-Path $PSScriptRoot '..')
+if (-not (Test-Path web/dist/index.html)) { throw 'Build web/dist before the backend.' }
+python -m PyInstaller hermeneut.spec --distpath src-tauri/bin --workpath desktop-build/pyinstaller-tmp --noconfirm
+if ($LASTEXITCODE -ne 0) { throw 'Backend packaging failed.' }
+$source = 'src-tauri/bin/hermeneut-backend.exe'
+$destination = 'src-tauri/bin/hermeneut-backend-x86_64-pc-windows-msvc.exe'
+if (-not (Test-Path $source)) { throw 'Packaged backend missing.' }
+Copy-Item -LiteralPath $source -Destination $destination -Force
+Write-Host "Sidecar built: $destination"

@@ -2,7 +2,14 @@
 
 **对抗性多视角话语分析工具** — 形式化记号驱动的多理论视角辩证分析，产出可追溯的证据化主体结构画像。
 
-> v3.1 · Python 3.12+ · 284 tests · MIT
+> v3.1 · Python 3.12+ · 356 tests · MIT
+
+两条并行的产品线：
+
+- **核心分析引擎（v3.1）** — SQLite 运行时，CLI + Web UI + 桌面应用 + ACP/MCP，见下文。
+- **Research 服务（v4.0-dev）** — 独立的人文研究工作区，PostgreSQL + Elasticsearch 后端、版本化材料与证据锚点、`/api/v2` 接口，可选部署。见 [Research 服务](#research-服务v40-dev) 与 [`docs/research-service.md`](docs/research-service.md)。
+
+> TopoStyle 语料特征提取工作台（TF-IDF / 持久同调 / 共现图）作为独立子项目位于 [`tools/topostyle-workbench`](tools/topostyle-workbench/README.md)，保留自有 CLI、测试与数据；产品内的 TopoStyle Persona 模块位于 `hermeneut/topostyle/`。
 
 ---
 
@@ -474,6 +481,58 @@ MCP 客户端配置示例（Qoder / Claude Desktop）：
 
 ---
 
+## Research 服务（v4.0-dev）
+
+面向长期人文研究的独立服务，与核心引擎的 SQLite 运行时完全隔离，采用 PostgreSQL 持久化 + Elasticsearch 检索，提供版本化材料、证据锚点、方法运行、决策留痕与统一研究工作区。默认为可选部署，不影响核心分析引擎的使用。
+
+### 能力
+
+| | |
+|---|---|
+| **版本化材料** | 导入 → 分段 (segments) → TEI → OCR → 修订 (revisions) 全链路版本管理 |
+| **证据锚点** | `anchors` 将结论绑定到材料精确位置，支持 `verify-anchors` 校验 |
+| **方法与作业** | `method-runs` / `jobs` / `research-runs` 记录研究过程，Worker 异步执行、可中断恢复 |
+| **对话与决策** | `conversations` / `messages` / `decisions` 留痕，`citation-drafts` 管理引文草稿 |
+| **对象存储** | 可选 S3 后端（`HERMENEUT_OBJECT_BACKEND=s3`），兼容 SeaweedFS |
+| **OCR** | rapidocr / tesseract 双后端，支持扫描版文献 |
+| **统一工作台** | Web 端 Research Workbench + Unified Workspace（`web/src/features/`） |
+| **平滑迁移** | `migrate-sqlite` 从核心引擎的 SQLite 快照迁移，Alembic 版本化 schema |
+
+### 接口
+
+API 前缀 `/api/v2/projects/{project_id}/...`（materials、anchors、records、method-runs、jobs、conversations、research-runs、decisions、participants、personas、citation-drafts 等），并提供 `/api/v1` 兼容层与 `/health`、`/api/v2/system/*`。
+
+### 启动
+
+```bash
+# 安装 research extra
+uv pip install -e ".[research]"
+
+# 单机开发（本地 PostgreSQL + Elasticsearch）
+hermeneut-research init-db
+hermeneut-research serve          # 默认 127.0.0.1:8010
+hermeneut-research worker         # 异步作业 Worker
+
+# 或一键脚本（Windows）
+.\scripts\start-research.ps1
+
+# 容器编排（postgres + elasticsearch + migrate/api/worker）
+docker compose -f compose.research.yml up
+```
+
+配置项见 [`.env.research.example`](.env.research.example)。运维、迁移与恢复流程详见 [`docs/research-service.md`](docs/research-service.md)；架构决策见 [`docs/adr/`](docs/adr/)。
+
+### 验收与质量
+
+```powershell
+.\scripts\run-acceptance.ps1      # 可复现验收（工作区摘要 + 逐项日志）
+.\scripts\test-services.ps1       # 本地临时 PG + ES
+```
+
+验收报告位于 `docs/acceptance/`，学术质量案例（Q-01~Q-08）由 `scripts/quality-cases.py` 生成。
+
+---
+
 ## 隐私与伦理
 
 | 原则 | 说明 |
@@ -489,7 +548,7 @@ MCP 客户端配置示例（Qoder / Claude Desktop）：
 ## 开发
 
 ```bash
-pytest tests/ -q          # 运行全部测试 (284)
+pytest tests/ -q          # 运行全部测试 (356)
 ruff check hermeneut/     # 代码检查
 ```
 

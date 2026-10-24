@@ -1,4 +1,15 @@
+import os
+import tempfile
+from pathlib import Path
+
 import pytest
+
+# The legacy SQLite database is a *source*, not scratch space. Keep the legacy default path
+# outside the project so an import or a fixture cannot create tables in data/lacan.db, and mark
+# that file read-only so an explicit path cannot overwrite it either.
+_TESTS_TMP = Path(tempfile.mkdtemp(prefix='hermeneut-tests-'))
+os.environ.setdefault('LACAN_DB_PATH', str(_TESTS_TMP / 'legacy-default.db'))
+os.environ.setdefault('HERMENEUT_FROZEN_SOURCE', str(Path(__file__).resolve().parents[1] / 'data' / 'lacan.db'))
 
 from hermeneut.db import Store
 from hermeneut.models import ConsentScope, Participant, Project

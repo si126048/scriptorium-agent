@@ -18,6 +18,9 @@ fixtures/
 *.db-wal
 .env
 .env.local
+tmp/
+output/
+tools/
 *.log
 .coverage
 htmlcov/

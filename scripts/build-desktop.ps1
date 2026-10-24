@@ -1,23 +1,14 @@
-# Full desktop build pipeline
+# Build one current-user NSIS release candidate from one frozen source tree.
 $ErrorActionPreference = 'Stop'
-Set-Location $PSScriptRoot/..
-
-Write-Host "=== Building Hermeneut Agent Desktop ===" -ForegroundColor Cyan
-
-# Step 1: Build Python sidecar
-Write-Host "`n[1/3] Building Python sidecar..." -ForegroundColor Cyan
-& "$PSScriptRoot/build-sidecar.ps1"
-
-# Step 2: Install npm dependencies and build frontend
-Write-Host "`n[2/3] Building frontend..." -ForegroundColor Cyan
-Set-Location web
-npm ci
-npm run build:tauri
-Set-Location ..
-
-# Step 3: Build Tauri application
-Write-Host "`n[3/3] Building Tauri application..." -ForegroundColor Cyan
-cargo tauri build --config src-tauri/tauri.conf.json
-
-Write-Host "`n=== Build Complete ===" -ForegroundColor Green
-Write-Host "Installer location: src-tauri/target/release/bundle/" -ForegroundColor Green
+Set-Location (Join-Path $PSScriptRoot '..')
+function Assert-Exit([string]$Stage) { if ($LASTEXITCODE -ne 0) { throw "$Stage failed ($LASTEXITCODE)" } }
+npm --prefix web ci
+Assert-Exit 'npm ci'
+npm --prefix web run build:tauri
+Assert-Exit 'frontend build'
+# The backend also serves the frontend, so freeze web/dist before packaging it.
+& (Join-Path $PSScriptRoot 'build-sidecar.ps1')
+Assert-Exit 'backend build'
+cargo tauri build --config src-tauri/tauri.conf.json --bundles nsis
+Assert-Exit 'NSIS build'
+Write-Host 'Release candidate built. Clean-user installation and recovery acceptance remain separate.'

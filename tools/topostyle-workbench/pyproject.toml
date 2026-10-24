@@ -1,0 +1,15 @@
+[project]
+name = "topostyle"
+version = "0.1.0"
+description = "Topology-aware personal style simulation workbench"
+requires-python = ">=3.11"
+dependencies = ["numpy", "scipy", "scikit-learn", "networkx", "ripser", "persim", "gudhi", "click", "textual"]
+
+[project.scripts]
+topostyle = "topostyle.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100

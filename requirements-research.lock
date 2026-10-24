@@ -1,0 +1,6 @@
+# Validated on Python 3.12 / Windows. Research-service additions only.
+SQLAlchemy==2.0.55
+psycopg[binary]==3.3.6
+alembic==1.20.1
+elasticsearch==8.19.3
+lxml==6.1.3

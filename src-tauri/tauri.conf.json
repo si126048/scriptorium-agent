@@ -23,7 +23,7 @@
     "security": {
       "csp": {
         "default-src": "'self' tauri://localhost https://tauri.localhost",
-        "connect-src": "'self' http://127.0.0.1:8000 ws://127.0.0.1:8000 https://dashscope.aliyuncs.com",
+        "connect-src": "'self' http: https: ws://127.0.0.1:8000",
         "style-src": "'self' 'unsafe-inline'",
         "img-src": "'self' data: https:",
         "font-src": "'self' data:"
@@ -32,7 +32,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis",
+      "msi"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -42,6 +45,12 @@
     ],
     "externalBin": [
       "bin/hermeneut-backend"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "installerHooks": "installer-hooks.nsh"
+      }
+    }
   }
 }

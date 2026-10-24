@@ -1,11 +1,12 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { LOGO_PATH } from './LogoSVG';
-import { DEFAULT_CONFIG, STEPS, loadConfig, shouldPlay } from './startupConfig';
+import { DEFAULT_CONFIG, STEPS as ORIGINAL_STEPS, loadConfig, shouldPlay } from './startupConfig';
 import type { StartupConfig, StartupStep } from './startupConfig';
 import './startup.css';
 
 interface Props {
   onComplete: () => void;
+  brandingOnly?: boolean;
 }
 
 function clamp01(v: number, lo = 0, hi = 1): number {
@@ -13,7 +14,7 @@ function clamp01(v: number, lo = 0, hi = 1): number {
   return isFinite(n) ? Math.min(hi, Math.max(lo, n)) : lo;
 }
 
-export function StartupAnimation({ onComplete }: Props) {
+export function StartupAnimation({ onComplete, brandingOnly = false }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const completedRef = useRef(false);
 
@@ -35,6 +36,13 @@ export function StartupAnimation({ onComplete }: Props) {
     const root: HTMLDivElement = rootEl;
 
     const C: StartupConfig = { ...DEFAULT_CONFIG, ...loadConfig() };
+    const STEPS = brandingOnly ? ORIGINAL_STEPS.map((step, index) => ({ ...step,
+      zh: ['打开研究项目', '准备材料阅读', '连接研究会话', '恢复工作位置', '准备就绪'][index % 5],
+      en: 'RESEARCH WORKSPACE', say: 'Preparing research workspace.',
+      log: '正在准备工作台', logEn: 'PREPARING WORKSPACE',
+      action: step.action === 'auto' ? 'auto' as const : 'confirm' as const,
+      btnZh: '继续', btnEn: 'CONTINUE',
+    })) : ORIGINAL_STEPS;
     C.speed = clamp01(C.speed, 0.35, 3);
     C.identity = String(C.identity || 'OPERATOR').slice(0, 48);
 
@@ -765,7 +773,7 @@ export function StartupAnimation({ onComplete }: Props) {
       document.removeEventListener('pointerdown', unlock, true);
       document.removeEventListener('keydown', unlock, true);
     };
-  }, [finish]);
+  }, [finish, brandingOnly]);
 
   return <div ref={rootRef} className="ha-startup-root ha-boot" />;
 }

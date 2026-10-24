@@ -507,6 +507,7 @@ class ACPServer:
 
 
 def main() -> None:
+    global DEFAULT_PARTICIPANT
     _configure_console()
     logging.basicConfig(
         level=os.environ.get("LACAN_LOG_LEVEL", "WARNING"),
@@ -516,10 +517,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Hermeneut ACP Server")
     parser.add_argument("--db", default=os.getenv("LACAN_DB_PATH", DEFAULT_DB))
     parser.add_argument("--mock", action="store_true", help="Use FakeProvider (no API key)")
+    parser.add_argument('--legacy-sqlite', action='store_true')
     args = parser.parse_args()
 
-    store = Store(args.db)
-    provider = _get_provider(args.mock)
+    if args.legacy_sqlite:
+        os.environ['HERMENEUT_RUNTIME'] = 'sqlite'
+    if os.getenv('HERMENEUT_DATABASE_URL') and os.getenv('HERMENEUT_RUNTIME') != 'sqlite':
+        from ..research.runtime import open_store, get_provider
+        DEFAULT_PARTICIPANT = '__corpus__'
+        store = open_store(DEFAULT_PROJECT, corpus=True)
+        provider = get_provider(args.mock)
+    else:
+        store = Store(args.db)
+        provider = _get_provider(args.mock)
     transport = Transport()
     server = ACPServer(store, provider, transport)
     server.run()

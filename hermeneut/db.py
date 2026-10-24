@@ -29,9 +29,15 @@ class Store:
     MIGRATIONS: list[tuple[int, str, str]] = []
 
     def __init__(self, path: str | None = None):
-        from .config import get_settings
+        from .config import frozen_source, get_settings
         cfg = get_settings()
         self.path = Path(path or cfg.db_path)
+        frozen = frozen_source()
+        if frozen and str(self.path.resolve()) == frozen:
+            # Opening the frozen snapshot would create tables and a default project in it,
+            # changing the input of every later migration. Use a working copy instead.
+            raise RuntimeError('SOURCE_DATABASE_READ_ONLY: refusing to write the frozen migration source '
+                               f'{frozen}; set LACAN_DB_PATH to a working copy')
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.lock = threading.RLock()
         self.conn = sqlite3.connect(self.path, check_same_thread=False, timeout=30.0)
