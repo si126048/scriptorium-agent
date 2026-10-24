@@ -20,6 +20,9 @@ export interface Payload {
   dimensions?: Record<string, string>; findings?: { title: string; text: string; evidence_ids: string[] }[];
   open_questions?: string[]; alternatives?: string[]; outcome?: string; method_id?: string;
   coverage?: { segment_id: string; status: string }[];
+  question?: string; followups?: string[]; insufficient?: boolean;
+  scope?: { segment_id: string; asset_id: string; version_id: string; start_codepoint: number; end_codepoint: number }[];
+  plan?: { retrieval?: string; source?: string; hits?: number; segment_count?: number; characters?: number; materials?: string[] };
   from_id?: string; to_id?: string; parent_id?: string; difficulty_id?: string;
   difficulty_type?: string; criterion_id?: string; position_id?: string;
   retained?: string; negated?: string; reason?: string; shift?: string; excluded_causes?: string;

@@ -27,7 +27,7 @@ class ConversationUpdate(BaseModel):
 
 class SendIn(BaseModel):
     text: str = Field(min_length=1, max_length=100000)
-    tool: Literal['chat', 'research', 'theory', 'subject', 'persona'] = 'chat'
+    tool: Literal['ask', 'chat', 'research', 'theory', 'subject', 'persona'] = 'ask'
     asset_ids: list[str] = Field(default_factory=list, max_length=100)
     segment_ids: list[str] = Field(default_factory=list, max_length=2000)
     scope: list[dict] | None = Field(default=None, max_length=2000)

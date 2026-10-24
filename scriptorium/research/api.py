@@ -25,11 +25,14 @@ SERVICE_VERSION = '4.0.0-dev'
 
 KINDS = Literal['question', 'annotation', 'concept', 'context', 'claim', 'position', 'criterion',
     'difficulty', 'transition', 'standpoint', 'appearance', 'shift', 'parallax', 'branch',
-    'objection', 'response', 'manuscript', 'review', 'method_report']
+    'objection', 'response', 'manuscript', 'review', 'method_report', 'research_answer']
 
 
 class ModelKeyIn(BaseModel):
-    key: str = Field(max_length=1024)
+    key: str | None = Field(default=None, max_length=1024)
+    provider: str | None = Field(default=None, max_length=64)
+    base_url: str | None = Field(default=None, max_length=500)
+    model: str | None = Field(default=None, max_length=200)
 
 
 class ProjectIn(BaseModel):
@@ -163,16 +166,27 @@ def create_app(settings=None, engine=None):
 
     @app.get('/api/v2/system/model')
     def model_status(principal=Depends(identity)):
-        import os
-        from .model_credentials import configured_key
-        return {'configured': bool(configured_key()), 'editable': bool(os.getenv('SCRIPTORIUM_LOCAL_RUNTIME_ROOT')),
-                'provider': 'qwen', 'secret_returned': False}
+        """Provider catalogue and key state. Secrets are never returned, only their source."""
+        from .providers import public
+        return public()
 
     @app.put('/api/v2/system/model')
-    def model_key(body: ModelKeyIn, principal=Depends(identity)):
-        from .model_credentials import save_key
-        save_key(body.key)
-        return {'configured': bool(body.key), 'secret_returned': False}
+    def model_config(body: ModelKeyIn, principal=Depends(identity)):
+        from . import providers
+        provider_id = body.provider or providers.active_id()
+        if body.key:
+            providers.save_key(provider_id, body.key)
+        return providers.update(provider=provider_id, base_url=body.base_url, model=body.model)
+
+    @app.delete('/api/v2/system/model')
+    def model_delete(provider: str | None = None, principal=Depends(identity)):
+        from . import providers
+        return providers.delete_key(provider or providers.active_id())
+
+    @app.post('/api/v2/system/model/test')
+    def model_test(provider: str | None = None, principal=Depends(identity)):
+        from . import providers
+        return providers.probe(provider)
 
     @app.get('/api/v2/methods')
     def methods(principal=Depends(identity)):

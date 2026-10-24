@@ -1,27 +1,26 @@
-"""Local model credential access, separate from project records and browser storage."""
-import os
-from pathlib import Path
-from .service import ResearchError
+"""Compatibility facade over the provider registry.
+
+Older call sites import configured_key/save_key; credentials now live in the provider registry,
+which supports several OpenAI-compatible providers and both the OS credential store and a
+private development file.
+"""
+from __future__ import annotations
 
 
-def configured_key():
-    root = os.getenv('SCRIPTORIUM_LOCAL_RUNTIME_ROOT')
-    if root:
-        from .local_runtime import target
-        from .windows_credentials import read
-        value = read(target(Path(root))) or {}
-        return value.get('qwen') or os.getenv('DASHSCOPE_API_KEY', '')
-    return os.getenv('DASHSCOPE_API_KEY', '')
+
+def configured_key(provider_id: str | None = None):
+    from .providers import key_for
+    return key_for(provider_id)
 
 
-def save_key(value):
-    root = os.getenv('SCRIPTORIUM_LOCAL_RUNTIME_ROOT')
-    if not root or os.name != 'nt':
-        raise ResearchError('MODEL_KEY_MANAGED_BY_SERVER_ENVIRONMENT', 409)
-    from .local_runtime import target
-    from .windows_credentials import read, write
-    name = target(Path(root))
-    credentials = read(name)
-    if not credentials:
-        raise ResearchError('LOCAL_CREDENTIALS_MISSING', 409)
-    write(name, {**credentials, 'qwen': value})
+def save_key(value, provider_id: str | None = None):
+    from .providers import active_id, save_key as store
+    if not provider_id:
+        provider_id = active_id()
+    store(provider_id, value)
+    return {'configured': True, 'provider': provider_id, 'secret_returned': False}
+
+
+def delete_key(provider_id: str | None = None):
+    from .providers import active_id, delete_key as remove
+    return remove(provider_id or active_id())

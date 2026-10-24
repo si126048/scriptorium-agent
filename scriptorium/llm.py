@@ -86,6 +86,21 @@ class QwenProvider:
         from openai import OpenAI
         from .config import get_settings
         cfg = get_settings()
+        if api_key is None and model is None and base_url == "https://dashscope.aliyuncs.com/compatible-mode/v1":
+            # No explicit provider: follow the workspace's active provider registry. This keeps the
+            # legacy CLI/ACP/MCP runtimes provider-agnostic instead of being Qwen-only.
+            try:
+                from .research import providers as registry
+                active = registry.active_id()
+                stored = registry.stored(active)
+                key = registry.key_for(active)
+                if key:
+                    catalog = registry.BY_ID.get(active, {})
+                    api_key = key
+                    base_url = stored.get('base_url') or catalog.get('base_url') or base_url
+                    model = stored.get('model') or (cfg.model if active == 'qwen' else catalog.get('default_model'))
+            except Exception:
+                pass
         self.api_key = api_key or cfg.dashscope_api_key
         if not self.api_key:
             raise ValueError("DASHSCOPE_API_KEY is required for QwenProvider")

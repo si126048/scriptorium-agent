@@ -154,6 +154,15 @@ def click_text(browser, selector, text, starts=False):
       node.scrollIntoView({{block:'center'}}); node.click(); return true;""")
 
 
+
+def fill_dialog(browser, value):
+    """The workspace asks for names through a Radix dialog, not window.prompt."""
+    browser.require("!!document.querySelector('.uw-modal input')", 20, 'dialog input')
+    set_value(browser, '.uw-modal input', value)
+    click_text(browser, '.uw-modal-actions button', '确认')
+    browser.require("!document.querySelector('.uw-modal')", 20, 'dialog closed')
+
+
 def set_value(browser, selector, value):
     return browser.js(f"""
       const node=document.querySelector({json.dumps(selector)});
@@ -199,8 +208,8 @@ def main():
         check('UI-01 统一入口加载研究工作台', True, browser.js('return document.title'))
 
         # Prompt-free project creation: the UI uses prompt() for the project name.
-        browser.js(f"window.prompt=()=>{json.dumps(args.project)}; window.confirm=()=>true;")
         click_text(browser, '.uw-sidebar button', '＋ 项目')
+        fill_dialog(browser, args.project)
         browser.require(f"[...document.querySelectorAll('.uw-sidebar option')].some(o=>o.textContent==={json.dumps(args.project)})",
                         30, 'project option')
         click_text(browser, '.uw-sidebar button', '＋ 新研究')
@@ -279,6 +288,38 @@ def main():
             "return [...document.querySelectorAll('.uw-message.assistant')].map(m=>m.innerText.slice(0,80)).join(' / ');"))
         browser.screenshot(out / '05-demo-reply.png')
 
+        # Ask-first: typing a question is enough; the answer keeps its scope, coverage and one-click deepen.
+        answered = browser.js("return [...document.querySelectorAll('.uw-message.assistant')].map(m=>m.innerText).join('\\n');")
+        check('ASK-01 直接提问即可检索并回答', '检索' in (answered or '') and '演示' in (answered or ''),
+              (answered or '')[:120])
+        click_text(browser, '.uw-result-actions button', '')
+        browser.require("!!document.querySelector('.uw-artifact-content')", 60, 'answer artifact opened')
+        covered = browser.js("return document.body.innerText.includes('检索与覆盖');")
+        check('ASK-02 回答记录含检索方式与覆盖', covered, f'检索与覆盖面板={covered}')
+        browser.screenshot(out / '05b-ask-answer.png')
+        click_text(browser, '.uw-document-body button', '深入完整研究')
+        deepened = browser.wait("[...document.querySelectorAll('.uw-notice')].some(n=>n.textContent.includes('完整研究'))",
+                                60, 'deepen notice')
+        check('ASK-03 一键在同一范围展开完整研究', deepened, browser.js(
+            "return (document.querySelector('.uw-notice')||{}).innerText||'';"))
+
+        # Model provider settings: the browser can save a key; it is never echoed back.
+        click_text(browser, '.uw-sidebar-bottom button', '设置与档案')
+        browser.require("!!document.querySelector('select[aria-label=\"模型服务商\"]')", 30, 'model settings')
+        set_value(browser, 'select[aria-label="模型服务商"]', 'deepseek')
+        browser.require("document.querySelector('select[aria-label=\"模型服务商\"]').value==='deepseek'",
+                        20, 'provider selected')
+        set_value(browser, 'input[aria-label="模型 API 密钥"]', 'sk-browser-test-only')
+        click_text(browser, '.uw-document-body button', '保存并启用')
+        saved = browser.wait("[...document.querySelectorAll('.uw-notice')].some(n=>n.textContent.includes('立即生效'))",
+                             40, 'key saved from browser')
+        check('MODEL-01 浏览器保存模型密钥立即生效', saved, browser.js(
+            "return (document.querySelector('.uw-document-body')||{}).innerText.slice(0,160)||'';"))
+        no_echo = browser.js("return !document.body.innerText.includes('sk-browser-test-only')"
+                             "&&document.body.innerText.includes('已配置')")
+        check('MODEL-02 密钥不回显并显示存储来源', no_echo, '')
+        browser.screenshot(out / '06b-model-provider.png')
+
         # Version comparison must not pretend to work with a single text version (MAT-04).
         if not browser.js("return !!document.querySelector('.uw-material')"):
             click_text(browser, '.uw-sidebar button', '材料', starts=True)
@@ -323,16 +364,16 @@ def main():
           return {doc: doc?getComputedStyle(doc).display:'missing', conv: conv?getComputedStyle(conv).display:'missing'};""")
         check('UI-05 窄屏只显示一个长区域', state['conv'] == 'none' and state['doc'] != 'none', json.dumps(state))
         browser.screenshot(out / '08-narrow-document.png')
-        browser.js("document.querySelector('.uw-document-pane header button').click();")
-        returned = browser.wait("getComputedStyle(document.querySelector('.uw-conversation')).display!=='none'", 20,
-                                'conversation back')
+        browser.js("document.querySelector('.uw-document-pane [aria-label=\"关闭文档\"]').click();")
+        returned = browser.wait("getComputedStyle(document.querySelector('.uw-conversation')).display!=='none'"
+                                "&&!!document.querySelector('form.uw-composer textarea')", 20, 'conversation back')
         check('UI-05 返回对话后输入区仍在', returned, browser.js(
             "return document.querySelector('form.uw-composer textarea')?.value;"))
         browser.send('Emulation.clearDeviceMetricsOverride')
 
         # Second project must not inherit the first project's messages or materials (UI-03).
-        browser.js(f"window.prompt=()=>{json.dumps(args.project + ' B')};")
         click_text(browser, '.uw-sidebar button', '＋ 项目')
+        fill_dialog(browser, args.project + ' B')
         browser.require("!!document.querySelector('.uw-welcome')", 60, 'empty project')
         empty = browser.js("""
           return {messages: document.querySelectorAll('.uw-message').length,

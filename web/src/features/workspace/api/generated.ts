@@ -14,13 +14,13 @@ export interface Schemas {
   "HTTPValidationError": { "detail"?: Array<Schemas["ValidationError"]> };
   "InterviewIn": { "participant_id": string; "conversation_id": string; "config_id"?: (string | null); "provider_mode"?: "live" | "demo" };
   "MethodIn": { "method_id": "situating.v1" | "immanent_critique.v1" | "parallax.v1"; "question": string; "segment_ids": Array<string>; "provider_mode"?: "live" | "demo"; "max_input_chars"?: number; "max_output_tokens"?: number };
-  "ModelKeyIn": { "key": string };
+  "ModelKeyIn": { "key"?: (string | null); "provider"?: (string | null); "base_url"?: (string | null); "model"?: (string | null) };
   "ParticipantIn": { "pseudonym": string; "material_collection"?: boolean; "profile_analysis"?: boolean; "agent_simulation"?: boolean; "expires_at"?: (string | null) };
   "PersonaIn": { "participant_id": string; "name": string };
   "ProjectIn": { "name": string; "description"?: string };
-  "RecordIn": { "kind": "question" | "annotation" | "concept" | "context" | "claim" | "position" | "criterion" | "difficulty" | "transition" | "standpoint" | "appearance" | "shift" | "parallax" | "branch" | "objection" | "response" | "manuscript" | "review" | "method_report"; "payload": Record<string, unknown>; "revision"?: (number | null) };
+  "RecordIn": { "kind": "question" | "annotation" | "concept" | "context" | "claim" | "position" | "criterion" | "difficulty" | "transition" | "standpoint" | "appearance" | "shift" | "parallax" | "branch" | "objection" | "response" | "manuscript" | "review" | "method_report" | "research_answer"; "payload": Record<string, unknown>; "revision"?: (number | null) };
   "RevisionIn": { "revision": number; "tei": string };
-  "SendIn": { "text": string; "tool"?: "chat" | "research" | "theory" | "subject" | "persona"; "asset_ids"?: Array<string>; "segment_ids"?: Array<string>; "scope"?: (Array<Record<string, unknown>> | null); "provider_mode"?: "live" | "demo"; "participant_id"?: (string | null); "persona_id"?: (string | null); "perspective_ids"?: Array<string>; "methods"?: Array<"situating.v1" | "immanent_critique.v1" | "parallax.v1">; "token_budget"?: number };
+  "SendIn": { "text": string; "tool"?: "ask" | "chat" | "research" | "theory" | "subject" | "persona"; "asset_ids"?: Array<string>; "segment_ids"?: Array<string>; "scope"?: (Array<Record<string, unknown>> | null); "provider_mode"?: "live" | "demo"; "participant_id"?: (string | null); "persona_id"?: (string | null); "perspective_ids"?: Array<string>; "methods"?: Array<"situating.v1" | "immanent_critique.v1" | "parallax.v1">; "token_budget"?: number };
   "TurnIn": { "question_id": string; "answer_text": string };
   "ValidationError": { "loc": Array<(string | number)>; "msg": string; "type": string; "input"?: unknown; "ctx"?: Record<string, unknown> };
 }

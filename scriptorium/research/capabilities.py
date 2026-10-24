@@ -13,16 +13,12 @@ from .workspace import source_segments
 
 
 def provider(mode, service=None, job=None):
+    from .providers import provider as resolve_provider
+    engine = resolve_provider(mode, service, job)
     if mode == 'demo':
-        from scriptorium.llm import FakeProvider
-        return FakeProvider()
-    from .model_credentials import configured_key
-    key = configured_key()
-    if not key:
-        raise ResearchError('MODEL_NOT_CONFIGURED')
-    from scriptorium.llm import QwenProvider
+        return engine
     from .calls import accounted_provider
-    return accounted_provider(service, job, QwenProvider(api_key=key))
+    return accounted_provider(service, job, engine)
 
 
 def execute_capability(s, pid, principal, body, job=None):

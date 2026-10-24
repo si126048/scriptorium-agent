@@ -282,6 +282,9 @@ def execute_workspace(s, job):
     body, pid = job['payload'], job['project_id']
     if body['tool'] == 'research' or body.get('resume_run_id'):
         return run_research(s, job)
+    if body['tool'] == 'ask':
+        from .ask import execute as execute_ask
+        return execute_ask(s, job)
     from .capabilities import execute_capability
     result = execute_capability(s, pid, body['principal'], body, job=job)
     with s.engine.begin() as c:

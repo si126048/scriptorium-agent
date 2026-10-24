@@ -5,12 +5,13 @@ import { codepointOffset, download, exportBrowserHistory, persistDesktopConnecti
 import type { Anchor, Job, Material, Project, ResearchRecord, Segment } from './api/client';
 import './workspace.css';
 import './experience.css';
-import { useDialogs } from './components/Dialogs';
+import { useDialogs } from './components/dialog-context';
 const ManuscriptEditor=lazy(()=>import('./components/ManuscriptEditor').then(m=>({default:m.ManuscriptEditor})));
 const ReportGraph=lazy(()=>import('./components/ReportGraph'));
 import { DocumentPane, ResearchProgress } from './components/WorkspaceParts';
 import { CitationReview,type CitationDraft } from './components/CitationReview';
 import { ResearchComposer,type Tool } from './components/ResearchComposer';
+import { ModelProviderForm } from './components/ModelProviderForm';
 import { useWorkspaceUI } from './state';
 import { useConversationEvents } from './hooks/useConversationEvents';
 import { queryClient } from './api/query';
@@ -38,7 +39,6 @@ export default function UnifiedWorkspace() {
   const [graphKind,setGraphKind]=useState<'research'|'concept'>();
   const [editorJson, setEditorJson] = useState<Record<string, unknown>>();
   const [citationDrafts,setCitationDrafts] = useState<CitationDraft[]>([]);
-  const [modelSecret,setModelSecret]=useState('');
   const [usage,setUsage] = useState({used_tokens:0,unknown_calls:0});
   const [librarySearch,setLibrarySearch] = useState('');
   const sendKey = useRef<{text:string;key:string}|undefined>(undefined);
@@ -66,7 +66,8 @@ export default function UnifiedWorkspace() {
   const [selected, setSelected] = useState<string[]>([]);
   const [selection, setSelection] = useState<Omit<Anchor, 'id'>>();
   const [artifact, setArtifact] = useState<ResearchRecord>();
-  const activeArtifact=useRef<string|undefined>(undefined);activeArtifact.current=artifact?.id;
+  const activeArtifact=useRef<string|undefined>(undefined);
+ useEffect(()=>{activeArtifact.current=artifact?.id;},[artifact?.id]);
   const [editText, setEditText] = useState('');
   const [editTitle, setEditTitle] = useState('');
   const [editFields, setEditFields] = useState<Record<string, string>>({});
@@ -75,7 +76,7 @@ export default function UnifiedWorkspace() {
   const [searchYear, setSearchYear] = useState('');
   const [note, setNote] = useState('');
   const [draft, setDraft] = useState('');
-  const [tool, setTool] = useState<Tool>('chat');
+  const [tool, setTool] = useState<Tool>('ask');
   const [method, setMethod] = useState('');
   const [mode, setMode] = useState<'live' | 'demo'>('live');
   const [participantId, setParticipantId] = useState('');
@@ -348,6 +349,17 @@ export default function UnifiedWorkspace() {
     await loadProject(pid); if(feed.current && feed.current.scrollHeight-feed.current.scrollTop-feed.current.clientHeight<200)setTimeout(()=>feed.current?.scrollTo({top:feed.current.scrollHeight,behavior:'smooth'}),100);
   }
 
+  async function deepen(record: ResearchRecord) {
+    if (!pid || !cid) throw new Error('请先选择会话。');
+    const question = String(record.payload.question || record.payload.title || draft);
+    await sendMessage(pid, cid, { text: question, tool: 'research', scope: record.payload.scope,
+      provider_mode: mode, token_budget: 120000 }, crypto.randomUUID());
+    setNotice('已按这次阅读范围提交完整研究；进度显示在对话下方。');
+    await loadProject(pid);
+    setMessages(await request(`${root}/conversations/${cid}/messages`));
+    setPanel('none');
+  }
+
   async function upload(file: File) {
     const form = new FormData(); form.append('file', file);
     const job = await request<Job & { payload: { asset_id: string } }>(root + '/imports', {
@@ -368,6 +380,7 @@ export default function UnifiedWorkspace() {
     {a.payload.dimensions && <dl>{Object.entries(a.payload.dimensions).map(([name, text]) => <div key={name}><dt>{name}</dt><dd>{text}</dd></div>)}</dl>}
     {a.payload.findings?.map((f, i) => <section key={i}><h3>{f.title}</h3><MarkdownRenderer content={f.text} />{f.evidence_ids?.map(id => <button key={id} onClick={() => void action(() => locate(id))}>查看依据</button>)}</section>)}
     {!!a.payload.open_questions?.length && <details><summary>未决问题</summary><ul>{a.payload.open_questions.map((q, i) => <li key={i}>{q}</li>)}</ul></details>}
+    {a.payload.plan && <details><summary>检索与覆盖</summary><p>检索方式：{String(a.payload.plan.retrieval)}；命中 {String(a.payload.plan.hits ?? '—')}；阅读 {a.payload.coverage?.filter(c => c.status === 'read').length ?? 0} 段，未覆盖 {a.payload.coverage?.filter(c => c.status === 'unread').length ?? 0} 段。</p>{!!a.payload.followups?.length && <ul>{a.payload.followups.map((q, i) => <li key={i}>{q}</li>)}</ul>}</details>}
     {!!a.payload.evidence_ids?.length && <div className="uw-inline-actions">{a.payload.evidence_ids.map((id, i) => <button key={id} onClick={() => void action(() => locate(id))}>原文 {i + 1}</button>)}</div>}
   </article>;
 
@@ -426,7 +439,7 @@ export default function UnifiedWorkspace() {
         <details><summary>书目信息与处理状态</summary>{['title', 'author', 'translator', 'publication_date', 'purpose', 'source_note'].map(k => <label key={k}>{({title:'书名',author:'作者',translator:'译者',publication_date:'出版时间',purpose:'用途：theory 或 research',source_note:'来源说明'} as Record<string,string>)[k]}<input value={bibliography[k] || ''} onChange={e => setBibliography({...bibliography,[k]:e.target.value})}/></label>)}<button onClick={() => void action(async () => { await request(`${root}/materials/${assetId}/bibliography`, {method:'PUT',body:JSON.stringify({revision:currentMaterial?.revision,metadata:bibliography})});await loadProject(pid);setNotice('书目信息已保存。');})}>保存书目信息</button>{currentMaterial?.versions.map(v => <p key={v.id}>{String(v.quality.extractor).startsWith('ocr') || v.quality.extractor === 'local-tesseract' ? 'OCR 转录（' + String(v.quality.engine || v.quality.extractor) + '），未经人工校核' : '文本转录'}{Array.isArray(v.quality.empty_pages) && v.quality.empty_pages.length > 0 ? '，存在未识别页面：' + (v.quality.empty_pages as number[]).join('、') : ''}{Array.isArray(v.quality.ocr_unavailable_pages) && v.quality.ocr_unavailable_pages.length > 0 ? '，未识别（缺引擎或语言数据）：' + (v.quality.ocr_unavailable_pages as number[]).join('、') : ''}</p>)}{currentMaterial?.name.toLowerCase().endsWith('.pdf') && <button onClick={() => void action(async () => {await request(`${root}/materials/${assetId}/ocr`,{method:'POST'});await loadProject(pid);setNotice('已提交本地 OCR；结果保存为新版本并标为待校核。');})}>识别扫描页</button>}</details><details><summary>版本修订与材料管理</summary><label>上传修订 TEI<input type="file" accept=".xml,.tei" onChange={e => { const f = e.target.files?.[0]; if (f && currentMaterial) void action(async () => { await request(`${root}/materials/${assetId}/revisions`, { method: 'POST', body: JSON.stringify({ revision: currentMaterial.revision, tei: await f.text() }) }); await loadProject(pid); await openMaterial(assetId); }); }} /></label><button onClick={() => void action(async () => { if (!await confirmDialog('撤回此材料并清理相关派生内容？')) return; await request(`${root}/materials/${assetId}`, { method: 'DELETE' }); setPanel('none'); await loadProject(pid); })}>撤回材料</button></details>
       </>}
 
-      {panel === 'artifact' && artifact && <><div className="uw-inline-actions"><button onClick={() => void action(async () => { const updated = await request<ResearchRecord>(`${root}/records/${artifact.id}`, { method: 'PUT', body: JSON.stringify({ kind: artifact.kind, revision: artifact.revision, payload: { ...artifact.payload, ...editFields, editor_json:editorJson, title: editTitle, text: editText, status: 'researcher_revision' } }) }); setArtifact(updated); setNotice('已保存新版本。'); await loadProject(pid); })}>保存修订</button><button onClick={() => void action(async () => { const r = await request<ResearchRecord>(root + '/records', { method: 'POST', body: JSON.stringify({ kind: 'claim', payload: { title: editTitle, text: editText, source_record_ids: [artifact.id], evidence_ids: artifact.payload.evidence_ids || [] } }) }); await loadProject(pid); await openArtifact(r.id); })}>加入论证</button><button onClick={() => void action(async () => { const r = await request<ResearchRecord>(root + '/records', { method: 'POST', body: JSON.stringify({ kind: 'manuscript', payload: { title: '文稿 · ' + editTitle, text: editText, source_record_ids: [artifact.id], evidence_ids: artifact.payload.evidence_ids || [] } }) }); await loadProject(pid); await openArtifact(r.id); })}>插入文稿</button><button onClick={() => { setDraft('请继续检验这项解释，回到原文寻找反例：\n' + editTitle); setTool('research'); }}>继续检验</button></div>
+      {panel === 'artifact' && artifact && <><div className="uw-inline-actions"><button onClick={() => void action(async () => { const updated = await request<ResearchRecord>(`${root}/records/${artifact.id}`, { method: 'PUT', body: JSON.stringify({ kind: artifact.kind, revision: artifact.revision, payload: { ...artifact.payload, ...editFields, editor_json:editorJson, title: editTitle, text: editText, status: 'researcher_revision' } }) }); setArtifact(updated); setNotice('已保存新版本。'); await loadProject(pid); })}>保存修订</button><button onClick={() => void action(async () => { const r = await request<ResearchRecord>(root + '/records', { method: 'POST', body: JSON.stringify({ kind: 'claim', payload: { title: editTitle, text: editText, source_record_ids: [artifact.id], evidence_ids: artifact.payload.evidence_ids || [] } }) }); await loadProject(pid); await openArtifact(r.id); })}>加入论证</button><button onClick={() => void action(async () => { const r = await request<ResearchRecord>(root + '/records', { method: 'POST', body: JSON.stringify({ kind: 'manuscript', payload: { title: '文稿 · ' + editTitle, text: editText, source_record_ids: [artifact.id], evidence_ids: artifact.payload.evidence_ids || [] } }) }); await loadProject(pid); await openArtifact(r.id); })}>插入文稿</button><button onClick={() => { setDraft('请继续检验这项解释，回到原文寻找反例：\n' + editTitle); setTool('research'); }}>继续检验</button>{artifact.kind === 'research_answer' && <button onClick={() => void action(() => deepen(artifact))}>深入完整研究</button>}</div>
         <label>标题<input value={editTitle} onChange={e => setEditTitle(e.target.value)} /></label><label>正文<Suspense fallback={<p>正在准备文稿编辑器…</p>}><ManuscriptEditor key={artifact.id} recordId={artifact.id} value={editorJson} source={editText} evidenceIds={artifact.payload.evidence_ids || []} onChange={(json,text) => {setEditorJson(json);setEditText(text);}} onLocate={id=>void action(()=>locate(id))} /></Suspense></label>
         <p className={'uw-save-state ' + (artifactDirty ? 'uw-dirty' : 'uw-saved')}>{artifactDirty
           ? '未保存修改：切换会话或刷新后可从本机草稿恢复；尚未写入已保存版本。'
@@ -448,7 +461,7 @@ export default function UnifiedWorkspace() {
       {panel === 'search' && <><h2>检索材料</h2><form onSubmit={e => { e.preventDefault(); void action(async () => { const result = await request<{ items: Segment[] }>(root + '/search?q=' + encodeURIComponent(searchText) + (searchAuthor ? '&author=' + encodeURIComponent(searchAuthor) : '') + (searchYear ? '&year_from=' + encodeURIComponent(searchYear) : '')); setHits(result.items); }); }}><label>原词或短语<input value={searchText} onChange={e => setSearchText(e.target.value)} /></label><details><summary>书目筛选</summary><label>作者<input value={searchAuthor} onChange={e => setSearchAuthor(e.target.value)} /></label><label>起始年份<input type="number" value={searchYear} onChange={e => setSearchYear(e.target.value)} /></label></details><button>搜索当前项目</button></form>{hits.map(hit => <button className="uw-search-hit" key={hit.id} onClick={() => void action(() => openMaterial(hit.asset_id, hit.version_id))}>{hit.text.slice(0, 200)}</button>)}</>}
 
       {panel === 'settings' && <><h2>项目与服务设置</h2><form onSubmit={e => { e.preventDefault(); void action(async () => { const url = new URL(serviceAddress); if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.pathname !== '/') throw new Error('请填写不含路径和凭证的服务地址。'); localStorage.setItem('scriptorium_research_url', url.origin); localStorage.setItem('scriptorium_research_key', apiKey); await persistDesktopConnection(url.origin); const ps = await request<Project[]>('/api/v2/projects'); setProjects(ps); await chooseProject(ps[0]?.id || ''); setNotice('连接已保存，所有研究能力使用此服务。'); }); }}><label>统一服务地址<input value={serviceAddress} onChange={e => setServiceAddress(e.target.value)} /></label><label>访问密钥<input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} /></label><button>保存连接</button></form>
-        <h3>研究模型</h3><form onSubmit={e=>{e.preventDefault();void action(async()=>{await request('/api/v2/system/model',{method:'PUT',body:JSON.stringify({key:modelSecret})});setModelSecret('');setNotice('Qwen 密钥已保存到当前用户系统凭证存储，后续调用立即生效。');});}}><label>Qwen API 密钥<input type="password" autoComplete="off" value={modelSecret} onChange={e=>setModelSecret(e.target.value)} placeholder="本机服务可保存；服务器模式由运行环境配置"/></label><button disabled={!modelSecret}>保存模型配置</button></form>
+        <ModelProviderForm/>
         <h3>界面与动效</h3><label className="uw-check"><input type="checkbox" checked={quiet} onChange={e=>setQuiet(e.target.checked)}/>安静模式（减少转场与动态效果）</label><h3>品牌与启动</h3>{([['enabled', '启动动画'], ['requireInteraction', '交互式播放'], ['sound', '声音'], ['voice', '语音']] as const).map(([name, label]) => <label className="uw-check" key={name}><input type="checkbox" checked={startup[name]} onChange={e => { const patch = { [name]: e.target.checked }; saveConfig(patch); setStartup({ ...startup, ...patch }); }} />{label}</label>)}
         <h3>项目文稿与导出</h3><div className="uw-inline-actions"><button disabled={!pid} onClick={() => void action(async () => { const r = await request<ResearchRecord>(root + '/records', { method: 'POST', body: JSON.stringify({ kind: 'manuscript', payload: { title: '研究文稿', text: '' } }) }); await loadProject(pid); await openArtifact(r.id); })}>新建文稿</button>{['md', 'json', 'tei'].map(format => <button key={format} disabled={!pid} onClick={() => void action(() => download(`${root}/export?format=${format}`, `research.${format === 'tei' ? 'xml' : format}`))}>导出 {format.toUpperCase()}</button>)}</div>
         <h3>历史迁移</h3><button onClick={exportBrowserHistory}>导出浏览器旧聊天</button><label>导入聊天备份<input type="file" accept=".json" disabled={!pid} onChange={e => { const f = e.target.files?.[0]; if (f) void action(async () => { await request(root + '/history-import', { method: 'POST', body: await f.text() }); await loadProject(pid); setNotice('历史会话已导入当前项目。'); }); }} /></label>

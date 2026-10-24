@@ -16,6 +16,6 @@ export function ResearchProgress({jobs,usage,onCancel}:{jobs:Job[];usage:{used_t
  {jobs.map(j=><div className="uw-progress" key={j.id}><span>{j.kind==='import'?'整理研究材料':j.kind==='ocr'?'识别扫描页面':'处理研究步骤'}</span><small>{j.state==='queued'?'等待执行':'执行中'}</small><button onClick={()=>onCancel(j.id)}>停止</button></div>)}
  <p className="uw-muted">已知用量 {usage.used_tokens.toLocaleString()} token{usage.unknown_calls>0?` · ${usage.unknown_calls} 次调用用量待确认`:''} · 仅显示可审查的研究进度</p></details>;
 }
-export function ScopeChips({selection,materials,onClear}:{selection?:{exact_quote:string};materials:string[];onClear:()=>void}){
- return <div className="uw-scope-banner"><span className="uw-eyebrow">本次研究范围</span>{selection?<button onClick={onClear} title="清除选区并改用所选材料">精确选区 · {Array.from(selection.exact_quote).length} 字 ×</button>:<span>{materials.length?`${materials.length} 份材料 · 提交时固定文本版本`:'未选择材料 · 普通对话'}</span>}</div>;
+export function ScopeChips({selection,materials,onClear,auto}:{selection?:{exact_quote:string};materials:string[];onClear:()=>void;auto?:boolean}){
+ return <div className="uw-scope-banner"><span className="uw-eyebrow">本次研究范围</span>{selection?<button onClick={onClear} title="清除选区并改用所选材料">精确选区 · {Array.from(selection.exact_quote).length} 字 ×</button>:<span>{materials.length?`${materials.length} 份材料 · 提交时固定文本版本`:auto?'未选择材料 · 提问时自动检索':'未选择材料 · 普通对话'}</span>}</div>;
 }
