@@ -17,7 +17,7 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: pip install -e ".[dev]"
-      - run: ruff check scriptorium/ tests/ scripts/ migrations/
+      - run: ruff check --output-format=github scriptorium/ tests/ scripts/ migrations/
       - run: pytest tests/ -x --tb=short -q
 
   frontend:
