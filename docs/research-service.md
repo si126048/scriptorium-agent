@@ -219,6 +219,8 @@ python scripts/snapshot-source.py --source data/lacan.db --out output/migration-
 
 真实 S3 由 `tests/test_research_s3_live.py` 验证（需 `SCRIPTORIUM_TEST_S3_ENDPOINT`，默认 skip）：上传、读取、同内容不重建、篡改检出、非法键、错误桶、服务导入、备份与空库恢复。它使用本机 SeaweedFS 网关，属于真实 S3 协议实现，但仍不是机构对象存储；版本控制、保留策略、复制与 IAM 需在目标服务上另行验证。`tests/test_research_s3.py` 仅使用进程内替身，不能据此宣称真实对象存储已验收。
 
+新克隆的仓库没有 `src-tauri/bin/`（构建产物，已忽略）：直接 `cargo check` 会报 `resource path bin\scriptorium-backend-x86_64-pc-windows-msvc.exe doesn't exist`，先 `npm --prefix web run build` 并运行 `scripts/build-sidecar.ps1` 即可。CI 只做 Python 与前端检查，不构建桌面。
+
 桌面安装包：`powershell pwsh scripts/build-sidecar.ps1` 之后在 `src-tauri` 目录执行 `cargo tauri build`（首次会联网下载 NSIS/WiX），产物在 `src-tauri/target/release/bundle/`。若 `tauri.conf.json` 的 `beforeBuildCommand` 在当前 shell 下不可用，可先用 `npm --prefix web run build:tauri` 构建前端，再用 `--config` 覆盖该命令。
 
 迁移演练与切换工具（只对冻结快照执行，不改写源库）：
