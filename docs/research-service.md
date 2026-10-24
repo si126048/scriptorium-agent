@@ -35,7 +35,7 @@ python -m scriptorium.research.cli worker
 
 浏览器打开 [研究工作台](http://127.0.0.1:8010)。在“服务与任务”配置服务地址和密钥。未配置密钥的模式仅接受本机访问；远程必须设置 `SCRIPTORIUM_RESEARCH_API_KEY`，并使用 HTTPS 反向代理。固定单人身份不是多人登录系统。
 
-也可通过 `scripts/start-research.ps1 -Mode serve`、`-Mode worker`、`-Mode init-db` 启动。脚本不会安装或启动数据库服务。
+一条命令启动（Docker，无需 Elasticsearch）：`python scripts/quickstart.py --docker`；完整选项、团队部署与排错见[部署指南](deployment.md)。也可用 `scripts/start-research.ps1 -Mode serve/worker/init-db`（脚本不负责数据库服务）。
 
 研究模型不绑定单一服务商：可选通义千问、DeepSeek、OpenAI、Moonshot、智谱 GLM、本机 Ollama 或任意 OpenAI 兼容端点。可在工作台“设置与档案 → 研究模型”里选择服务商、填写接口地址与模型、保存密钥并测试连接；也可继续用环境变量（`DASHSCOPE_API_KEY`、`DEEPSEEK_API_KEY`、`OPENAI_API_KEY`、`MOONSHOT_API_KEY`、`ZHIPU_API_KEY`、`SCRIPTORIUM_MODEL_API_KEY`）。密钥与配置细节见 3.2。没有密钥时可以显式选择“演示流程”，演示不产生学术结论。未对真实服务商调用做质量验收。
 

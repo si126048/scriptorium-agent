@@ -2,7 +2,9 @@
 
 **人文研究 Agent** — 面向人文学科的证据锚定、多视角批判性解读工作台：把版本化原文、理论文本、访谈与文稿，转化为可回溯到原文精确位置、可核验引文的研究论证。
 
-> v3.1.1 · Python 3.12+ · 312 tests · MIT · 本地优先（默认仅绑定 127.0.0.1）
+> v3.1.1 · Python 3.12+ · 383 tests · MIT · 本地优先（默认仅绑定 127.0.0.1）
+>
+> 直接启动：`python scripts/quickstart.py --docker` → <http://127.0.0.1:8010>（细节见[快速开始](#快速开始)）
 
 Scriptorium（缮写室）把「细读 → 批判性解读 → 论证构建」放进同一条证据链：每个结论都能回跳到原文的 code point 级锚点，每条引文都必须通过核验，每个结构性主张默认都是 `candidate`，只有人工审核通过才进入论证。它不做临床诊断，也不把语言口癖等同于人格——它做的是**把解读锚定到证据**。
 
@@ -12,7 +14,7 @@ Scriptorium（缮写室）把「细读 → 批判性解读 → 论证构建」�
 
 | 运行时 | 定位 | 后端 | 入口 |
 |---|---|---|---|
-| **研究工作台**（推荐） | 完整人文研究：版本化材料、证据锚点、批判方法、引文核验、统一工作台（图形界面） | PostgreSQL + Elasticsearch | `scriptorium research serve` → Web `http://127.0.0.1:8010` |
+| **研究工作台**（推荐） | 完整人文研究：版本化材料、证据锚点、批判方法、引文核验、统一工作台（图形界面） | PostgreSQL（可选 Elasticsearch） | `scriptorium research serve` → Web `http://127.0.0.1:8010` |
 | **本地单机** | 轻量证据分析与对抗性辩证，无需外部服务，开箱即用（CLI / 终端 / 编辑器插件） | SQLite | `scriptorium <命令>` · `scriptorium interactive` · `scriptorium-acp` · `scriptorium-mcp` |
 
 图形研究工作台由研究服务提供；本地单机运行时保留全部单机分析能力（证据分析、对抗性辩证、文档系统、主体画像、访谈、风格模拟），以 CLI、交互式终端和 ACP/MCP 编辑器插件的形式使用，并通过统一的 `scriptorium research …` 子命令接入研究服务。两者共享同一套项目／参与者／授权与证据模型。
@@ -125,33 +127,63 @@ v2.1 的核心创新。Agent 内部交流使用数学/拓扑形式表示替代�
 
 ---
 
-## 安装
-
-```bash
-# uv（推荐）
-uv venv && uv pip install -e ".[dev]"
-
-# pip
-pip install -e ".[dev]"
-```
-
----
-
 ## 快速开始
 
-### 研究工作台（推荐）
+### 方式一：Docker（推荐，无需 Python/Node）
 
 ```bash
-uv pip install -e ".[research,dev]"   # 安装研究服务依赖
-# 准备可连接的 PostgreSQL 17 与 Elasticsearch 8.19（或用 compose.research.yml）
-scriptorium research init-db
-scriptorium research serve            # → http://127.0.0.1:8010
-scriptorium research worker           # 另开一个终端
+git clone https://github.com/si126048/scriptorium-agent && cd scriptorium-agent
+python scripts/quickstart.py --check     # 可选：检查本机环境
+python scripts/quickstart.py --docker    # 生成 .env.compose、构建、等待健康
+# → http://127.0.0.1:8010
 ```
 
-浏览器打开 `http://127.0.0.1:8010`，新建项目 → 导入材料 → 选中原文保存证据锚点 → 选择方法（构境 / 内在批判 / 视差 / 理论视角比较）运行 → 核验引文 → 导出文稿。
+首次构建约 3–6 分钟，不需要 Elasticsearch（检索自动退化为项目材料扫描）。需要全文检索时加 `--with-search`。等价的 compose 命令、数据卷、备份与升级见 [部署指南](docs/deployment.md)。
 
-以下命令属于**本地单机运行时**（SQLite，无需外部服务），适合快速证据分析与对抗性辩证。
+### 方式二：已有 PostgreSQL（原生）
+
+```bash
+python -m venv .venv && .venv/bin/pip install -e ".[research]"   # Windows: .venv\Scripts\pip
+npm --prefix web ci && npm --prefix web run build
+SCRIPTORIUM_DATABASE_URL='postgresql+psycopg://user:pass@127.0.0.1:5432/scriptorium' \
+  python scripts/quickstart.py --native
+```
+
+也可以手动执行 `scriptorium research init-db`、`serve`、`worker`。**Elasticsearch 是可选的**：把 `SCRIPTORIUM_ELASTICSEARCH_URL` 设为空字符串即关闭索引与检索，提问自动改用材料扫描（回答会标注 `SEARCH_DISABLED`）。
+
+### 方式三：零依赖体验（SQLite 单机）
+
+```bash
+pip install -e .
+scriptorium interactive
+```
+
+不需要数据库或 Node，适合先体验证据分析、对抗性辩证与文档检索；图形工作台需要方式一或二。
+
+### 第一次使用
+
+1. 打开 `http://127.0.0.1:8010` → **＋ 项目**
+2. **导入材料**（TXT / MD / PDF / TEI，扫描版走 OCR）
+3. 对话框直接提问（默认「提问」），或选择构境 / 内在批判 / 视差 / 理论视角比较
+4. 每条回答都带原文锚点；「深入完整研究」把同一冻结范围交给完整流水线
+5. 在文稿区写作、核验引文，导出 MD / JSON / TEI / DOCX
+
+模型密钥可以不配：先用演示模式走通流程（演示不产生学术结论），之后在 **设置与档案 → 研究模型** 选择 DeepSeek / 通义千问 / OpenAI / Moonshot / 智谱 / 本机 Ollama / 自定义端点并保存密钥。完整变量表、团队部署、备份与排错见 [部署指南](docs/deployment.md)。
+
+## 配置
+
+| 变量 | 说明 |
+|---|---|
+| `SCRIPTORIUM_DATABASE_URL` | PostgreSQL 17 连接串（工作台必填） |
+| `SCRIPTORIUM_ELASTICSEARCH_URL` | 留空即禁用检索；默认 `http://127.0.0.1:9200` |
+| `SCRIPTORIUM_OBJECT_ROOT` | 原文与版本对象目录 |
+| `SCRIPTORIUM_RESEARCH_API_KEY` | 非空时要求 Bearer 认证；仅本机可留空 |
+| `SCRIPTORIUM_RESEARCH_ORIGINS` | 允许的浏览器来源，逗号分隔 |
+| `DASHSCOPE_API_KEY` / `SCRIPTORIUM_MODEL_API_KEY` | 模型密钥后备（也可在界面保存） |
+
+## 本地单机运行时（SQLite）
+
+以下命令不需要外部服务，适合快速证据分析与对抗性辩证。`scriptorium` 命令也可通过 `scriptorium research …` 接入研究工作台。
 
 ### 证据分析流程
 
@@ -165,6 +197,40 @@ scriptorium export --run <run_id> --pretty
 ```
 
 ### 对抗性多视角分析
+
+```bash
+# 列出可用视角
+scriptorium perspectives
+
+# 拉康 vs 德勒兹对抗分析
+scriptorium dialectical-analyze \
+  --perspectives lacan,deleuze \
+  --participant A --project demo --source story.txt --mock
+
+# 含综合报告
+scriptorium dialectical-analyze \
+  --perspectives lacan,deleuze \
+  --participant A --project demo --source story.txt --mock --report
+```
+
+### 文档系统
+
+```bash
+scriptorium doc-ingest --path book.pdf --project demo
+scriptorium doc-search --query "objet petit a" --project demo
+scriptorium doc-outline --doc-id <doc_id>
+scriptorium doc-verify --doc-id <doc_id> --quote "欲望是他者的欲望" --page 47
+```
+
+### 交互式终端
+
+```powershell
+.\start.ps1          # 等价于 scriptorium interactive，引导式终端分析
+```
+
+---
+
+## 对抗性多视角分析
 
 ```bash
 # 列出可用视角
@@ -528,7 +594,7 @@ MCP 客户端配置示例（Qoder / Claude Desktop）：
 
 ## 研究工作台服务
 
-承载图形研究工作台的运行时，与本地单机的 SQLite 运行时相互隔离：采用 PostgreSQL 持久化 + Elasticsearch 检索，提供版本化材料、证据锚点、方法运行、决策留痕与统一研究工作区。这是完整体验所推荐的后端；本地单机运行时仍可独立用于 CLI / ACP / MCP 分析。
+承载图形研究工作台的运行时，与本地单机的 SQLite 运行时相互隔离：采用 PostgreSQL 持久化，Elasticsearch 检索为可选（未配置时自动改用材料扫描），提供版本化材料、证据锚点、方法运行、决策留痕与统一研究工作区。这是完整体验所推荐的后端；本地单机运行时仍可独立用于 CLI / ACP / MCP 分析。
 
 ### 能力
 
@@ -551,21 +617,16 @@ API 前缀 `/api/v2/projects/{project_id}/...`（materials、anchors、records�
 
 ### 启动
 
-```bash
-# 安装 research extra
-uv pip install -e ".[research]"
+最快的路径见 [快速开始](#快速开始) 与 [部署指南](docs/deployment.md)。手工等价命令：
 
-# 单机开发（本地 PostgreSQL + Elasticsearch）——统一入口
+```bash
+uv pip install -e ".[research]"
 scriptorium research init-db
 scriptorium research serve          # 默认 127.0.0.1:8010
 scriptorium research worker         # 异步作业 Worker
 
-# 等价命令
-python -m scriptorium.research.cli serve
-.\scripts\start-research.ps1        # Windows 一键脚本
-
-# 容器编排（postgres + elasticsearch + migrate/api/worker）
-docker compose -f compose.research.yml up
+# 或一条命令（Docker，无需 Node/Elasticsearch）
+python scripts/quickstart.py --docker
 ```
 
 配置项见 [`.env.research.example`](.env.research.example)。运维、迁移与恢复流程详见 [`docs/research-service.md`](docs/research-service.md)；架构决策见 [`docs/adr/`](docs/adr/)。
@@ -600,7 +661,7 @@ docker compose -f compose.research.yml up
 ## 开发
 
 ```bash
-pytest tests/ -q          # 运行全部测试 (312)
+pytest tests/ -q          # 运行全部测试 (383)
 ruff check scriptorium/     # 代码检查
 ```
 
@@ -608,7 +669,7 @@ ruff check scriptorium/     # 代码检查
 |------|------|
 | 语言 | Python 3.12+ |
 | 数据验证 | Pydantic v2 |
-| 数据库 | SQLite + FTS5（本地单机）· PostgreSQL + Elasticsearch（研究工作台） |
+| 数据库 | SQLite + FTS5（本地单机）· PostgreSQL（研究工作台，Elasticsearch 可选） |
 | Web 框架 | FastAPI + Uvicorn |
 | 前端框架 | Vite 8 + React 19 + TypeScript + Tailwind CSS 4 |
 | 状态管理 | Zustand |
@@ -663,6 +724,17 @@ scriptorium subject export --participant A --cards-dir data/subject-artifacts --
 Qwen 结构抽取需要设置 `DASHSCOPE_API_KEY` 环境变量。Qwen 失败时仍会生成观察层画像。
 
 ---
+
+## 文档
+
+| 主题 | 位置 |
+|---|---|
+| 部署（Docker / 原生 / 团队 / 桌面） | [docs/deployment.md](docs/deployment.md) |
+| 研究服务运维、配置、备份与恢复 | [docs/research-service.md](docs/research-service.md) |
+| 集成工作台设计与 runbook | [docs/integrated-workbench-design.md](docs/integrated-workbench-design.md) · [docs/integrated-workbench-runbook.md](docs/integrated-workbench-runbook.md) |
+| 架构决策 | [docs/adr/](docs/adr/) |
+| 验收记录与证据 | [docs/acceptance/](docs/acceptance/) |
+| 体验与设计参考 | [docs/agent-experience-references.md](docs/agent-experience-references.md) |
 
 ## 致谢
 
