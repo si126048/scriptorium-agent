@@ -43,7 +43,7 @@ export default function UnifiedWorkspace() {
   const [librarySearch,setLibrarySearch] = useState('');
   const sendKey = useRef<{text:string;key:string}|undefined>(undefined);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [pid, setPid] = useState(localStorage.getItem('hermeneut_research_project') || '');
+  const [pid, setPid] = useState(localStorage.getItem('scriptorium_research_project') || '');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [cid, setCid] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -89,7 +89,7 @@ export default function UnifiedWorkspace() {
   const [searchText, setSearchText] = useState('');
   const [hits, setHits] = useState<Segment[]>([]);
   const [serviceAddress, setServiceAddress] = useState(serviceUrl());
-  const [apiKey, setApiKey] = useState(localStorage.getItem('hermeneut_research_key') || '');
+  const [apiKey, setApiKey] = useState(localStorage.getItem('scriptorium_research_key') || '');
   const [startup, setStartup] = useState(loadConfig());
   const [compare, setCompare] = useState<ResearchRecord[]>();
   const [versionDiff, setVersionDiff] = useState<VersionDiff>();
@@ -122,11 +122,11 @@ export default function UnifiedWorkspace() {
     active.current = { pid: projectId, cid: conversationId };
     if(window.innerWidth<850&&useWorkspaceUI.getState().sidebarOpen)useWorkspaceUI.getState().toggleSidebar();
     setCid(conversationId); setMessages([]); setActiveInterview(undefined); setPanel('none'); setCompare(undefined);
-    localStorage.setItem(`hermeneut_last_conversation:${projectId}`, conversationId);
+    localStorage.setItem(`scriptorium_last_conversation:${projectId}`, conversationId);
     const c = cs.find(c => c.id === conversationId);
-    const local = localStorage.getItem(`hermeneut_draft:${projectId}:${conversationId}`);
+    const local = localStorage.getItem(`scriptorium_draft:${projectId}:${conversationId}`);
     // Unsaved document edits survive a session switch even when the workspace PUT lost a race.
-    const localDoc = JSON.parse(localStorage.getItem(`hermeneut_doc:${projectId}:${conversationId}`) || 'null') as
+    const localDoc = JSON.parse(localStorage.getItem(`scriptorium_doc:${projectId}:${conversationId}`) || 'null') as
       { record_id?: string; title?: string; text?: string; editor_json?:Record<string,unknown> } | null;
     setDraft(local ?? c?.workspace.draft ?? ''); setSelected(c?.workspace.asset_ids || []);
     if (conversationId) {
@@ -160,12 +160,12 @@ export default function UnifiedWorkspace() {
     setPid(projectId); setCid(''); setMessages([]); setConversations([]); setMaterials([]); setArtifacts([]);
     documentTrail.current=[];setTrailLength(0);setLiveDrafts({});setNewMessages(false);setGraphKind(undefined);
     setPanel('none'); setDraft(''); setSelected([]); setParticipantId(''); setPersonaId(''); setSegments([]); setSelection(undefined);
-    localStorage.setItem('hermeneut_research_project', projectId);
+    localStorage.setItem('scriptorium_research_project', projectId);
     if (!projectId) return;
     await loadProject(projectId);
     const cs = await request<Conversation[]>(projectPath(projectId) + '/conversations');
     if (active.current.pid !== projectId) return;
-    const saved = localStorage.getItem(`hermeneut_last_conversation:${projectId}`);
+    const saved = localStorage.getItem(`scriptorium_last_conversation:${projectId}`);
     const latest = cs.find(c => c.id === saved && !c.archived) || cs.find(c => !c.archived);
     if (latest) await chooseConversation(projectId, latest.id, cs);
   }, [chooseConversation, loadProject]);
@@ -173,7 +173,7 @@ export default function UnifiedWorkspace() {
   useEffect(() => {
     void request<Project[]>('/api/v2/projects').then(async ps => {
       setProjects(ps);
-      const preferred = localStorage.getItem('hermeneut_research_project');
+      const preferred = localStorage.getItem('scriptorium_research_project');
       await chooseProject(ps.some(p => p.id === preferred) ? preferred! : ps[0]?.id || '');
     }).catch(e => setError(err(e)));
   }, [chooseProject]);
@@ -192,12 +192,12 @@ export default function UnifiedWorkspace() {
 
   useEffect(() => {
     if (!pid || !cid || !current || !workspaceReady) return;
-    localStorage.setItem(`hermeneut_draft:${pid}:${cid}`, draft);
+    localStorage.setItem(`scriptorium_draft:${pid}:${cid}`, draft);
     if (panel === 'artifact' && artifact) {
       const stored = JSON.stringify({ record_id: artifact.id, title: editTitle, text: editText, editor_json:editorJson });
       const saved = JSON.stringify({ record_id: artifact.id, title: artifact.payload.title ?? '', text: artifact.payload.text ?? '' });
-      if (stored === saved) localStorage.removeItem(`hermeneut_doc:${pid}:${cid}`);
-      else localStorage.setItem(`hermeneut_doc:${pid}:${cid}`, stored);
+      if (stored === saved) localStorage.removeItem(`scriptorium_doc:${pid}:${cid}`);
+      else localStorage.setItem(`scriptorium_doc:${pid}:${cid}`, stored);
     }
     const workspace = {...current.workspace,draft,asset_ids:selected,scroll:scrollPosition,document_scroll:documentScroll,
       panel,selection,open_material:assetId,version_id:versionId,open_artifact:artifact?.id,edit_text:editText,edit_title:editTitle};
@@ -341,7 +341,7 @@ export default function UnifiedWorkspace() {
     }
     if(active.current.pid!==project||active.current.cid!==conversationId)return;
     sendKey.current=undefined;
-    setDraft(value=>value===submittedDraft?'':value); localStorage.removeItem(`hermeneut_draft:${pid}:${conversationId}`);
+    setDraft(value=>value===submittedDraft?'':value); localStorage.removeItem(`scriptorium_draft:${pid}:${conversationId}`);
     const nextMessages=await request<Message[]>(`${root}/conversations/${conversationId}/messages`);
     if(active.current.pid!==project||active.current.cid!==conversationId)return;
     setMessages(nextMessages);
@@ -375,7 +375,7 @@ export default function UnifiedWorkspace() {
 
   return <div className={'unified-workspace ' + (panel !== 'none' ? 'uw-document-open ' : '') + (!sidebarOpen ? 'uw-sidebar-collapsed ' : '') + (quiet ? 'uw-quiet' : '')}>
     <aside className="uw-sidebar" aria-label="项目导航"><button className="uw-mobile-close" aria-label="关闭项目导航" onClick={toggleSidebar}>×</button>
-      <div className="uw-brand">H<span> / </span>HERMENEUT<small>RESEARCH ARCHIVE</small></div>
+      <div className="uw-brand">H<span> / </span>SCRIPTORIUM<small>RESEARCH ARCHIVE</small></div>
       <select aria-label="研究项目" value={pid} onChange={e => void action(() => chooseProject(e.target.value))}><option value="">选择项目</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
       <div className="uw-inline-actions"><button onClick={() => void action(async () => { const name = await ask('项目名称'); if (!name) return;
         const p = await request<Project>('/api/v2/projects', { method: 'POST', body: JSON.stringify({ name }) }); setProjects(ps => [...ps, p]); await chooseProject(p.id); })}>＋ 项目</button><button className="uw-primary" disabled={!pid} onClick={() => void action(newResearch)}>＋ 新研究</button></div>
@@ -397,11 +397,11 @@ export default function UnifiedWorkspace() {
       {notice && <div className="uw-notice" role="status">{notice}<button onClick={() => setNotice('')}>关闭</button></div>}
       <div className="uw-feed" ref={feed} onScroll={e => setScrollPosition(e.currentTarget.scrollTop)}>
         {!messages.length && <section className="uw-welcome"><div className="uw-crosshair">＋</div><h2>让问题、材料与解释在这里相遇。</h2><p>导入材料或开始访谈，然后提出研究问题。依据与文稿会在右侧打开。</p><div className="uw-welcome-actions"><button disabled={!pid} onClick={() => setLibrary(true)}>导入研究材料</button><button disabled={!pid} onClick={() => setPanel('people')}>开始研究访谈</button></div></section>}
-        {messages.map(m => <article key={m.id} className={'uw-message ' + m.role}><small>{m.role === 'user' ? '研究者' : 'HERMENEUT'}{m.metadata.provider_mode === 'demo' ? ' / 演示' : ''}</small><MarkdownRenderer content={m.content} />
+        {messages.map(m => <article key={m.id} className={'uw-message ' + m.role}><small>{m.role === 'user' ? '研究者' : 'SCRIPTORIUM'}{m.metadata.provider_mode === 'demo' ? ' / 演示' : ''}</small><MarkdownRenderer content={m.content} />
           {!!m.artifact_ids.length && <div className="uw-result-actions">{m.artifact_ids.map(id => <button key={id} onClick={() => void action(() => openArtifact(id))}>↗ {artifacts.find(a => a.id === id)?.payload.title || '打开研究文档'}</button>)}</div>}
           {m.metadata.interview_id && <button onClick={() => void action(async () => { setActiveInterview(await request(`${root}/interviews/${m.metadata.interview_id}`)); setPanel('interview'); })}>继续此访谈</button>}
         </article>)}
-        {Object.entries(liveDrafts).map(([id,text])=><article className="uw-message assistant" key={id}><small>HERMENEUT / 正在生成的草稿</small><MarkdownRenderer content={text}/></article>)}
+        {Object.entries(liveDrafts).map(([id,text])=><article className="uw-message assistant" key={id}><small>SCRIPTORIUM / 正在生成的草稿</small><MarkdownRenderer content={text}/></article>)}
         {newMessages&&<button className="uw-new-messages" onClick={()=>{feed.current?.scrollTo({top:feed.current.scrollHeight,behavior:quiet?'auto':'smooth'});setNewMessages(false);}}>查看新进展 ↓</button>}
         {decisions.map(d => <section className="uw-decision" key={d.id}><h3>需要你的决定</h3><p>{d.payload.question}</p><p>{d.payload.premise}</p><div className="uw-inline-actions"><button onClick={() => void action(async () => { await request(`${root}/decisions/${d.id}`, { method: 'POST', body: JSON.stringify({ accept: true, additional_tokens: Math.max(40000, d.payload.suggested_tokens || 0) }) }); await loadProject(pid); })}>同意并继续</button><button onClick={() => void action(async () => { await request(`${root}/decisions/${d.id}`, { method: 'POST', body: JSON.stringify({ accept: false }) }); await loadProject(pid); })}>保留当前结果并结束</button></div></section>)}
         {citationDrafts.map(d=><CitationReview key={d.id} draft={d} onBind={index=>void action(async()=>{if(!selection)throw new Error('请先打开对应原文并选择正确摘录。');const result=await request<{state:string}>(`${root}/citation-drafts/${d.id}/resolve`,{method:'POST',body:JSON.stringify({revision:d.revision,bindings:[{index,...selection,version_id:segments.find(s=>s.id===selection.segment_id)?.version_id}]})});setNotice(result.state==='pending'?'已保存这一处绑定，其余摘录仍需核验。':'引文已通过核验，研究继续。');await loadProject(pid);})} onDiscard={()=>void action(async()=>{await request(`${root}/citation-drafts/${d.id}/resolve`,{method:'POST',body:JSON.stringify({revision:d.revision,discard:true})});await loadProject(pid);})}/>)}
@@ -447,7 +447,7 @@ export default function UnifiedWorkspace() {
 
       {panel === 'search' && <><h2>检索材料</h2><form onSubmit={e => { e.preventDefault(); void action(async () => { const result = await request<{ items: Segment[] }>(root + '/search?q=' + encodeURIComponent(searchText) + (searchAuthor ? '&author=' + encodeURIComponent(searchAuthor) : '') + (searchYear ? '&year_from=' + encodeURIComponent(searchYear) : '')); setHits(result.items); }); }}><label>原词或短语<input value={searchText} onChange={e => setSearchText(e.target.value)} /></label><details><summary>书目筛选</summary><label>作者<input value={searchAuthor} onChange={e => setSearchAuthor(e.target.value)} /></label><label>起始年份<input type="number" value={searchYear} onChange={e => setSearchYear(e.target.value)} /></label></details><button>搜索当前项目</button></form>{hits.map(hit => <button className="uw-search-hit" key={hit.id} onClick={() => void action(() => openMaterial(hit.asset_id, hit.version_id))}>{hit.text.slice(0, 200)}</button>)}</>}
 
-      {panel === 'settings' && <><h2>项目与服务设置</h2><form onSubmit={e => { e.preventDefault(); void action(async () => { const url = new URL(serviceAddress); if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.pathname !== '/') throw new Error('请填写不含路径和凭证的服务地址。'); localStorage.setItem('hermeneut_research_url', url.origin); localStorage.setItem('hermeneut_research_key', apiKey); await persistDesktopConnection(url.origin); const ps = await request<Project[]>('/api/v2/projects'); setProjects(ps); await chooseProject(ps[0]?.id || ''); setNotice('连接已保存，所有研究能力使用此服务。'); }); }}><label>统一服务地址<input value={serviceAddress} onChange={e => setServiceAddress(e.target.value)} /></label><label>访问密钥<input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} /></label><button>保存连接</button></form>
+      {panel === 'settings' && <><h2>项目与服务设置</h2><form onSubmit={e => { e.preventDefault(); void action(async () => { const url = new URL(serviceAddress); if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.pathname !== '/') throw new Error('请填写不含路径和凭证的服务地址。'); localStorage.setItem('scriptorium_research_url', url.origin); localStorage.setItem('scriptorium_research_key', apiKey); await persistDesktopConnection(url.origin); const ps = await request<Project[]>('/api/v2/projects'); setProjects(ps); await chooseProject(ps[0]?.id || ''); setNotice('连接已保存，所有研究能力使用此服务。'); }); }}><label>统一服务地址<input value={serviceAddress} onChange={e => setServiceAddress(e.target.value)} /></label><label>访问密钥<input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} /></label><button>保存连接</button></form>
         <h3>研究模型</h3><form onSubmit={e=>{e.preventDefault();void action(async()=>{await request('/api/v2/system/model',{method:'PUT',body:JSON.stringify({key:modelSecret})});setModelSecret('');setNotice('Qwen 密钥已保存到当前用户系统凭证存储，后续调用立即生效。');});}}><label>Qwen API 密钥<input type="password" autoComplete="off" value={modelSecret} onChange={e=>setModelSecret(e.target.value)} placeholder="本机服务可保存；服务器模式由运行环境配置"/></label><button disabled={!modelSecret}>保存模型配置</button></form>
         <h3>界面与动效</h3><label className="uw-check"><input type="checkbox" checked={quiet} onChange={e=>setQuiet(e.target.checked)}/>安静模式（减少转场与动态效果）</label><h3>品牌与启动</h3>{([['enabled', '启动动画'], ['requireInteraction', '交互式播放'], ['sound', '声音'], ['voice', '语音']] as const).map(([name, label]) => <label className="uw-check" key={name}><input type="checkbox" checked={startup[name]} onChange={e => { const patch = { [name]: e.target.checked }; saveConfig(patch); setStartup({ ...startup, ...patch }); }} />{label}</label>)}
         <h3>项目文稿与导出</h3><div className="uw-inline-actions"><button disabled={!pid} onClick={() => void action(async () => { const r = await request<ResearchRecord>(root + '/records', { method: 'POST', body: JSON.stringify({ kind: 'manuscript', payload: { title: '研究文稿', text: '' } }) }); await loadProject(pid); await openArtifact(r.id); })}>新建文稿</button>{['md', 'json', 'tei'].map(format => <button key={format} disabled={!pid} onClick={() => void action(() => download(`${root}/export?format=${format}`, `research.${format === 'tei' ? 'xml' : format}`))}>导出 {format.toUpperCase()}</button>)}</div>

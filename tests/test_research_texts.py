@@ -4,8 +4,8 @@ import pytest
 
 pytest.importorskip('lxml')
 
-from hermeneut.research.storage import FileObjects
-from hermeneut.research.texts import build_tei, project_tei, quote_hash
+from scriptorium.research.storage import FileObjects
+from scriptorium.research.texts import build_tei, project_tei, quote_hash
 
 
 def test_tei_codepoints_and_no_normalization():
@@ -25,7 +25,7 @@ def test_inline_projection_is_explicit_and_stable():
 @pytest.mark.parametrize('raw', [
     b'<!DOCTYPE TEI [<!ENTITY x SYSTEM "file:///C:/Windows/win.ini">]><TEI>&x;</TEI>',
     b'<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><p>no id</p></body></text></TEI>',
-    build_tei(['text'], 'Test').replace(b'who="#hermeneut"', b'who="#missing"'),
+    build_tei(['text'], 'Test').replace(b'who="#scriptorium"', b'who="#missing"'),
     build_tei(['text'], 'Test').replace(b'<p ', b'<unsupported '),
 ])
 def test_invalid_or_unsafe_tei_rejected(raw):

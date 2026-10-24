@@ -3,20 +3,20 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from hermeneut.db import Store, new_id
-from hermeneut.models import (
+from scriptorium.db import Store, new_id
+from scriptorium.models import (
     ConsentScope, Participant, Project, ReviewDecision, ReviewRequest,
     RunState, EvidenceSpan, Observation, Hypothesis,
 )
-from hermeneut.rag import ingest
-from hermeneut.workflow import Workflow
-from hermeneut.fuzzy import (
+from scriptorium.rag import ingest
+from scriptorium.workflow import Workflow
+from scriptorium.fuzzy import (
     MembershipFunction, aggregate_grounding, HallucinationGuard,
     FuzzyGrounding,
 )
-from hermeneut.annotation import CulturalAnnotator
-from hermeneut.topology.borromean import RegisterCoherenceMonitor, Register
-from hermeneut.topology.discourses import MASTER, HYSTERIC, ANALYST, UNIVERSITY
+from scriptorium.annotation import CulturalAnnotator
+from scriptorium.topology.borromean import RegisterCoherenceMonitor, Register
+from scriptorium.topology.discourses import MASTER, HYSTERIC, ANALYST, UNIVERSITY
 
 
 def _setup(tmp_path):
@@ -167,7 +167,7 @@ class TestConcurrentBatchV02:
 
     @pytest.mark.asyncio
     async def test_batch_with_fuzzy_and_annotations(self, tmp_path):
-        from hermeneut.concurrent import ConcurrentAnalyzer, AnalysisTask
+        from scriptorium.concurrent import ConcurrentAnalyzer, AnalysisTask
 
         db = str(tmp_path / "batch_v02.sqlite")
         s = Store(db)

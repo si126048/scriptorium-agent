@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from hermeneut import db as legacy
-from hermeneut.config import frozen_source
+from scriptorium import db as legacy
+from scriptorium.config import frozen_source
 
 
 def test_frozen_source_refuses_to_open_for_writing(tmp_path, monkeypatch):
     frozen = tmp_path / 'frozen-source.db'
     frozen.write_bytes(b'')
-    monkeypatch.setenv('HERMENEUT_FROZEN_SOURCE', str(frozen))
+    monkeypatch.setenv('SCRIPTORIUM_FROZEN_SOURCE', str(frozen))
     assert frozen_source() == str(frozen.resolve())
     with pytest.raises(RuntimeError, match='SOURCE_DATABASE_READ_ONLY'):
         legacy.Store(str(frozen))
@@ -24,7 +24,7 @@ def test_frozen_source_refuses_to_open_for_writing(tmp_path, monkeypatch):
 def test_working_copy_stays_usable(tmp_path, monkeypatch):
     frozen = tmp_path / 'frozen-source.db'
     frozen.write_bytes(b'')
-    monkeypatch.setenv('HERMENEUT_FROZEN_SOURCE', str(frozen))
+    monkeypatch.setenv('SCRIPTORIUM_FROZEN_SOURCE', str(frozen))
     store = legacy.Store(str(tmp_path / 'working.db'))
     assert store.get_project('default')
     assert not frozen.exists() or frozen.stat().st_size == 0

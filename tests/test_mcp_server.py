@@ -1,4 +1,4 @@
-"""Tests for the Hermeneut MCP server."""
+"""Tests for the Scriptorium MCP server."""
 from __future__ import annotations
 
 import asyncio
@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from hermeneut.mcp_server import (
+from scriptorium.mcp_server import (
     handle_list_tools,
     handle_call_tool,
     _format_packet,
@@ -25,7 +25,7 @@ def _set_mock_db(tmp_path, monkeypatch):
     db_path = str(tmp_path / "mcp_test.db")
     monkeypatch.setenv("LACAN_DB_PATH", db_path)
     monkeypatch.setenv("LACAN_MOCK", "1")
-    import hermeneut.mcp_server as mod
+    import scriptorium.mcp_server as mod
     mod._store = None
     mod._provider = None
 
@@ -36,10 +36,10 @@ class TestListTools:
         assert len(tools) == 4
         names = {t.name for t in tools}
         assert names == {
-            "hermeneut_analyze",
-            "hermeneut_dialectical",
-            "hermeneut_perspectives",
-            "hermeneut_search",
+            "scriptorium_analyze",
+            "scriptorium_dialectical",
+            "scriptorium_perspectives",
+            "scriptorium_search",
         }
 
     def test_tools_have_descriptions(self):
@@ -52,7 +52,7 @@ class TestListTools:
 class TestCallTool:
     def test_perspectives(self):
         result = asyncio.run(
-            handle_call_tool("hermeneut_perspectives", {})
+            handle_call_tool("scriptorium_perspectives", {})
         )
         assert len(result) == 1
         text = result[0].text
@@ -61,7 +61,7 @@ class TestCallTool:
 
     def test_analyze_text(self):
         result = asyncio.run(
-            handle_call_tool("hermeneut_analyze", {"text": "重复是一种习惯性的享乐。"})
+            handle_call_tool("scriptorium_analyze", {"text": "重复是一种习惯性的享乐。"})
         )
         assert len(result) == 1
         text = result[0].text
@@ -69,13 +69,13 @@ class TestCallTool:
 
     def test_analyze_empty_text(self):
         result = asyncio.run(
-            handle_call_tool("hermeneut_analyze", {"text": ""})
+            handle_call_tool("scriptorium_analyze", {"text": ""})
         )
         assert "Error" in result[0].text
 
     def test_dialectical(self):
         result = asyncio.run(
-            handle_call_tool("hermeneut_dialectical", {"text": "重复是一种习惯性的享乐。"})
+            handle_call_tool("scriptorium_dialectical", {"text": "重复是一种习惯性的享乐。"})
         )
         assert len(result) == 1
         text = result[0].text
@@ -84,7 +84,7 @@ class TestCallTool:
 
     def test_search_empty(self):
         result = asyncio.run(
-            handle_call_tool("hermeneut_search", {"query": ""})
+            handle_call_tool("scriptorium_search", {"query": ""})
         )
         assert "Error" in result[0].text
 

@@ -2,7 +2,7 @@
 import argparse
 import json
 from pathlib import Path
-from hermeneut.research.api import create_app
+from scriptorium.research.api import create_app
 
 
 def ts(node):

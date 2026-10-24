@@ -1,4 +1,4 @@
-from hermeneut.documents.outline import build_text_tree
+from scriptorium.documents.outline import build_text_tree
 
 
 def test_no_structure_returns_none():

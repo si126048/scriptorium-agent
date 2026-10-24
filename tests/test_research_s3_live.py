@@ -1,6 +1,6 @@
 """Object storage against a real S3 HTTP endpoint (SeaweedFS gateway on loopback).
 
-Skipped unless HERMENEUT_TEST_S3_ENDPOINT is set, so a normal run never pretends to have tested
+Skipped unless SCRIPTORIUM_TEST_S3_ENDPOINT is set, so a normal run never pretends to have tested
 object storage. This is a real object service over the S3 wire protocol, but it is not the
 institution's storage: versioning, retention, replication and IAM still need separate checks.
 """
@@ -18,22 +18,22 @@ boto3 = pytest.importorskip('boto3')
 from botocore.exceptions import ClientError
 
 from test_research_integration import research  # noqa: F401
-from hermeneut.research import schema as db
-from hermeneut.research.backup import backup, restore
-from hermeneut.research.service import ResearchService
-from hermeneut.research.storage import S3Objects
-from hermeneut.research.worker import run_one
+from scriptorium.research import schema as db
+from scriptorium.research.backup import backup, restore
+from scriptorium.research.service import ResearchService
+from scriptorium.research.storage import S3Objects
+from scriptorium.research.worker import run_one
 
-ENDPOINT = os.getenv('HERMENEUT_TEST_S3_ENDPOINT', '').strip()
-pytestmark = pytest.mark.skipif(not ENDPOINT, reason='HERMENEUT_TEST_S3_ENDPOINT not configured')
+ENDPOINT = os.getenv('SCRIPTORIUM_TEST_S3_ENDPOINT', '').strip()
+pytestmark = pytest.mark.skipif(not ENDPOINT, reason='SCRIPTORIUM_TEST_S3_ENDPOINT not configured')
 
 
 @pytest.fixture
 def endpoint(monkeypatch):
-    monkeypatch.setenv('AWS_ACCESS_KEY_ID', 'hermeneut-acceptance')
-    monkeypatch.setenv('AWS_SECRET_ACCESS_KEY', 'hermeneut-acceptance')
+    monkeypatch.setenv('AWS_ACCESS_KEY_ID', 'scriptorium-acceptance')
+    monkeypatch.setenv('AWS_SECRET_ACCESS_KEY', 'scriptorium-acceptance')
     client = boto3.client('s3', endpoint_url=ENDPOINT, region_name='us-east-1')
-    bucket = 'hermeneut-test-' + uuid.uuid4().hex[:12]
+    bucket = 'scriptorium-test-' + uuid.uuid4().hex[:12]
     client.create_bucket(Bucket=bucket)
     try:
         yield client, bucket

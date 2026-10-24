@@ -3,7 +3,7 @@
 This imports a frozen schema snapshot, never the mutable runtime metadata.
 """
 from alembic import op
-from hermeneut.research.schema_v3 import metadata
+from scriptorium.research.schema_v3 import metadata
 
 revision = 'research_0003'
 down_revision = 'research_0002'

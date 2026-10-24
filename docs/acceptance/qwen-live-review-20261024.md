@@ -36,7 +36,7 @@
 
 ### P0：先打通真实模型的证据落地
 
-位置：[引文转换与校验](../../hermeneut/research/methods.py:205)。
+位置：[引文转换与校验](../../scriptorium/research/methods.py:205)。
 
 当前要求模型输出摘录及 Unicode code point 起止位置，随后直接按位置校验。两次真实调用分别出现越界和范围／摘录不一致，研究因此中断。模型能理解文字不等于能稳定计数。
 
@@ -46,7 +46,7 @@
 
 ### P0：模型调用账本与产物事务分开
 
-位置：[取得模型用量](../../hermeneut/research/methods.py:175)、[成功步骤后才记账](../../hermeneut/research/workspace.py:189)。
+位置：[取得模型用量](../../scriptorium/research/methods.py:175)、[成功步骤后才记账](../../scriptorium/research/workspace.py:189)。
 
 当前只有产物成功保存后，研究运行才累计用量。真实案例因引文验证失败，调用已发生，运行却显示消耗 0。手工重试会继续调用，但无法从现有运行台账完整追溯开销。
 
@@ -66,7 +66,7 @@
 
 ### P1：从逐段调用升级到跨文本论证
 
-位置：[按窗口安排全部方法](../../hermeneut/research/workspace.py:111)、[仅传最近八个产物](../../hermeneut/research/workspace.py:164)、[每项只传前 1,200 字摘要](../../hermeneut/research/methods.py:138)。
+位置：[按窗口安排全部方法](../../scriptorium/research/workspace.py:111)、[仅传最近八个产物](../../scriptorium/research/workspace.py:164)、[每项只传前 1,200 字摘要](../../scriptorium/research/methods.py:138)。
 
 目前构境、内在批判、视差与审查主要按每个窗口分别运行。跨页展开的立场、尺度和反例无法保证在同次检验中出现；后续只获得有限摘要，没有完整传递证据关系。分支虽保存前提，但创建子方法任务时没有将该前提作为独立输入传入。
 
@@ -76,7 +76,7 @@
 
 ### P1：报告应形成可修订论证，而不是步骤摘要拼接
 
-位置：[最终报告组装](../../hermeneut/research/workspace.py:132)。
+位置：[最终报告组装](../../scriptorium/research/workspace.py:132)。
 
 当前最终文稿连接全部步骤的摘要，容易混入重复内容、早期解释和后续修订，读者需要自行判断哪个结论仍有效。
 
@@ -86,7 +86,7 @@
 
 ### P1：桌面首次启动和后台服务闭环
 
-位置：[桌面 sidecar 启动](../../src-tauri/src/sidecar.rs:14)、[后端入口选择](../../hermeneut/desktop_entry.py:10)、[前端连接默认值](../../web/src/features/research/client.ts:21)、[服务监督进程](../../hermeneut/research/supervisor.py:7)。
+位置：[桌面 sidecar 启动](../../src-tauri/src/sidecar.rs:14)、[后端入口选择](../../scriptorium/desktop_entry.py:10)、[前端连接默认值](../../web/src/features/research/client.ts:21)、[服务监督进程](../../scriptorium/research/supervisor.py:7)。
 
 默认 sidecar 仍使用 8000 端口，未配置研究数据库时选择旧 API；统一前端默认访问 8010。研究模式的单独 sidecar 也只启动 API，没有同时启动 Worker。现有安装包验证尚不足以证明干净机器上可以直接使用统一研究功能。监督进程发现子进程退出后会整体退出，尚没有经验证的自动重启策略。
 

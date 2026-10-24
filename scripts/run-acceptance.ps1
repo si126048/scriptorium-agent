@@ -4,16 +4,16 @@
 # the database/Elasticsearch actually used, and every check with its own log file. Missing
 # integration services are reported as skipped, never as passed.
 #
-#   $env:HERMENEUT_TEST_DATABASE_URL = 'postgresql+psycopg://USER@127.0.0.1:55432/hermeneut_test'
-#   $env:HERMENEUT_TEST_ELASTICSEARCH_URL = 'http://127.0.0.1:59200'
+#   $env:SCRIPTORIUM_TEST_DATABASE_URL = 'postgresql+psycopg://USER@127.0.0.1:55432/scriptorium_test'
+#   $env:SCRIPTORIUM_TEST_ELASTICSEARCH_URL = 'http://127.0.0.1:59200'
 #   pwsh scripts/test-services.ps1 -Action start     # disposable loopback services
 #   pwsh scripts/run-acceptance.ps1
 #
 # Never point the test database URL at a real research database: tests create and drop schemas.
 [CmdletBinding()]
 param(
-    [string]$DatabaseUrl = $env:HERMENEUT_TEST_DATABASE_URL,
-    [string]$ElasticsearchUrl = $env:HERMENEUT_TEST_ELASTICSEARCH_URL,
+    [string]$DatabaseUrl = $env:SCRIPTORIUM_TEST_DATABASE_URL,
+    [string]$ElasticsearchUrl = $env:SCRIPTORIUM_TEST_ELASTICSEARCH_URL,
     [string]$OutDir = 'output/acceptance',
     [switch]$SkipFrontend,
     [switch]$SkipDesktop,
@@ -64,13 +64,13 @@ function Get-SummaryLine([string]$log) {
 }
 
 # ---------------------------------------------------------------- environment record
-$env:HERMENEUT_TEST_DATABASE_URL = $DatabaseUrl
-$env:HERMENEUT_TEST_ELASTICSEARCH_URL = $ElasticsearchUrl
+$env:SCRIPTORIUM_TEST_DATABASE_URL = $DatabaseUrl
+$env:SCRIPTORIUM_TEST_ELASTICSEARCH_URL = $ElasticsearchUrl
 
 # The legacy SQLite database is a migration source, not scratch space. Record it before and after
 # so a run that writes it can never be mistaken for a clean acceptance run.
 $sourceDb = Join-Path $root 'data/lacan.db'
-$env:HERMENEUT_FROZEN_SOURCE = $sourceDb
+$env:SCRIPTORIUM_FROZEN_SOURCE = $sourceDb
 function Get-SourceState {
     $parts = foreach ($suffix in '', '-wal', '-shm') {
         $path = "$sourceDb$suffix"
@@ -82,8 +82,8 @@ function Get-SourceState {
 $sourceBefore = Get-SourceState
 
 $snapshot = python scripts/worktree-digest.py --json | ConvertFrom-Json
-$safeDatabaseUrl = python -c "import os; from hermeneut.research.config import redacted_service_url; print(redacted_service_url(os.getenv('HERMENEUT_TEST_DATABASE_URL')))"
-$safeElasticsearchUrl = python -c "import os; from hermeneut.research.config import redacted_service_url; print(redacted_service_url(os.getenv('HERMENEUT_TEST_ELASTICSEARCH_URL')))"
+$safeDatabaseUrl = python -c "import os; from scriptorium.research.config import redacted_service_url; print(redacted_service_url(os.getenv('SCRIPTORIUM_TEST_DATABASE_URL')))"
+$safeElasticsearchUrl = python -c "import os; from scriptorium.research.config import redacted_service_url; print(redacted_service_url(os.getenv('SCRIPTORIUM_TEST_ELASTICSEARCH_URL')))"
 $envInfo = [ordered]@{
     started_at = (Get-Date).ToString('o')
     root = $root
@@ -120,11 +120,11 @@ if (-not $SkipTests) {
     }
 }
 Invoke-Step 'ruff' {
-    python -m ruff check hermeneut/research migrations/research scripts tests/test_research_texts.py tests/test_research_integration.py tests/test_unified_workspace.py tests/test_research_s3.py tests/test_research_s3_live.py tests/test_research_ocr.py tests/test_research_settings.py tests/test_legacy_matrix.py tests/test_source_guard.py tests/test_research_experience.py
+    python -m ruff check scriptorium/research migrations/research scripts tests/test_research_texts.py tests/test_research_integration.py tests/test_unified_workspace.py tests/test_research_s3.py tests/test_research_s3_live.py tests/test_research_ocr.py tests/test_research_settings.py tests/test_legacy_matrix.py tests/test_source_guard.py tests/test_research_experience.py
 }
 Invoke-Step 'openapi-types' { python scripts/generate-api-types.py --check }
 Invoke-Step 'capabilities' {
-    python -c "import json,importlib.util; print(json.dumps({'rapidocr': bool(importlib.util.find_spec('rapidocr_onnxruntime')), 'tesseract_binary': bool(__import__('shutil').which('tesseract')), 's3_endpoint_env': bool(__import__('os').environ.get('HERMENEUT_TEST_S3_ENDPOINT'))}, ensure_ascii=False))"
+    python -c "import json,importlib.util; print(json.dumps({'rapidocr': bool(importlib.util.find_spec('rapidocr_onnxruntime')), 'tesseract_binary': bool(__import__('shutil').which('tesseract')), 's3_endpoint_env': bool(__import__('os').environ.get('SCRIPTORIUM_TEST_S3_ENDPOINT'))}, ensure_ascii=False))"
 }
 if (-not $SkipFrontend) {
     Invoke-Step 'web-build' { npm --prefix web run build }

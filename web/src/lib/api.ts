@@ -1,7 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 function getApiKey(): string | null {
-  return localStorage.getItem('hermeneut_api_key');
+  return localStorage.getItem('scriptorium_api_key');
 }
 
 function headers(extra: Record<string, string> = {}): Record<string, string> {

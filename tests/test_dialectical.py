@@ -1,12 +1,12 @@
 import uuid
-from hermeneut.db import Store
-from hermeneut.models import (
+from scriptorium.db import Store
+from scriptorium.models import (
     ConsentScope, Participant, Project, RunState,
 )
-from hermeneut.rag import ingest
-from hermeneut.llm import FakeProvider
-from hermeneut.dialectical import DialecticalWorkflow
-from hermeneut.perspectives.registry import PerspectiveRegistry
+from scriptorium.rag import ingest
+from scriptorium.llm import FakeProvider
+from scriptorium.dialectical import DialecticalWorkflow
+from scriptorium.perspectives.registry import PerspectiveRegistry
 
 
 def _setup(tmp_path):

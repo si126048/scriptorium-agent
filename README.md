@@ -1,37 +1,58 @@
-# Hermeneut-Agent
+# Scriptorium
 
-**对抗性多视角话语分析工具** — 形式化记号驱动的多理论视角辩证分析，产出可追溯的证据化主体结构画像。
+**人文研究 Agent** — 面向人文学科的证据锚定、多视角批判性解读工作台：把版本化原文、理论文本、访谈与文稿，转化为可回溯到原文精确位置、可核验引文的研究论证。
 
-> v3.1 · Python 3.12+ · 356 tests · MIT
+> v3.1 · Python 3.12+ · 356 tests · MIT · 本地优先（默认仅绑定 127.0.0.1）
 
-两条并行的产品线：
-
-- **核心分析引擎（v3.1）** — SQLite 运行时，CLI + Web UI + 桌面应用 + ACP/MCP，见下文。
-- **Research 服务（v4.0-dev）** — 独立的人文研究工作区，PostgreSQL + Elasticsearch 后端、版本化材料与证据锚点、`/api/v2` 接口，可选部署。见 [Research 服务](#research-服务v40-dev) 与 [`docs/research-service.md`](docs/research-service.md)。
-
-> TopoStyle 语料特征提取工作台（TF-IDF / 持久同调 / 共现图）作为独立子项目位于 [`tools/topostyle-workbench`](tools/topostyle-workbench/README.md)，保留自有 CLI、测试与数据；产品内的 TopoStyle Persona 模块位于 `hermeneut/topostyle/`。
+Scriptorium（缮写室）把「细读 → 批判性解读 → 论证构建」放进同一条证据链：每个结论都能回跳到原文的 code point 级锚点，每条引文都必须通过核验，每个结构性主张默认都是 `candidate`，只有人工审核通过才进入论证。它不做临床诊断，也不把语言口癖等同于人格——它做的是**把解读锚定到证据**。
 
 ---
 
-## 这是什么
+## 两种运行时，同一个 agent
 
-Hermeneut 把聊天、访谈、写作样本等研究材料转化为**有证据追溯的主体结构分析**。每个结构候选都必须引用原文证据 span，默认状态为 `candidate`，只有人工审核通过后才进入后续流程。
+| 运行时 | 定位 | 后端 | 入口 |
+|---|---|---|---|
+| **研究工作台**（推荐） | 完整人文研究：版本化材料、证据锚点、批判方法、引文核验、统一工作台（图形界面） | PostgreSQL + Elasticsearch | `scriptorium research serve` → Web `http://127.0.0.1:8010` |
+| **本地单机** | 轻量证据分析与对抗性辩证，无需外部服务，开箱即用（CLI / 终端 / 编辑器插件） | SQLite | `scriptorium <命令>` · `scriptorium interactive` · `scriptorium-acp` · `scriptorium-mcp` |
 
-核心架构是**形式化记号驱动的对抗性多视角分析**：拉康与德勒兹各有独立的形式化记号体系（mathemes / 装配代数），用紧凑的符号表示替代自然语言概念解释，在压缩 token 消耗的同时减少语义漂移。同时内置 PageIndex 文档系统，支持长篇精神分析文本的导入、检索和引文验证。
+图形研究工作台由研究服务提供；本地单机运行时保留全部单机分析能力（证据分析、对抗性辩证、文档系统、主体画像、访谈、风格模拟），以 CLI、交互式终端和 ACP/MCP 编辑器插件的形式使用，并通过统一的 `scriptorium research …` 子命令接入研究服务。两者共享同一套项目／参与者／授权与证据模型。
 
-这不是临床诊断工具，也不把语言口癖直接等同于人格。
-
-### v3.1 新特性
-
-- **开机动画** — 黑幕品牌标识 → 过曝洗白 → 暖白技术档案底板 → 五步交互式授权 → 环形准星 → 色散故障揭幕（系统字体，零网络依赖）
-- **任务系统** — 多任务对话隔离，每个任务独立消息历史，支持新建/切换/删除
-- **垂直图标导航** — 左侧图标列（任务/视角/文档/检索/访谈/设置），点击展开对应面板
-- **TopoStyle Persona** — 基于本地 Ollama 的拓扑人格建模，支持训练和对话
-- **技术档案 UI** — 暖白底板 (#e5e3df)、橙色强调 (#ff7500)、等宽字体、发丝边框
+> TopoStyle 语料特征提取工作台（TF-IDF / 持久同调 / 共现图）作为独立子项目位于 [`tools/topostyle-workbench`](tools/topostyle-workbench/README.md)，保留自有 CLI、测试与数据；产品内的 TopoStyle 风格模拟模块位于 `scriptorium/topostyle/`。
 
 ---
 
-## 核心能力
+## 批判方法
+
+Scriptorium 的解读能力组织为可单独或组合调用的**方法**，全部产出带证据锚点的结构化记录，而非自由文本断言：
+
+| 方法 | 界面标签 | 说明 |
+|---|---|---|
+| **思想构境** `situating.v1` | 构境 | 六维档案、概念记录、跨材料选择、竞争档案比较与人工修订 |
+| **内在批判** `immanent_critique.v1` | 内在批判 | 立场、尺度、困难、转化候选、关系列表与依据；无依据的转化会被拒绝 |
+| **视差分析** `parallax.v1` | 视差 | 位置、对象显现、位移、已排除原因、反驳条件与裂隙候选 |
+| **理论视角比较** | 理论视角比较 | 多理论视角对同一文本独立解读 → 交叉批评 → 综合，内置**拉康 × 德勒兹**对抗性辩证分析 |
+| **主体分析** | 主体分析 | 跨来源互证的多源主体结构画像（聊天／访谈／写作样本） |
+| **风格模拟** | 风格模拟 | TopoStyle 本地 Ollama 拓扑人格建模，训练 + SSE 流式对话 |
+
+其中「理论视角比较」源自 Scriptorium 最早的核心创新——**形式化记号驱动的对抗性多视角分析**：拉康与德勒兹各有独立的形式化记号体系（mathemes / 装配代数），用紧凑符号替代自然语言概念解释，压缩 token 的同时减少语义漂移。详见 [形式化记号系统](#形式化记号系统) 与 [对抗性多视角分析](#对抗性多视角分析)。
+
+---
+
+## 研究闭环：材料 → 证据 → 解读 → 论证
+
+研究工作台把研究材料转化为**有证据追溯的解读与论证**：
+
+- **版本化材料** — 原件／理论文本以不可变版本链导入（TXT / MD / PDF / TEI，扫描版走 OCR），修订产生新版本，旧证据永远指向旧版本。
+- **证据锚点** — 选中文字即成为 code point 级锚点，结论、笔记、引文都绑定到锚点，可一键回跳原文。
+- **方法化解读** — 上表六种方法产出结构化记录（构境档案、转化候选、视差裂隙、辩证综合……），每条都带依据。
+- **引文核验** — 引文草稿必须绑定到已核验的原文摘录才算通过，未核验的引文不进入文稿。
+- **人工审核门禁** — 结构性主张默认 `candidate`，人工批准后才进入论证与文稿；撤回参与者授权会级联清理其派生数据。
+
+同时内置 PageIndex 文档系统，支持长篇理论文本的导入、检索和引文验证。
+
+---
+
+## 平台能力
 
 | | |
 |---|---|
@@ -44,9 +65,9 @@ Hermeneut 把聊天、访谈、写作样本等研究材料转化为**有证据�
 | **多格式文档提取** | PageIndex 文档系统支持 txt / md / pdf / html / epub / docx / xlsx / pptx（分析材料导入限 txt / md / pdf） |
 | **人工审核门禁** | CLI + JSON 审核文件驱动，所有结构候选必须人工批准 |
 | **同意管理** | 细粒度同意 scope、过期、撤回与派生数据清理 |
-| **Web UI** | Vite + React + TypeScript 对话式界面：任务系统、垂直图标导航、聊天分析、辩证分析、访谈、文件上传（txt/md/pdf） |
-| **TopoStyle Persona** | 基于本地 Ollama 的拓扑人格建模，训练 + SSE 流式对话，复用项目/参与者/授权体系 |
-| **对话模式** | 专门化话语分析 Agent，支持拉康/德勒兹理论框架的连贯对话 |
+| **统一研究工作台** | Vite + React + TypeScript：材料库 / 阅读区 / 笔记编辑三区布局，方法化解读、证据锚点回跳、引文核验、文稿导出（MD / JSON / TEI） |
+| **TopoStyle 风格模拟** | 基于本地 Ollama 的拓扑人格建模，训练 + SSE 流式对话，复用项目/参与者/授权体系 |
+| **研究对话** | 专门化话语分析 Agent，围绕所选材料进行连贯的批判性对话 |
 | **SSE 流式输出** | 实时流式显示分析阶段、观察、假设、反例和报告 |
 
 ---
@@ -112,30 +133,44 @@ pip install -e ".[dev]"
 
 ## 快速开始
 
+### 研究工作台（推荐）
+
+```bash
+uv pip install -e ".[research,dev]"   # 安装研究服务依赖
+# 准备可连接的 PostgreSQL 17 与 Elasticsearch 8.19（或用 compose.research.yml）
+scriptorium research init-db
+scriptorium research serve            # → http://127.0.0.1:8010
+scriptorium research worker           # 另开一个终端
+```
+
+浏览器打开 `http://127.0.0.1:8010`，新建项目 → 导入材料 → 选中原文保存证据锚点 → 选择方法（构境 / 内在批判 / 视差 / 理论视角比较）运行 → 核验引文 → 导出文稿。
+
+以下命令属于**本地单机运行时**（SQLite，无需外部服务），适合快速证据分析与对抗性辩证。
+
 ### 证据分析流程
 
 ```bash
-hermeneut init --project demo
-hermeneut add-participant --project demo --id A --consent consent.json
-hermeneut add-source --project demo --participant A --file story.txt
-hermeneut analyze --project demo --participant A --source story.txt --mock
-hermeneut review --run <run_id> --decision approve
-hermeneut export --run <run_id> --pretty
+scriptorium init --project demo
+scriptorium add-participant --project demo --id A --consent consent.json
+scriptorium add-source --project demo --participant A --file story.txt
+scriptorium analyze --project demo --participant A --source story.txt --mock
+scriptorium review --run <run_id> --decision approve
+scriptorium export --run <run_id> --pretty
 ```
 
 ### 对抗性多视角分析
 
 ```bash
 # 列出可用视角
-hermeneut perspectives
+scriptorium perspectives
 
 # 拉康 vs 德勒兹对抗分析
-hermeneut dialectical-analyze \
+scriptorium dialectical-analyze \
   --perspectives lacan,deleuze \
   --participant A --project demo --source story.txt --mock
 
 # 含综合报告
-hermeneut dialectical-analyze \
+scriptorium dialectical-analyze \
   --perspectives lacan,deleuze \
   --participant A --project demo --source story.txt --mock --report
 ```
@@ -143,16 +178,16 @@ hermeneut dialectical-analyze \
 ### 文档系统
 
 ```bash
-hermeneut doc-ingest --path book.pdf --project demo
-hermeneut doc-search --query "objet petit a" --project demo
-hermeneut doc-outline --doc-id <doc_id>
-hermeneut doc-verify --doc-id <doc_id> --quote "欲望是他者的欲望" --page 47
+scriptorium doc-ingest --path book.pdf --project demo
+scriptorium doc-search --query "objet petit a" --project demo
+scriptorium doc-outline --doc-id <doc_id>
+scriptorium doc-verify --doc-id <doc_id> --quote "欲望是他者的欲望" --page 47
 ```
 
-### 交互式界面
+### 交互式终端
 
 ```powershell
-.\start.ps1
+.\start.ps1          # 等价于 scriptorium interactive，引导式终端分析
 ```
 
 ---
@@ -183,7 +218,7 @@ Phase 4  报告        可选：生成自然语言综合报告
 
 ### 扩展新视角
 
-在 `hermeneut/perspectives/` 放置 JSON 配置文件即可自动发现：
+在 `scriptorium/perspectives/` 放置 JSON 配置文件即可自动发现：
 
 ```json
 {
@@ -216,11 +251,13 @@ Phase 4  报告        可选：生成自然语言综合报告
 
 ---
 
-## API
+## API（本地单机 · `/api/v1`）
+
+本地单机运行时（SQLite）暴露 `/api/v1` 接口，供 CLI、ACP、MCP 与本地分析使用，由 `uvicorn scriptorium.api:app`（默认 `127.0.0.1:8000`）提供。图形研究工作台走研究服务的 `/api/v2`（见 [研究工作台服务](#研究工作台服务)）。
 
 ### TopoStyle 本地 Persona
 
-TopoStyle 复用 Hermeneut 的项目、参与者、授权和 SQLite 存储。模型通过本地 Ollama 运行，默认使用 `qwen2.5:3b` 和 `nomic-embed-text`：
+TopoStyle 复用 Scriptorium 的项目、参与者、授权和 SQLite 存储。模型通过本地 Ollama 运行，默认使用 `qwen2.5:3b` 和 `nomic-embed-text`：
 
 ```bash
 ollama pull qwen2.5:3b
@@ -235,7 +272,7 @@ uv pip install -e ".[dev]"
 ### 启动
 
 ```bash
-uvicorn hermeneut.api:app --host 127.0.0.1 --port 8000
+uvicorn scriptorium.api:app --host 127.0.0.1 --port 8000
 ```
 
 默认仅绑定本机地址。设置 `LACAN_API_KEY` 环境变量启用 Bearer Token 认证；不设置时无需认证。
@@ -299,67 +336,57 @@ curl -X POST http://localhost:8000/api/v1/dialectical/run \
   }'
 ```
 
-## Web UI
+## 研究工作台（Web）
 
-浏览器访问 `http://127.0.0.1:8000` 即可使用图形界面（启动方式同上 `uvicorn hermeneut.api:app`）。
+图形界面是**统一研究工作台**（`web/src/features/workspace/`），由研究服务提供：启动 `scriptorium research serve` 后浏览器访问 `http://127.0.0.1:8010`。工作台围绕「材料 → 证据 → 解读 → 论证」组织，取代了早期以聊天为中心的界面。
 
-Windows 下也可以在项目根目录执行 `.\start-webui.ps1` 启动服务。
+### 布局
+
+三区响应式布局，可折叠：
+
+- **材料库 / 项目导航**（左）— 项目、会话、材料、历史分析、研究文档树
+- **对话与方法区**（中）— 研究对话流、方法调用、决定点（decision）、任务进度、引文核验卡片
+- **阅读 / 编辑区**（右）— 原文阅读与选词锚定、版本对照、研究笔记与文稿编辑、书目与处理状态
+
+### 工具与方法
+
+底栏工具选择器把能力组织为**工具**与**方法**（见 [批判方法](#批判方法)）：
+
+| 类型 | 选项 |
+|---|---|
+| 工具 | 研究对话 · 完整研究 · 理论视角比较 · 主体分析 · 风格模拟 |
+| 方法 | 思想构境 · 内在批判 · 视差分析 |
+
+选中原文即可保存为证据锚点，结论与引文绑定锚点后可一键回跳原文；运行模式可切换「真实模型 / 演示（不产生学术结论）」。文稿与论证支持导出 Markdown / JSON / TEI。
 
 ### 技术栈
 
-- **前端**: Vite 8 + React 19 + TypeScript + Tailwind CSS 4 + Zustand
-- **后端**: FastAPI + SSE (Server-Sent Events)
-- **流式输出**: 原生 fetch + ReadableStream
+- **前端**: Vite 8 + React 19 + TypeScript + Tailwind CSS 4 + Zustand + TanStack Query + Radix UI
+- **后端**: 研究服务 FastAPI + PostgreSQL + Elasticsearch，SSE 推送任务与对话事件
+- **流式输出**: 原生 fetch + ReadableStream；任务进度经 SSE 续传
 
 ### 开发模式
 
 ```bash
-# Terminal 1: 后端
-uvicorn hermeneut.api:app --reload --port 8000
+# Terminal 1: 研究服务（需先起 PostgreSQL + Elasticsearch，见「研究工作台服务」）
+scriptorium research serve        # → http://127.0.0.1:8010
+scriptorium research worker       # 异步作业 Worker
 
-# Terminal 2: 前端
-cd web && npm run dev  # → http://localhost:5173
+# Terminal 2: 前端热更新
+cd web && npm run dev             # → http://localhost:5173
 ```
 
-### 生产构建
+前端开发服务器通过 `web/vite.config.ts` 代理 `/api` 到研究服务。生产构建 `cd web && npm run build` 后，研究服务会自动挂载 `web/dist`。
 
-```bash
-cd web && npm run build
-uvicorn hermeneut.api:app --port 8000  # 访问 http://127.0.0.1:8000
-```
+### 服务与密钥
 
-### 功能
-
-- **任务系统**：多任务对话隔离，每个任务独立消息历史，支持新建/切换/删除/自动命名
-- **垂直图标导航**：左侧图标列（任务/视角/文档/检索/访谈/设置），点击展开对应面板，抽屉式抽拉
-- **开机动画**：品牌标识揭幕动画，系统字体零网络依赖
-- **对话模式**：与专门化话语分析 Agent 进行连贯对话，支持拉康/德勒兹理论框架
-- **分析模式**：输入文本或上传文件（`.txt / .md / .pdf`），流式显示 Observation / Hypothesis / Counterexample 卡片
-- **辩证分析**：一键运行四阶段对抗性辩证管线（Lacan × Deleuze），实时显示进度
-- **TopoStyle Persona**：基于本地 Ollama 的拓扑人格建模，训练 + 对话
-- **视角面板**：查看已注册视角的概念清单与盲点
-- **文档上传**：拖拽上传到 PageIndex 文档系统
-- **语料检索**：搜索已索引的理论文档
-- **交互式访谈**：固定主问题结合受限动态追问，支持暂停、恢复、完成和撤回
-
-### 模式切换
-
-| 模式 | 说明 |
-|------|------|
-| 对话 | 与话语分析 Agent 进行连贯对话，适合探索性讨论 |
-| 分析 | 单视角证据分析，流式输出观察/假设/反例 |
-| 辩证 | 多视角对抗性分析，四阶段管线（独立分析→交叉批判→综合→报告） |
-| 访谈 | 结构化访谈，支持暂停/恢复/完成/撤回 |
-
-### API Key
-
-如果服务端设置了 `LACAN_API_KEY`，点击底栏 `KEY` 输入 API Key（存储在浏览器 localStorage）。未设置时无需配置。
+在右侧「服务与任务」面板配置研究服务地址与密钥：远程访问必须设置 `SCRIPTORIUM_RESEARCH_API_KEY` 并走 HTTPS 反向代理；本机可免密。真实方法分析沿用 `DASHSCOPE_API_KEY` 与 `LACAN_MODEL`，也可在工作台内保存 Qwen 密钥到当前用户的系统凭证存储。
 
 ---
 
 ## 桌面应用
 
-Hermeneut 提供基于 Tauri v2 的桌面应用，打包为独立 Windows 安装程序，无需手动安装 Python 或 Node.js。
+Scriptorium 提供基于 Tauri v2 的桌面应用，打包为独立 Windows 安装程序，无需手动安装 Python 或 Node.js。
 
 ### 架构
 
@@ -370,13 +397,13 @@ Tauri Application
 └── Sidecar (PyInstaller exe)  ← Python FastAPI 后端，自动启动
 ```
 
-数据存储在 `%APPDATA%\app.hermeneut.desktop\`（数据库 + 上传文件）。
+数据存储在 `%APPDATA%\app.scriptorium.desktop\`（数据库 + 上传文件）。
 
 ### 开发模式
 
 ```powershell
 # 终端 1: 后端（开发时手动启动）
-uvicorn hermeneut.api:app --host 127.0.0.1 --port 8000
+uvicorn scriptorium.api:app --host 127.0.0.1 --port 8000
 
 # 终端 2: Tauri 开发
 $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
@@ -400,7 +427,7 @@ cd web && npm ci && npm run build:tauri
 cargo tauri build                  # → src-tauri/target/release/bundle/nsis/
 ```
 
-输出：`Hermeneut-Agent_3.1.0_x64-setup.exe`（NSIS 安装程序）
+输出：`Scriptorium_3.1.0_x64-setup.exe`（NSIS 安装程序）
 
 ### 清理构建产物
 
@@ -412,14 +439,14 @@ cargo tauri build                  # → src-tauri/target/release/bundle/nsis/
 
 ## ACP（Agent Client Protocol）
 
-Hermeneut 支持通过 ACP 协议在 Zed 等编辑器中直接调用，选中文字即可分析。
+Scriptorium 支持通过 ACP 协议在 Zed 等编辑器中直接调用，选中文字即可分析。
 
 ### 启动
 
 ```bash
-hermeneut-acp --mock          # 无需 API key（mock 模式）
-hermeneut-acp                 # 需要 DASHSCOPE_API_KEY
-python -m hermeneut.acp --mock
+scriptorium-acp --mock          # 无需 API key（mock 模式）
+scriptorium-acp                 # 需要 DASHSCOPE_API_KEY
+python -m scriptorium.acp --mock
 ```
 
 ### Zed 配置
@@ -429,10 +456,10 @@ python -m hermeneut.acp --mock
 ```json
 {
   "agent_servers": {
-    "hermeneut": {
+    "scriptorium": {
       "type": "custom",
       "command": "python",
-      "args": ["-m", "hermeneut.acp", "--mock"]
+      "args": ["-m", "scriptorium.acp", "--mock"]
     }
   }
 }
@@ -449,31 +476,31 @@ python -m hermeneut.acp --mock
 
 ### MCP（Model Context Protocol）
 
-Hermeneut 也可作为 MCP 服务器运行，供 Qoder、Claude Desktop 等 MCP 客户端直接调用。
+Scriptorium 也可作为 MCP 服务器运行，供 Qoder、Claude Desktop 等 MCP 客户端直接调用。
 
 ```bash
-hermeneut-mcp --mock          # 无需 API key
-hermeneut-mcp                 # 需要 DASHSCOPE_API_KEY
-python -m hermeneut.mcp_server --mock
+scriptorium-mcp --mock          # 无需 API key
+scriptorium-mcp                 # 需要 DASHSCOPE_API_KEY
+python -m scriptorium.mcp_server --mock
 ```
 
 暴露 4 个 MCP 工具：
 
 | 工具 | 说明 |
 |------|------|
-| `hermeneut_analyze` | 单视角证据分析 |
-| `hermeneut_dialectical` | 多视角辩证分析（拉康 vs 德勒兹） |
-| `hermeneut_perspectives` | 列出可用理论视角 |
-| `hermeneut_search` | 文档全文检索 |
+| `scriptorium_analyze` | 单视角证据分析 |
+| `scriptorium_dialectical` | 多视角辩证分析（拉康 vs 德勒兹） |
+| `scriptorium_perspectives` | 列出可用理论视角 |
+| `scriptorium_search` | 文档全文检索 |
 
 MCP 客户端配置示例（Qoder / Claude Desktop）：
 
 ```json
 {
   "mcpServers": {
-    "hermeneut": {
+    "scriptorium": {
       "command": "python",
-      "args": ["-m", "hermeneut.mcp_server", "--mock"]
+      "args": ["-m", "scriptorium.mcp_server", "--mock"]
     }
   }
 }
@@ -481,9 +508,9 @@ MCP 客户端配置示例（Qoder / Claude Desktop）：
 
 ---
 
-## Research 服务（v4.0-dev）
+## 研究工作台服务
 
-面向长期人文研究的独立服务，与核心引擎的 SQLite 运行时完全隔离，采用 PostgreSQL 持久化 + Elasticsearch 检索，提供版本化材料、证据锚点、方法运行、决策留痕与统一研究工作区。默认为可选部署，不影响核心分析引擎的使用。
+承载图形研究工作台的运行时，与本地单机的 SQLite 运行时相互隔离：采用 PostgreSQL 持久化 + Elasticsearch 检索，提供版本化材料、证据锚点、方法运行、决策留痕与统一研究工作区。这是完整体验所推荐的后端；本地单机运行时仍可独立用于 CLI / ACP / MCP 分析。
 
 ### 能力
 
@@ -493,10 +520,10 @@ MCP 客户端配置示例（Qoder / Claude Desktop）：
 | **证据锚点** | `anchors` 将结论绑定到材料精确位置，支持 `verify-anchors` 校验 |
 | **方法与作业** | `method-runs` / `jobs` / `research-runs` 记录研究过程，Worker 异步执行、可中断恢复 |
 | **对话与决策** | `conversations` / `messages` / `decisions` 留痕，`citation-drafts` 管理引文草稿 |
-| **对象存储** | 可选 S3 后端（`HERMENEUT_OBJECT_BACKEND=s3`），兼容 SeaweedFS |
+| **对象存储** | 可选 S3 后端（`SCRIPTORIUM_OBJECT_BACKEND=s3`），兼容 SeaweedFS |
 | **OCR** | rapidocr / tesseract 双后端，支持扫描版文献 |
-| **统一工作台** | Web 端 Research Workbench + Unified Workspace（`web/src/features/`） |
-| **平滑迁移** | `migrate-sqlite` 从核心引擎的 SQLite 快照迁移，Alembic 版本化 schema |
+| **统一工作台** | Web 端研究工作台（`web/src/features/workspace/`），服务自动挂载前端构建产物 |
+| **平滑迁移** | `migrate-sqlite` 从本地单机的 SQLite 快照非破坏式迁移，Alembic 版本化 schema |
 
 ### 接口
 
@@ -508,13 +535,14 @@ API 前缀 `/api/v2/projects/{project_id}/...`（materials、anchors、records�
 # 安装 research extra
 uv pip install -e ".[research]"
 
-# 单机开发（本地 PostgreSQL + Elasticsearch）
-hermeneut-research init-db
-hermeneut-research serve          # 默认 127.0.0.1:8010
-hermeneut-research worker         # 异步作业 Worker
+# 单机开发（本地 PostgreSQL + Elasticsearch）——统一入口
+scriptorium research init-db
+scriptorium research serve          # 默认 127.0.0.1:8010
+scriptorium research worker         # 异步作业 Worker
 
-# 或一键脚本（Windows）
-.\scripts\start-research.ps1
+# 等价命令
+python -m scriptorium.research.cli serve
+.\scripts\start-research.ps1        # Windows 一键脚本
 
 # 容器编排（postgres + elasticsearch + migrate/api/worker）
 docker compose -f compose.research.yml up
@@ -549,21 +577,21 @@ docker compose -f compose.research.yml up
 
 ```bash
 pytest tests/ -q          # 运行全部测试 (356)
-ruff check hermeneut/     # 代码检查
+ruff check scriptorium/     # 代码检查
 ```
 
 | 组件 | 技术 |
 |------|------|
 | 语言 | Python 3.12+ |
 | 数据验证 | Pydantic v2 |
-| 数据库 | SQLite + FTS5 |
+| 数据库 | SQLite + FTS5（本地单机）· PostgreSQL + Elasticsearch（研究工作台） |
 | Web 框架 | FastAPI + Uvicorn |
 | 前端框架 | Vite 8 + React 19 + TypeScript + Tailwind CSS 4 |
 | 状态管理 | Zustand |
 | 桌面应用 | Tauri v2 + PyInstaller sidecar |
 | LLM | DashScope (通义千问) OpenAI-compatible API |
 | 流式输出 | SSE (Server-Sent Events) |
-| 形式化记号 | `hermeneut/formal/` — mathemes + discourse algebra + register taxonomy |
+| 形式化记号 | `scriptorium/formal/` — mathemes + discourse algebra + register taxonomy |
 | 文档提取 | pypdf / HTMLParser / zipfile |
 | 测试 | pytest + pytest-asyncio |
 
@@ -571,7 +599,7 @@ ruff check hermeneut/     # 代码检查
 
 ## 多源主体结构画像
 
-除单源证据分析外，Hermeneut 支持跨来源互证的主体结构画像构建：
+除单源证据分析外，Scriptorium 支持跨来源互证的主体结构画像构建：
 
 ```json
 {
@@ -599,11 +627,11 @@ ruff check hermeneut/     # 代码检查
 每个 turn 必须包含 `question`（问题文本）和回答字段。回答字段按优先级尝试 `answer_text` → `answer` → `text`，三者取其一即可。字段缺失或为空时该 turn 会被跳过（除非提供了 `answer_span_ids` 指向已有证据 span）。
 
 ```bash
-hermeneut subject build --participant A --sources sources.json --mode full \
+scriptorium subject build --participant A --sources sources.json --mode full \
   --batch-size 80 --with-relations --cards-dir data/subject-artifacts
-hermeneut subject show --participant A --cards-dir data/subject-artifacts
-hermeneut subject review --participant A --input review.json --cards-dir data/subject-artifacts
-hermeneut subject export --participant A --cards-dir data/subject-artifacts --to subject.json
+scriptorium subject show --participant A --cards-dir data/subject-artifacts
+scriptorium subject review --participant A --input review.json --cards-dir data/subject-artifacts
+scriptorium subject export --participant A --cards-dir data/subject-artifacts --to subject.json
 ```
 
 主体分析按重叠窗口覆盖全部消息。关系层先生成有向互动事件，再由 Qwen 复核关系候选。所有候选保留 span、时间和场景证据。可用 `--aliases aliases.json` 提供人工确认的参与者别名表。
@@ -614,7 +642,7 @@ Qwen 结构抽取需要设置 `DASHSCOPE_API_KEY` 环境变量。Qwen 失败时�
 
 ## 致谢
 
-Hermeneut-Agent 的文档系统（`hermeneut/documents/`）移植自 [MISAKA-Agent](https://github.com/Luciole-Studio/Misaka-Agent)（Copyright 2026 Luciole Studio, [Apache License 2.0](LICENSE-MISAKA)），包括内容寻址存储、层级大纲检测、引文归一化验证和多格式文本提取器。对抗性多视角辩证分析的架构设计亦受 MISAKA 多智能体编排的启发。详见 [NOTICE](NOTICE)。
+Scriptorium 的文档系统（`scriptorium/documents/`）移植自 [MISAKA-Agent](https://github.com/Luciole-Studio/Misaka-Agent)（Copyright 2026 Luciole Studio, [Apache License 2.0](LICENSE-MISAKA)），包括内容寻址存储、层级大纲检测、引文归一化验证和多格式文本提取器。对抗性多视角辩证分析的架构设计亦受 MISAKA 多智能体编排的启发。详见 [NOTICE](NOTICE)。
 
 ---
 

@@ -1,7 +1,7 @@
 # Local, disposable PostgreSQL + Elasticsearch used by the acceptance runs.
 #
 # These are temporary test dependencies under tmp/research-services, bound to loopback only.
-# They are not a production deployment: HERMENEUT_TEST_DATABASE_URL must point at a database
+# They are not a production deployment: SCRIPTORIUM_TEST_DATABASE_URL must point at a database
 # that may be created and dropped, never at real research data.
 #
 #   pwsh scripts/test-services.ps1 -Action status

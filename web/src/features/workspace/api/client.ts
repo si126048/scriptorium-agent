@@ -30,7 +30,7 @@ export interface Job { id: string; kind: string; state: string; error: string | 
 export interface LegacyRecord { id: string; table_name: string; legacy_key: string; status: string; payload: unknown }
 
 export function serviceUrl() {
-  return (localUrl || localStorage.getItem('hermeneut_research_url') ||
+  return (localUrl || localStorage.getItem('scriptorium_research_url') ||
     ('__TAURI_INTERNALS__' in window ? 'http://127.0.0.1:8010' :
       location.protocol.startsWith('http') ? location.origin : 'http://127.0.0.1:8010')).replace(/\/$/, '');
 }
@@ -38,7 +38,7 @@ export function serviceUrl() {
 export async function response(path: string, init: RequestInit = {}) {
   await hydrateConnection();
   const headers = new Headers(init.headers);
-  const key = localKey || localStorage.getItem('hermeneut_research_key');
+  const key = localKey || localStorage.getItem('scriptorium_research_key');
   if (key) headers.set('Authorization', `Bearer ${key}`);
   if (typeof init.body === 'string') headers.set('Content-Type', 'application/json');
   const r = await fetch(`${serviceUrl()}${path}`, { ...init, headers });
@@ -67,11 +67,11 @@ export function saveBlob(blob: Blob, filename: string) {
 }
 
 export function exportBrowserHistory() {
-  const raw = localStorage.getItem('hermeneut_tasks');
-  const content = { format: 'hermeneut-browser-history.v1', tasks: raw ? JSON.parse(raw) : [],
-    exported_at: new Date().toISOString(), current_task: localStorage.getItem('hermeneut_current_task'),
+  const raw = localStorage.getItem('scriptorium_tasks');
+  const content = { format: 'scriptorium-browser-history.v1', tasks: raw ? JSON.parse(raw) : [],
+    exported_at: new Date().toISOString(), current_task: localStorage.getItem('scriptorium_current_task'),
     note: '仅包含当前浏览器仍保存的历史；不包含密钥，未删除原记录。' };
-  saveBlob(new Blob([JSON.stringify(content, null, 2)], { type: 'application/json' }), 'hermeneut-history.json');
+  saveBlob(new Blob([JSON.stringify(content, null, 2)], { type: 'application/json' }), 'scriptorium-history.json');
 }
 
 export function codepointOffset(text: string, utf16: number) { return Array.from(text.slice(0, utf16)).length; }

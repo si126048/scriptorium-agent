@@ -1,6 +1,6 @@
 import sqlite3
 from pathlib import Path
-from hermeneut.documents.store import DocumentStore
+from scriptorium.documents.store import DocumentStore
 
 
 def _make_store(tmp_path):

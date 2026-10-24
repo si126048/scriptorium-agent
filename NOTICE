@@ -1,5 +1,5 @@
-Hermeneut-Agent
-Copyright (c) 2026 hermeneut contributors
+Scriptorium
+Copyright (c) 2026 scriptorium contributors
 
 ---
 
@@ -9,20 +9,20 @@ developed by Luciole Studio (https://github.com/Luciole-Studio/Misaka-Agent).
 MISAKA-Agent is licensed under the Apache License, Version 2.0.
 Copyright 2026 Luciole Studio.
 
-The following components in Hermeneut-Agent are adapted from MISAKA-Agent:
+The following components in Scriptorium are adapted from MISAKA-Agent:
 
-  - hermeneut/documents/store.py        — content-addressed document store
-  - hermeneut/documents/outline.py      — hierarchical outline detection
-  - hermeneut/documents/quote_verify.py — quote normalization and verification
-  - hermeneut/documents/page_nav.py     — page-based navigation
-  - hermeneut/documents/extractors/     — multi-format text extractors
+  - scriptorium/documents/store.py        — content-addressed document store
+  - scriptorium/documents/outline.py      — hierarchical outline detection
+  - scriptorium/documents/quote_verify.py — quote normalization and verification
+  - scriptorium/documents/page_nav.py     — page-based navigation
+  - scriptorium/documents/extractors/     — multi-format text extractors
     (text, pdf, html, epub, office)
 
 These files were ported from MISAKA-Agent's misaka/core/documents/ module
-and modified for use in Hermeneut-Agent's evidence-traced discourse analysis
+and modified for use in Scriptorium's evidence-traced discourse analysis
 pipeline. Modifications include adaptation to the DocumentStore SQLite schema,
 integration with the evidence span system, and removal of features not needed
-by Hermeneut (OCR routing, VLM integration, PageIndex Flash).
+by Scriptorium (OCR routing, VLM integration, PageIndex Flash).
 
 The adversarial multi-perspective dialectical architecture was also inspired
 by MISAKA-Agent's multi-agent orchestration design.

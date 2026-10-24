@@ -67,15 +67,15 @@ export const DEFAULT_CONFIG: StartupConfig = {
   identity: 'OPERATOR',
   identityId: '0001',
   accessLevel: '3',
-  brand1: 'HERMENEUT',
+  brand1: 'SCRIPTORIUM',
   brand2: 'ADVERSARIAL DISCOURSE ANALYSIS',
   brand3a: 'AGENT',
   brand3b: 'v3',
   orgZh: '诠释者',
-  orgEn: 'HERMENEUT',
-  orgSub: 'HERMENEUT-AGENT',
-  welcomeBox: 'HERMENEUT-AGENT',
-  footer: 'POWERED BY HERMENEUT',
+  orgEn: 'SCRIPTORIUM',
+  orgSub: 'SCRIPTORIUM',
+  welcomeBox: 'SCRIPTORIUM',
+  footer: 'POWERED BY SCRIPTORIUM',
   accent: '#ff7500',
   glitchA: '#ff3b30',
   glitchB: '#2971b8',
@@ -148,7 +148,7 @@ export const STEPS: StartupStep[] = [
 
 export function loadConfig(): StartupConfig {
   try {
-    const raw = localStorage.getItem('hermeneut_startup_config');
+    const raw = localStorage.getItem('scriptorium_startup_config');
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<StartupConfig>;
       return { ...DEFAULT_CONFIG, ...parsed };
@@ -159,7 +159,7 @@ export function loadConfig(): StartupConfig {
 
 export function saveConfig(cfg: Partial<StartupConfig>): void {
   const current = loadConfig();
-  localStorage.setItem('hermeneut_startup_config', JSON.stringify({ ...current, ...cfg }));
+  localStorage.setItem('scriptorium_startup_config', JSON.stringify({ ...current, ...cfg }));
 }
 
 export function shouldPlay(mode: StartupConfig['mode']): boolean {

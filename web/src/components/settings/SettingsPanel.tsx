@@ -25,7 +25,7 @@ export function SettingsPanel() {
   const inputCls = 'w-full bg-transparent border-0 border-b border-border dark:border-border-dark px-0 py-1.5 text-sm text-ink dark:text-ink-dark placeholder-muted outline-none focus:border-accent transition-colors';
 
   useEffect(() => {
-    const saved = localStorage.getItem('hermeneut_dashscope_key');
+    const saved = localStorage.getItem('scriptorium_dashscope_key');
     if (saved) setApiKey(saved);
 
     if (isTauri) {
@@ -36,7 +36,7 @@ export function SettingsPanel() {
   }, [isTauri]);
 
   const handleSave = async () => {
-    localStorage.setItem('hermeneut_dashscope_key', apiKey);
+    localStorage.setItem('scriptorium_dashscope_key', apiKey);
     if (isTauri) {
       await tauriInvoke('set_api_key', { key: apiKey });
     }

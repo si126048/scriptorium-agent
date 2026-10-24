@@ -1,7 +1,7 @@
 import json
-from hermeneut.models import PerspectiveConfig
-from hermeneut.perspectives.registry import PerspectiveRegistry, get_perspective, list_perspectives
-from hermeneut.perspectives.prompts import build_perspective_prompts
+from scriptorium.models import PerspectiveConfig
+from scriptorium.perspectives.registry import PerspectiveRegistry, get_perspective, list_perspectives
+from scriptorium.perspectives.prompts import build_perspective_prompts
 
 
 def test_registry_loads_builtins():

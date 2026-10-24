@@ -1,6 +1,6 @@
 """Interrupt an isolated demo Worker, then verify checkpointed recovery.
 
-Requires HERMENEUT_DATABASE_URL pointing at a disposable PostgreSQL database. Each
+Requires SCRIPTORIUM_DATABASE_URL pointing at a disposable PostgreSQL database. Each
 run creates a unique schema and object directory; it never claims other projects' jobs.
 This tests process failure, not an operating-system reboot or real model quality.
 """
@@ -17,11 +17,11 @@ from pathlib import Path
 
 import sqlalchemy as sa
 
-from hermeneut.research import schema as db
-from hermeneut.research.config import ResearchSettings
-from hermeneut.research.service import ResearchService, row, rows
-from hermeneut.research.worker import run_one
-from hermeneut.research.workspace import create_conversation, submit
+from scriptorium.research import schema as db
+from scriptorium.research.config import ResearchSettings
+from scriptorium.research.service import ResearchService, row, rows
+from scriptorium.research.worker import run_one
+from scriptorium.research.workspace import create_conversation, submit
 
 
 def stop(process):
@@ -47,11 +47,11 @@ def main():
     with base.begin() as c:
         c.execute(sa.text(f'CREATE SCHEMA {schema}'))
     url = sa.engine.make_url(cfg.database_url).update_query_dict({'options': f'-csearch_path={schema}'})
-    env = {**os.environ, 'HERMENEUT_DATABASE_URL': url.render_as_string(hide_password=False),
-           'HERMENEUT_OBJECT_ROOT': str(out / 'objects'), 'HERMENEUT_OBJECT_BACKEND': 'filesystem',
-           'HERMENEUT_LEASE_SECONDS': str(args.lease_seconds), 'HERMENEUT_RESEARCH_OWNER': 'drill-operator'}
+    env = {**os.environ, 'SCRIPTORIUM_DATABASE_URL': url.render_as_string(hide_password=False),
+           'SCRIPTORIUM_OBJECT_ROOT': str(out / 'objects'), 'SCRIPTORIUM_OBJECT_BACKEND': 'filesystem',
+           'SCRIPTORIUM_LEASE_SECONDS': str(args.lease_seconds), 'SCRIPTORIUM_RESEARCH_OWNER': 'drill-operator'}
     from dataclasses import replace
-    settings = replace(cfg, database_url=env['HERMENEUT_DATABASE_URL'], object_root=out / 'objects',
+    settings = replace(cfg, database_url=env['SCRIPTORIUM_DATABASE_URL'], object_root=out / 'objects',
                        object_backend='filesystem', lease_seconds=args.lease_seconds, principal='drill-operator')
     engine = db.engine_for(settings.database_url)
     db.metadata.create_all(engine)
@@ -67,7 +67,7 @@ def main():
     def spawn():
         log = (out / f'worker-{len(children)+1}.log').open('wb')
         try:
-            child = subprocess.Popen([sys.executable, '-m', 'hermeneut.research.cli', 'worker'],
+            child = subprocess.Popen([sys.executable, '-m', 'scriptorium.research.cli', 'worker'],
                                      env=env, stdout=log, stderr=subprocess.STDOUT)
         finally:
             log.close()

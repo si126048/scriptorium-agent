@@ -1,11 +1,11 @@
 import pytest
 from pydantic import ValidationError
-from hermeneut.models import (
+from scriptorium.models import (
     ConsentScope, EvidenceSpan, RunState, ReviewStatus, ReviewDecision,
     Project, Participant, SourceDocument, Observation, Hypothesis,
     AnalysisPacket, AnalysisRun, ErrorBody, ErrorResponse,
 )
-from hermeneut.db import checksum
+from scriptorium.db import checksum
 
 
 def test_consent_defaults():

@@ -4,12 +4,12 @@ from __future__ import annotations
 from dataclasses import replace
 import pytest
 
-from hermeneut.research.config import ResearchSettings, redacted_service_url
+from scriptorium.research.config import ResearchSettings, redacted_service_url
 
 
 def test_defaults_keep_worker_leases_and_ocr_engine_explicit(tmp_path, monkeypatch):
-    for name in ('HERMENEUT_LEASE_SECONDS', 'HERMENEUT_MAX_ATTEMPTS', 'HERMENEUT_OCR_ENGINE',
-                 'HERMENEUT_OBJECT_BACKEND', 'HERMENEUT_S3_BUCKET', 'HERMENEUT_RESEARCH_API_KEY'):
+    for name in ('SCRIPTORIUM_LEASE_SECONDS', 'SCRIPTORIUM_MAX_ATTEMPTS', 'SCRIPTORIUM_OCR_ENGINE',
+                 'SCRIPTORIUM_OBJECT_BACKEND', 'SCRIPTORIUM_S3_BUCKET', 'SCRIPTORIUM_RESEARCH_API_KEY'):
         monkeypatch.delenv(name, raising=False)
     settings = ResearchSettings.from_env()
     assert settings.lease_seconds == 300 and settings.max_attempts == 3
@@ -19,13 +19,13 @@ def test_defaults_keep_worker_leases_and_ocr_engine_explicit(tmp_path, monkeypat
 
 
 def test_operational_settings_come_from_the_environment(tmp_path, monkeypatch):
-    monkeypatch.setenv('HERMENEUT_LEASE_SECONDS', '20')
-    monkeypatch.setenv('HERMENEUT_MAX_ATTEMPTS', '2')
-    monkeypatch.setenv('HERMENEUT_OCR_ENGINE', 'rapidocr')
-    monkeypatch.setenv('HERMENEUT_OBJECT_BACKEND', 's3')
-    monkeypatch.setenv('HERMENEUT_S3_BUCKET', 'bucket-x')
-    monkeypatch.setenv('HERMENEUT_DATABASE_URL', 'postgresql+psycopg://user@127.0.0.1/db')
-    monkeypatch.setenv('HERMENEUT_OBJECT_ROOT', str(tmp_path / 'objects'))
+    monkeypatch.setenv('SCRIPTORIUM_LEASE_SECONDS', '20')
+    monkeypatch.setenv('SCRIPTORIUM_MAX_ATTEMPTS', '2')
+    monkeypatch.setenv('SCRIPTORIUM_OCR_ENGINE', 'rapidocr')
+    monkeypatch.setenv('SCRIPTORIUM_OBJECT_BACKEND', 's3')
+    monkeypatch.setenv('SCRIPTORIUM_S3_BUCKET', 'bucket-x')
+    monkeypatch.setenv('SCRIPTORIUM_DATABASE_URL', 'postgresql+psycopg://user@127.0.0.1/db')
+    monkeypatch.setenv('SCRIPTORIUM_OBJECT_ROOT', str(tmp_path / 'objects'))
     settings = ResearchSettings.from_env()
     assert (settings.lease_seconds, settings.max_attempts) == (20, 2)
     assert settings.ocr_engine == 'rapidocr'
@@ -35,7 +35,7 @@ def test_operational_settings_come_from_the_environment(tmp_path, monkeypatch):
     assert replace(settings, lease_seconds=5).lease_seconds == 5
 
 
-@pytest.mark.parametrize('name', ['HERMENEUT_LEASE_SECONDS', 'HERMENEUT_MAX_ATTEMPTS'])
+@pytest.mark.parametrize('name', ['SCRIPTORIUM_LEASE_SECONDS', 'SCRIPTORIUM_MAX_ATTEMPTS'])
 @pytest.mark.parametrize('value', ['0', '-1'])
 def test_nonpositive_worker_settings_are_rejected(monkeypatch, name, value):
     monkeypatch.setenv(name, value)

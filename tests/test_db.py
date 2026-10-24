@@ -1,8 +1,8 @@
 import json
 import uuid
 from pathlib import Path
-from hermeneut.db import Store, checksum, new_id
-from hermeneut.models import (
+from scriptorium.db import Store, checksum, new_id
+from scriptorium.models import (
     ConsentScope, Participant, Project, SourceDocument,
     EvidenceSpan, AnalysisRun, RunState,
 )

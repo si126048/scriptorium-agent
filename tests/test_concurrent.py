@@ -3,12 +3,12 @@ from __future__ import annotations
 import pytest
 import asyncio
 
-from hermeneut.concurrent import ConcurrentAnalyzer, AnalysisTask, BatchResult
-from hermeneut.db import Store, new_id
-from hermeneut.models import (
+from scriptorium.concurrent import ConcurrentAnalyzer, AnalysisTask, BatchResult
+from scriptorium.db import Store, new_id
+from scriptorium.models import (
     Project, Participant, ConsentScope, SourceDocument, RunState,
 )
-from hermeneut.rag import ingest
+from scriptorium.rag import ingest
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ class TestBatchResult:
         assert not r.success
 
     def test_success_with_run(self):
-        from hermeneut.models import AnalysisRun
+        from scriptorium.models import AnalysisRun
         task = AnalysisTask("proj", "p1", ["s1"], "k1")
         run = AnalysisRun(id="r1", project_id="proj", participant_id="p1",
                           source_ids=["s1"], state=RunState.CREATED, idempotency_key="k1")

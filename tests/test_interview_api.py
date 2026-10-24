@@ -1,6 +1,6 @@
 import uuid
 
-from hermeneut import api
+from scriptorium import api
 
 
 def test_interview_api_handlers_lifecycle():

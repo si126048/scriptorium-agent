@@ -99,7 +99,7 @@ export function Sidebar() {
           <div className="flex items-center justify-between px-3 py-2 border-b border-border dark:border-border-dark shrink-0">
             <div className="flex flex-col">
               <h1 className="text-base font-bold text-ink dark:text-ink-dark tracking-tight" style={{ fontFamily: 'var(--font-din)' }}>
-                HERMENEUT
+                SCRIPTORIUM
               </h1>
               <span className="text-[9px] text-muted tracking-widest" style={{ fontFamily: 'var(--font-mono)' }}>
                 ADVERSARIAL DISCOURSE

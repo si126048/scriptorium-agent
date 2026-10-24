@@ -14,7 +14,7 @@
 - 让出时清空租约令牌，使旧执行者无法继续心跳或提交结果。
 - 对非正数租约和最大尝试次数拒绝启动，避免无效配置破坏恢复语义。
 
-不涉及表结构调整，无需新增 Alembic 修订。相关文件：`hermeneut/research/service.py`、`workspace.py`、`config.py`。
+不涉及表结构调整，无需新增 Alembic 修订。相关文件：`scriptorium/research/service.py`、`workspace.py`、`config.py`。
 
 ## 2. 有针对性的回归测试
 
@@ -43,7 +43,7 @@
 
 **结论：进程中断后的检查点恢复通过。** 这不代表操作系统重启、干净机器启动或真实模型质量通过。测试环境与证据保留，未正式切换研究库。
 
-重跑方式：将 `HERMENEUT_DATABASE_URL` 指向允许创建验收 schema 的独立测试库，再执行：
+重跑方式：将 `SCRIPTORIUM_DATABASE_URL` 指向允许创建验收 schema 的独立测试库，再执行：
 
 ```powershell
 python scripts/restart-drill.py --out output/restart-drill --lease-seconds 6

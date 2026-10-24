@@ -1,7 +1,7 @@
 """PoC tests: formal (matheme) notation vs natural language prompts."""
 
 import re
-from hermeneut.formal import (
+from scriptorium.formal import (
     FORMAL_EVIDENCE_SYSTEM,
     FORMAL_INTERPRETER_SYSTEM,
     MATHEME_ALPHABET,
@@ -125,9 +125,9 @@ def test_discourse_type_mapping():
 
 
 def test_lacan_perspective_uses_formal_prompts():
-    from hermeneut.models import PerspectiveConfig
-    from hermeneut.perspectives.prompts import build_perspective_prompts
-    from hermeneut.formal.prompts import FORMAL_EVIDENCE_SYSTEM, FORMAL_INTERPRETER_SYSTEM
+    from scriptorium.models import PerspectiveConfig
+    from scriptorium.perspectives.prompts import build_perspective_prompts
+    from scriptorium.formal.prompts import FORMAL_EVIDENCE_SYSTEM, FORMAL_INTERPRETER_SYSTEM
 
     lacan_config = PerspectiveConfig(
         id="lacan", name="Lacanian Psychoanalytic",
@@ -146,9 +146,9 @@ def test_lacan_perspective_uses_formal_prompts():
 
 
 def test_deleuze_perspective_uses_formal():
-    from hermeneut.models import PerspectiveConfig
-    from hermeneut.perspectives.prompts import build_perspective_prompts
-    from hermeneut.formal.prompts import FORMAL_DELEUZE_EVIDENCE
+    from scriptorium.models import PerspectiveConfig
+    from scriptorium.perspectives.prompts import build_perspective_prompts
+    from scriptorium.formal.prompts import FORMAL_DELEUZE_EVIDENCE
 
     deleuze_config = PerspectiveConfig(
         id="deleuze", name="Deleuzian Schizoanalysis",
@@ -165,9 +165,9 @@ def test_deleuze_perspective_uses_formal():
 
 
 def test_lacan_critic_uses_formal():
-    from hermeneut.models import PerspectiveConfig
-    from hermeneut.perspectives.prompts import build_perspective_prompts
-    from hermeneut.formal.prompts import FORMAL_CRITIC_SYSTEM
+    from scriptorium.models import PerspectiveConfig
+    from scriptorium.perspectives.prompts import build_perspective_prompts
+    from scriptorium.formal.prompts import FORMAL_CRITIC_SYSTEM
 
     lacan_config = PerspectiveConfig(
         id="lacan", name="Lacanian Psychoanalytic",
@@ -183,7 +183,7 @@ def test_lacan_critic_uses_formal():
 
 def test_formal_prompts_are_substantive():
     """Verify formal prompts are non-trivial in size."""
-    from hermeneut.formal import (
+    from scriptorium.formal import (
         FORMAL_CRITIC_SYSTEM as FC,
         FORMAL_CROSS_CRITIQUE_SYSTEM as FCC,
         FORMAL_SYNTHESIS_SYSTEM as FS,

@@ -10,11 +10,11 @@ import {loadConfig} from './components/startup/startupConfig';
 const Workspace = lazy(() => import('./features/workspace/UnifiedWorkspace'));
 
 export default function App() {
-  const [ready, setReady] = useState(() => sessionStorage.getItem('hermeneut_brand_seen') === '1');
+  const [ready, setReady] = useState(() => sessionStorage.getItem('scriptorium_brand_seen') === '1');
   const quiet=useWorkspaceUI(s=>s.quiet);
-  useEffect(()=>{if(ready || loadConfig().requireInteraction)return;const timer=setTimeout(()=>{sessionStorage.setItem('hermeneut_brand_seen','1');setReady(true);},1800);return()=>clearTimeout(timer);},[ready]);
+  useEffect(()=>{if(ready || loadConfig().requireInteraction)return;const timer=setTimeout(()=>{sessionStorage.setItem('scriptorium_brand_seen','1');setReady(true);},1800);return()=>clearTimeout(timer);},[ready]);
   return <ErrorBoundary><QueryClientProvider client={queryClient}><MotionConfig reducedMotion={quiet?'always':'user'}><DialogProvider>
-    <Suspense fallback={<div className="unified-loading">HERMENEUT / 正在准备研究工作台</div>}><Workspace /></Suspense>
-    {!ready && <StartupAnimation brandingOnly onComplete={() => { sessionStorage.setItem('hermeneut_brand_seen', '1'); setReady(true); }} />}
+    <Suspense fallback={<div className="unified-loading">SCRIPTORIUM / 正在准备研究工作台</div>}><Workspace /></Suspense>
+    {!ready && <StartupAnimation brandingOnly onComplete={() => { sessionStorage.setItem('scriptorium_brand_seen', '1'); setReady(true); }} />}
   </DialogProvider></MotionConfig></QueryClientProvider></ErrorBoundary>;
 }

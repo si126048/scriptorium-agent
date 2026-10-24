@@ -1,18 +1,17 @@
 [project]
-name = "hermeneut-agent"
+name = "scriptorium"
 version = "3.1.0"
-description = "Adversarial multi-perspective discourse analysis toolkit"
+description = "Scriptorium — humanities research agent: evidence-anchored, multi-perspective critical interpretation of versioned sources"
 requires-python = ">=3.12"
 dependencies = ["fastapi>=0.115", "uvicorn>=0.34", "pydantic>=2.10", "pypdf>=5.0", "httpx>=0.28", "openai>=1.0", "aiosqlite>=0.20", "python-multipart>=0.0.9", "mcp>=1.0,<2", "numpy>=2.0", "scikit-learn>=1.5", "ripser>=0.6", "python-dotenv>=1.0"]
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=1", "ruff>=0.5"]
 research = ["sqlalchemy>=2.0,<2.1", "psycopg[binary]>=3.2,<4", "alembic>=1.14,<2", "elasticsearch>=8.17,<9", "lxml>=5,<7", "boto3>=1.35,<2", "pymupdf>=1.24,<2"]
 [project.scripts]
-hermeneut = "hermeneut.cli:main"
-hermeneut-agent = "hermeneut.cli:main"
-hermeneut-acp = "hermeneut.acp.server:main"
-hermeneut-mcp = "hermeneut.mcp_server:main"
-hermeneut-research = "hermeneut.research.cli:main"
+scriptorium = "scriptorium.cli:main"
+scriptorium-acp = "scriptorium.acp.server:main"
+scriptorium-mcp = "scriptorium.mcp_server:main"
+scriptorium-research = "scriptorium.research.cli:main"
 [build-system]
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
@@ -42,4 +41,4 @@ ignore = [
     "C401",    # generator vs set comprehension — style
 ]
 [tool.hatch.build.targets.wheel]
-packages = ["hermeneut"]
+packages = ["scriptorium"]

@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/tauri/tauri.conf.json",
-  "productName": "Hermeneut Agent",
+  "productName": "Scriptorium Agent",
   "version": "3.1.0",
-  "identifier": "app.hermeneut.desktop",
+  "identifier": "app.scriptorium.desktop",
   "build": {
     "frontendDist": "../web/dist",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Hermeneut Agent",
+        "title": "Scriptorium Agent",
         "width": 1200,
         "height": 800,
         "minWidth": 800,
@@ -44,7 +44,7 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "bin/hermeneut-backend"
+      "bin/scriptorium-backend"
     ],
     "windows": {
       "nsis": {

@@ -9,10 +9,10 @@ from pathlib import Path
 import pytest
 
 from test_research_integration import research, client, imported  # noqa: F401
-from hermeneut.research import schema as db
-from hermeneut.research.service import row
-from hermeneut.research.texts import character_error_rate, ocr_pdf, resolve_ocr_engine, rapidocr_available
-from hermeneut.research.worker import run_one
+from scriptorium.research import schema as db
+from scriptorium.research.service import row
+from scriptorium.research.texts import character_error_rate, ocr_pdf, resolve_ocr_engine, rapidocr_available
+from scriptorium.research.worker import run_one
 
 CJK_FONT = Path(os.environ.get('WINDIR', r'C:\Windows')) / 'Fonts' / 'msyh.ttc'
 SCAN_TEXT = '自主学习要求说明选择理由。'

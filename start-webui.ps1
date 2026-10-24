@@ -16,6 +16,6 @@ if (Test-Path $venvPython) {
     $python = "python"
 }
 
-Write-Host "Starting Hermeneut-Agent Web UI at http://127.0.0.1:$Port ..." -ForegroundColor Cyan
+Write-Host "Starting Scriptorium Web UI at http://127.0.0.1:$Port ..." -ForegroundColor Cyan
 Write-Host "Python: $python" -ForegroundColor DarkGray
-& $python -m uvicorn hermeneut.api:app --host 127.0.0.1 --port $Port
+& $python -m uvicorn scriptorium.api:app --host 127.0.0.1 --port $Port

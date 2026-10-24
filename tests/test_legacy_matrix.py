@@ -8,9 +8,9 @@ v1 compatibility surface. Demo providers are used explicitly; no claim is made a
 from __future__ import annotations
 
 from test_research_integration import research, client, imported  # noqa: F401
-from hermeneut.research import schema as db
-from hermeneut.research.service import row, rows
-from hermeneut.research.worker import run_one
+from scriptorium.research import schema as db
+from scriptorium.research.service import row, rows
+from scriptorium.research.worker import run_one
 
 
 def project_with_material(research, client, text='自由需要物质条件。'):
@@ -99,8 +99,8 @@ def test_old03_subject_analysis_requires_participant_authorization(research, cli
 
 def test_old04_persona_withdrawal_blocks_late_work(research, client, monkeypatch):
     import numpy as np
-    import hermeneut.topostyle.provider as module
-    import hermeneut.topostyle.service as training
+    import scriptorium.topostyle.provider as module
+    import scriptorium.topostyle.service as training
 
     class LocalTestModel:
         def __init__(self, **kwargs):
@@ -155,7 +155,7 @@ def test_old05_historical_artifact_review_export_and_reimport(research, client):
                        json={'decision': 'approve', 'reason': '验收复核'}).status_code == 200
     exported = client.get(path + f'/analysis-runs/{run_id}/export')
     assert exported.status_code == 200 and exported.json()['graph'] is not None
-    history = {'format': 'hermeneut-browser-history.v1', 'tasks': [
+    history = {'format': 'scriptorium-browser-history.v1', 'tasks': [
         {'id': 'legacy-task', 'name': '旧会话', 'messages': [{'role': 'user', 'content': '旧消息'}]}]}
     first = client.post(path + '/history-import', json=history)
     second = client.post(path + '/history-import', json=history)

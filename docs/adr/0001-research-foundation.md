@@ -4,7 +4,7 @@
 
 ## ADR-01：PostgreSQL 与旧运行时隔离
 
-新增独立 `hermeneut.research` 服务和 `/api/v2`。数据库采用 SQLAlchemy 2 Core、psycopg 3、Alembic。稳定身份和关联使用列与外键；版本化解释载荷使用 JSONB。普通材料不依赖参与者。
+新增独立 `scriptorium.research` 服务和 `/api/v2`。数据库采用 SQLAlchemy 2 Core、psycopg 3、Alembic。稳定身份和关联使用列与外键；版本化解释载荷使用 JSONB。普通材料不依赖参与者。
 
 旧 API、CLI、SQLite 和画像模块保持原路径。新版默认界面可切回旧功能；研究服务器本身不隐式打开旧数据库。旧 API 不在首版全部转接 PostgreSQL。
 

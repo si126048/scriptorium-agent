@@ -14,11 +14,11 @@ if (Test-Path $venvPython) {
     $python = "python"
 }
 
-Write-Host "Starting Hermeneut interactive CLI..." -ForegroundColor Cyan
+Write-Host "Starting Scriptorium interactive CLI..." -ForegroundColor Cyan
 Write-Host "Database: $Database" -ForegroundColor DarkGray
 Write-Host "Python: $python" -ForegroundColor DarkGray
-& $python -m hermeneut --db $Database interactive
+& $python -m scriptorium --db $Database interactive
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Hermeneut exited with code $LASTEXITCODE" -ForegroundColor Red
+    Write-Host "Scriptorium exited with code $LASTEXITCODE" -ForegroundColor Red
     exit $LASTEXITCODE
 }

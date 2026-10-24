@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from hermeneut.cli import main
+from scriptorium.cli import main
 
 def test_cli_workflow(tmp_path, capsys):
     db = str(tmp_path / "cli.db")

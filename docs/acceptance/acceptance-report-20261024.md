@@ -3,9 +3,9 @@
 # 统一工作台验收报告
 
 报告日期：2026-10-24  
-报告对象：Hermeneut 全面整合与统一工作台（开发版）  
-基线文档：[统一工作台验收文档](hermeneut-unified-workbench-acceptance.md)  
-修缮计划：[未通过项修缮计划](../plans/hermeneut-remaining-gap-plan.md)
+报告对象：Scriptorium 全面整合与统一工作台（开发版）  
+基线文档：[统一工作台验收文档](scriptorium-unified-workbench-acceptance.md)  
+修缮计划：[未通过项修缮计划](../plans/scriptorium-remaining-gap-plan.md)
 
 > 2026-10-24 真实 Qwen 补验：连接成功；Q-03、Q-05 均因引文位置验证失败而中断，尚未形成可评议产物。新增阻断项为真实模型证据落地及失败调用记账，详见 [真实调用审查](qwen-live-review-20261024.md)。原 350 项工程测试通过不代表真实研究流程已通过。
 
@@ -126,7 +126,7 @@
 
 第三轮：修复主任务等待子任务时耗尽重试次数的问题；延迟领取并清除旧租约令牌；配置正数校验；在隔离 schema 中完成真实 Worker 中断恢复演练（16/16 步骤、检查点保留、无重复文稿或完成消息）；验收脚本增加代码／源库变动失败门槛、跳过测试门槛及连接信息脱敏。350 项全量回归与 66 项专项通过。
 
-明细见验收文档 3.3、3.4、11 节与 [修缮计划](../plans/hermeneut-remaining-gap-plan.md) 第 0 节。
+明细见验收文档 3.3、3.4、11 节与 [修缮计划](../plans/scriptorium-remaining-gap-plan.md) 第 0 节。
 
 ## 10. 建议的下一步
 

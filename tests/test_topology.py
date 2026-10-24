@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from hermeneut.topology.borromean import (
+from scriptorium.topology.borromean import (
     Register, RegisterCoherenceMonitor, UnknottingEvent, RSI_MARKERS,
 )
-from hermeneut.topology.mathemes import (
+from scriptorium.topology.mathemes import (
     Matheme, MathemeKind, MathemeRelation, MATHEME_DEFAULT_REGISTERS,
 )
-from hermeneut.topology.discourses import (
+from scriptorium.topology.discourses import (
     Discourse, TermKind,
     MASTER, UNIVERSITY, HYSTERIC, ANALYST,
     DISCOURSE_ROTATION, identify_discourse,

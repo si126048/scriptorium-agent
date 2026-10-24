@@ -1,10 +1,10 @@
 import json
 
-from hermeneut.behavioral.materials import load_materials
-from hermeneut.db import Store
-from hermeneut.interview import InterviewManager, load_config
-from hermeneut.llm import FakeProvider
-from hermeneut.models import ConsentScope, Participant, Project
+from scriptorium.behavioral.materials import load_materials
+from scriptorium.db import Store
+from scriptorium.interview import InterviewManager, load_config
+from scriptorium.llm import FakeProvider
+from scriptorium.models import ConsentScope, Participant, Project
 
 
 def _manager(tmp_path):

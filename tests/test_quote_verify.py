@@ -1,4 +1,4 @@
-from hermeneut.documents.quote_verify import normalize_for_quote_match, verify_quote, locate_quote
+from scriptorium.documents.quote_verify import normalize_for_quote_match, verify_quote, locate_quote
 
 
 def test_normalize_removes_hyphen_linebreak():

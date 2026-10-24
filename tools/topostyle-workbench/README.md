@@ -1,8 +1,8 @@
 # TopoStyle 独立工作台
 
-2026-10-23 从 `D:\ai\TopoStyle` 整体归入本目录，统一由 Hermeneut-Agent 管理。源码、测试、示例、产物和本地环境均保留。
+2026-10-23 从 `D:\ai\TopoStyle` 整体归入本目录，统一由 Scriptorium 管理。源码、测试、示例、产物和本地环境均保留。
 
-Hermeneut 产品功能位于 `hermeneut/topostyle/`，使用项目、参与者、授权、SQLite 和 Ollama。本工作台提供另一套离线语料特征提取 CLI，包含 TF-IDF、持久同调和共现图；两者实现有差异，因此保留为子项目，没有覆盖或替换产品模块。
+Scriptorium 产品功能位于 `scriptorium/topostyle/`，使用项目、参与者、授权、SQLite 和 Ollama。本工作台提供另一套离线语料特征提取 CLI，包含 TF-IDF、持久同调和共现图；两者实现有差异，因此保留为子项目，没有覆盖或替换产品模块。
 
 在本目录执行：
 

@@ -1,7 +1,7 @@
 import pytest
-from hermeneut.llm import FakeProvider, QwenProvider
-from hermeneut.formal.prompts import FORMAL_EVIDENCE_SYSTEM, FORMAL_INTERPRETER_SYSTEM, FORMAL_CRITIC_SYSTEM
-from hermeneut.models import Observation, Hypothesis
+from scriptorium.llm import FakeProvider, QwenProvider
+from scriptorium.formal.prompts import FORMAL_EVIDENCE_SYSTEM, FORMAL_INTERPRETER_SYSTEM, FORMAL_CRITIC_SYSTEM
+from scriptorium.models import Observation, Hypothesis
 
 
 def test_fake_provider_evidence_stage():

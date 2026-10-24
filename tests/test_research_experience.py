@@ -3,10 +3,10 @@ import json
 from types import SimpleNamespace
 import pytest
 from test_research_integration import research, client, imported  # noqa: F401
-from hermeneut.research import schema as db
-from hermeneut.research.citations import align
-from hermeneut.research.service import row, rows, ResearchError
-from hermeneut.research.worker import run_one
+from scriptorium.research import schema as db
+from scriptorium.research.citations import align
+from scriptorium.research.service import row, rows, ResearchError
+from scriptorium.research.worker import run_one
 
 
 def fake_model(monkeypatch, result, usage=123):
@@ -15,7 +15,7 @@ def fake_model(monkeypatch, result, usage=123):
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(value)), finish_reason='stop')],
                                usage=SimpleNamespace(model_dump=lambda: {'total_tokens': usage}))
     monkeypatch.setenv('DASHSCOPE_API_KEY', 'test-only')
-    monkeypatch.setattr('hermeneut.llm.QwenProvider', lambda **kwargs: SimpleNamespace(model='test-qwen', temperature=0,
+    monkeypatch.setattr('scriptorium.llm.QwenProvider', lambda **kwargs: SimpleNamespace(model='test-qwen', temperature=0,
         client=SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))))
 
 
@@ -116,7 +116,7 @@ def test_editor_citations_cannot_cross_projects_and_chapters_export(research, cl
 
 
 def test_unknown_usage_is_held_and_snapshot_recovers_partial_text(research, client, monkeypatch):
-    from hermeneut.research.events import emit
+    from scriptorium.research.events import emit
     pid, _aid, segments = imported(research, '原文。')
     root = f'/api/v2/projects/{pid}'
     cid = client.post(root + '/conversations', json={}).json()['id']
@@ -129,7 +129,7 @@ def test_unknown_usage_is_held_and_snapshot_recovers_partial_text(research, clie
     fake_model(monkeypatch, {})
     def failing(**kwargs):
         raise TimeoutError('transport lost')
-    monkeypatch.setattr('hermeneut.llm.QwenProvider', lambda **kwargs: SimpleNamespace(model='test', temperature=0,
+    monkeypatch.setattr('scriptorium.llm.QwenProvider', lambda **kwargs: SimpleNamespace(model='test', temperature=0,
         client=SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=failing)))))
     job = client.post(root + '/method-runs', headers={'Idempotency-Key': 'unknown'}, json={
         'method_id': 'situating.v1', 'question': '问题', 'segment_ids': [segments[0]['id']]}).json()

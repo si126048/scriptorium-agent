@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
-from hermeneut.db import Store
-from hermeneut.models import ConsentScope, Participant, Project
+from scriptorium.db import Store
+from scriptorium.models import ConsentScope, Participant, Project
 
 
 def test_persona_artifact_and_conversation_roundtrip(tmp_path):

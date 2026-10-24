@@ -1,5 +1,5 @@
-from hermeneut.behavioral.models import RelationshipClaim
-from hermeneut.behavioral.text_analysis import (
+from scriptorium.behavioral.models import RelationshipClaim
+from scriptorium.behavioral.text_analysis import (
     build_relation_graph, detect_transform_candidates, make_windows,
     stable_expression_candidates,
 )

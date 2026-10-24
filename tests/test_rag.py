@@ -1,9 +1,9 @@
 import pytest
 import uuid
 from pathlib import Path
-from hermeneut.db import Store, checksum
-from hermeneut.models import ConsentScope, EvidenceSpan
-from hermeneut.rag import ingest, search, validate_span, read_source, MAX_SPAN_CHARS
+from scriptorium.db import Store, checksum
+from scriptorium.models import ConsentScope, EvidenceSpan
+from scriptorium.rag import ingest, search, validate_span, read_source, MAX_SPAN_CHARS
 
 
 def _store(tmp_path):
@@ -13,7 +13,7 @@ def _store(tmp_path):
 
 def _setup_project(tmp_path):
     s = _store(tmp_path)
-    s.create_project(__import__("hermeneut.models", fromlist=["Project"]).Project(id="p"))
+    s.create_project(__import__("scriptorium.models", fromlist=["Project"]).Project(id="p"))
     return s
 
 
@@ -115,7 +115,7 @@ def test_validate_span_tampered(tmp_path):
 
 
 def test_ingest_with_participant(tmp_path):
-    from hermeneut.models import Project
+    from scriptorium.models import Project
     s = _store(tmp_path)
     s.create_project(Project(id="p"))
     f = tmp_path / "chat.txt"
@@ -127,8 +127,8 @@ def test_ingest_with_participant(tmp_path):
 
 
 def test_chat_format_detection(tmp_path):
-    from hermeneut.models import Project
-    from hermeneut.rag import _is_chat_format
+    from scriptorium.models import Project
+    from scriptorium.rag import _is_chat_format
     chat = "[2024-01-01 10:00] Alice: hello\n[2024-01-01 10:01] Bob: hi there\n[2024-01-01 10:02] Alice: how are you?\n[2024-01-01 10:03] Bob: fine thanks"
     assert _is_chat_format(chat) is True
     plain = "This is a paragraph.\nAnother paragraph.\nThird paragraph."
@@ -136,7 +136,7 @@ def test_chat_format_detection(tmp_path):
 
 
 def test_chat_format_ingest(tmp_path):
-    from hermeneut.models import Project
+    from scriptorium.models import Project
     s = _store(tmp_path)
     s.create_project(Project(id="p"))
     f = tmp_path / "chat.txt"

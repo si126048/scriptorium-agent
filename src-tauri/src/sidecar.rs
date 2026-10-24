@@ -16,8 +16,8 @@ pub async fn start_sidecar(app: &AppHandle) {
     if external_mode.is_some() {
         return;
     }
-    if std::env::var("HERMENEUT_RUNTIME").unwrap_or_default() != "sqlite" {
-        match app.shell().sidecar("hermeneut-backend") {
+    if std::env::var("SCRIPTORIUM_RUNTIME").unwrap_or_default() != "sqlite" {
+        match app.shell().sidecar("scriptorium-backend") {
             Ok(cmd) => { match cmd.args(["local-runtime", "ensure"]).output().await {
                 Ok(output) if output.status.success() => {},
                 _ => eprintln!("[research] local services need setup or repair"),
@@ -46,11 +46,11 @@ pub async fn start_sidecar(app: &AppHandle) {
         Some(dashscope_key.clone())
     };
 
-    let sidecar = match app.shell().sidecar("hermeneut-backend") {
+    let sidecar = match app.shell().sidecar("scriptorium-backend") {
         Ok(cmd) => cmd,
         Err(e) => {
             eprintln!("[sidecar] not available (dev mode?): {}", e);
-            eprintln!("[sidecar] run backend manually: uvicorn hermeneut.api:app --host 127.0.0.1 --port 8000");
+            eprintln!("[sidecar] run backend manually: uvicorn scriptorium.api:app --host 127.0.0.1 --port 8000");
             return;
         }
     };
@@ -59,7 +59,7 @@ pub async fn start_sidecar(app: &AppHandle) {
         ("LACAN_DB_PATH".to_string(), db_path.to_string_lossy().into_owned()),
         ("LACAN_STORAGE_PATH".to_string(), storage_path.to_string_lossy().into_owned()),
         ("DASHSCOPE_API_KEY".to_string(), dashscope_key),
-        ("HERMENEUT_PORT".to_string(), "8000".to_string()),
+        ("SCRIPTORIUM_PORT".to_string(), "8000".to_string()),
         ("LACAN_API_KEY".to_string(), String::new()),
     ]);
 

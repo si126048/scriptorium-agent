@@ -2,15 +2,15 @@
 """Unified workflows against real PostgreSQL, with explicitly selected demo models."""
 
 from test_research_integration import research, client, imported  # noqa: F401
-from hermeneut.research import schema as db
-from hermeneut.research.service import row
-from hermeneut.research.service import rows
-from hermeneut.research.worker import run_one
+from scriptorium.research import schema as db
+from scriptorium.research.service import row
+from scriptorium.research.service import rows
+from scriptorium.research.worker import run_one
 
 
 def test_coordinator_wait_does_not_exhaust_attempts_or_duplicate_results(research, client, monkeypatch):
     import sqlalchemy as sa
-    from hermeneut.research import worker
+    from scriptorium.research import worker
     path, cid, aid = setup_workspace(research, client)
     job = client.post(path + f'/conversations/{cid}/messages', headers={'Idempotency-Key': 'waiting'},
         json={'text': '研究恢复', 'tool': 'research', 'asset_ids': [aid], 'provider_mode': 'demo',
@@ -141,9 +141,9 @@ def test_interview_pause_resume_and_material(research, client):
 
 def test_theory_compatibility_and_persona_continue(research, client, monkeypatch):
     import numpy as np
-    from hermeneut.research.legacy_store import PostgresStore
-    import hermeneut.topostyle.provider as module
-    import hermeneut.topostyle.service as training
+    from scriptorium.research.legacy_store import PostgresStore
+    import scriptorium.topostyle.provider as module
+    import scriptorium.topostyle.service as training
     class LocalTestModel:
         def __init__(self, **kwargs):
             pass
@@ -333,12 +333,12 @@ def test_cli_doctor_and_verify_anchors_report(research, client, monkeypatch, cap
     import json
     from urllib.parse import quote
     import sqlalchemy as sa
-    from hermeneut.research import cli as research_cli
+    from scriptorium.research import cli as research_cli
     with research.engine.connect() as connection:
         schema = connection.execute(sa.text('select current_schema()')).scalar()
     url = research.engine.url.render_as_string(hide_password=False)
-    monkeypatch.setenv('HERMENEUT_DATABASE_URL', f'{url}?options={quote("-csearch_path=" + schema)}')
-    monkeypatch.setenv('HERMENEUT_OBJECT_ROOT', str(tmp_path / 'objects'))
+    monkeypatch.setenv('SCRIPTORIUM_DATABASE_URL', f'{url}?options={quote("-csearch_path=" + schema)}')
+    monkeypatch.setenv('SCRIPTORIUM_OBJECT_ROOT', str(tmp_path / 'objects'))
     path, _cid, aid = setup_workspace(research, client, '原文引文需要定位。')
     segments = research.get_segments(path.split('/')[-1], 'tester', aid)['segments']
     text = segments[0]['text']
@@ -365,7 +365,7 @@ def test_cli_doctor_and_verify_anchors_report(research, client, monkeypatch, cap
 
 
 def test_backup_keeps_conversations_entities_and_decisions(research,client,tmp_path):
-    from hermeneut.research.backup import backup
+    from scriptorium.research.backup import backup
     import json
     path,_cid,_=setup_workspace(research,client)
     client.post(path+'/participants',json={'pseudonym':'备份','material_collection':True})
@@ -380,7 +380,7 @@ def test_backup_keeps_conversations_entities_and_decisions(research,client,tmp_p
 def test_migration_mixed_consent_and_retained_json_original(research,tmp_path):
     import sqlite3
     import json
-    from hermeneut.research.migration import migrate
+    from scriptorium.research.migration import migrate
     source=tmp_path/'legacy.db'
     original=tmp_path/'interview.json'
     original.write_text('{"old":"export"}',encoding='utf-8')

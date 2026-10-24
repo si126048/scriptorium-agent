@@ -10,7 +10,7 @@ import time
 
 import pytest
 
-from hermeneut.acp.server import (
+from scriptorium.acp.server import (
     Transport, Session, SessionManager, Intent,
     parse_intent, _extract_text, _format_help, _format_perspectives,
     ACPServer, _configure_console,
@@ -140,7 +140,7 @@ class TestFormatHelpers:
         assert "视角" in help_text
 
     def test_format_perspectives(self):
-        from hermeneut.perspectives import list_perspectives
+        from scriptorium.perspectives import list_perspectives
         perspectives = list_perspectives()
         text = _format_perspectives(perspectives)
         assert "lacan" in text
@@ -152,7 +152,7 @@ def _start_server():
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     env = {**os.environ, "LACAN_DB_PATH": os.path.join(project_root, "data", "acp_pytest.db")}
     proc = subprocess.Popen(
-        [sys.executable, "-m", "hermeneut.acp", "--mock"],
+        [sys.executable, "-m", "scriptorium.acp", "--mock"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -196,7 +196,7 @@ class TestACPIntegration:
             })
             result = resp.get("result", {})
             assert result["protocolVersion"] == 1
-            assert result["agentInfo"]["name"] == "hermeneut-agent"
+            assert result["agentInfo"]["name"] == "scriptorium"
 
             resp, _ = _send(proc, 2, "session/new", {"cwd": "."})
             sid = resp.get("result", {}).get("sessionId", "")

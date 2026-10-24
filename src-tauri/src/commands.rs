@@ -66,7 +66,7 @@ pub async fn get_research_connection(app: tauri::AppHandle) -> Result<serde_json
             if !url.is_empty() { return Ok(serde_json::json!({"url":url,"api_key":""})); }
         }
     }
-    let command = app.shell().sidecar("hermeneut-backend").map_err(|_| "research backend unavailable")?;
+    let command = app.shell().sidecar("scriptorium-backend").map_err(|_| "research backend unavailable")?;
     let result = command.args(["local-runtime", "connection"]).output().await.map_err(|_| "research services not ready")?;
     if !result.status.success() { return Err("research services not installed yet".to_string()); }
     serde_json::from_slice(&result.stdout).map_err(|_| "invalid local service connection".to_string())

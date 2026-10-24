@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from hermeneut.db import Store
-from hermeneut.models import ConsentScope, Participant, Project
-from hermeneut.rag import ingest, search
-from hermeneut.workflow import Workflow
+from scriptorium.db import Store
+from scriptorium.models import ConsentScope, Participant, Project
+from scriptorium.rag import ingest, search
+from scriptorium.workflow import Workflow
 
 
 def _setup(tmp_path: Path):

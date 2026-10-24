@@ -1,6 +1,6 @@
 from alembic import context
-from hermeneut.research.config import ResearchSettings
-from hermeneut.research.schema import engine_for, metadata
+from scriptorium.research.config import ResearchSettings
+from scriptorium.research.schema import engine_for, metadata
 
 settings = ResearchSettings.from_env()
 if context.is_offline_mode():

@@ -1,7 +1,7 @@
 @echo off
-title Hermeneut Agent - Desktop Dev
+title Scriptorium Agent - Desktop Dev
 echo ============================================
-echo   Hermeneut Agent - Desktop Development
+echo   Scriptorium Agent - Desktop Development
 echo ============================================
 echo.
 
@@ -22,7 +22,7 @@ if %errorlevel% equ 0 (
     echo [OK] Backend already running on :8000
 ) else (
     echo [..] Starting backend...
-    start "Hermeneut Backend" cmd /c "cd /d %~dp0 && "%~dp0.venv\Scripts\python.exe" -m uvicorn hermeneut.api:app --host 127.0.0.1 --port 8000 2>nul || python -m uvicorn hermeneut.api:app --host 127.0.0.1 --port 8000"
+    start "Scriptorium Backend" cmd /c "cd /d %~dp0 && "%~dp0.venv\Scripts\python.exe" -m uvicorn scriptorium.api:app --host 127.0.0.1 --port 8000 2>nul || python -m uvicorn scriptorium.api:app --host 127.0.0.1 --port 8000"
     timeout /t 3 /nobreak >nul
 )
 

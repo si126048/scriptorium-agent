@@ -13,7 +13,7 @@
 | E | 固定版本原生依赖、系统凭证、认证健康检查、动态 API 端口、后台、有限重启、停机备份、当前用户 NSIS hooks | 原生隔离演练通过；干净用户与登录/回退矩阵待验证 |
 | F | 工程回归、模型案例材料、浏览器截图、源码与打包散列、参考来源和设计规范 | 最终结果见下方证据清单；学术签认保留 |
 
-主要新增文件：`hermeneut/research/{calls,citations,scopes,documents,reports,experience_api,events,local_runtime,model_credentials,windows_credentials,schema_v4}.py`；`migrations/research/versions/0004_research_experience.py`；`web/src/features/workspace/{api,hooks,components,state.ts,experience.css}`。原访谈、主体分析、TopoStyle 和历史适配继续保留，没有用嵌入旧页面替代业务整合。
+主要新增文件：`scriptorium/research/{calls,citations,scopes,documents,reports,experience_api,events,local_runtime,model_credentials,windows_credentials,schema_v4}.py`；`migrations/research/versions/0004_research_experience.py`；`web/src/features/workspace/{api,hooks,components,state.ts,experience.css}`。原访谈、主体分析、TopoStyle 和历史适配继续保留，没有用嵌入旧页面替代业务整合。
 
 ## 真实 Qwen 证据
 
@@ -64,6 +64,6 @@
 - 代码散列：`6dd4d6712df7e897b649184ac92fdcba4bfccd809670422bcda6f4eb2b9cf2d7`，运行期间代码未变，旧 SQLite 及 WAL/SHM 散列未变。
 - 打包后端已实际驱动隔离本机 PG/ES、API 与 Worker；认证请求、材料导入及首页静态入口资源通过。冻结快照模块实际为 v1/v3/v4，0002 为增量迁移，并无独立 schema_v2 文件。
 - 打包与安装候选证据：`output/packaged-runtime-validation.json`。NSIS 构建完成，尚未通过干净用户安装、登录恢复及回退验收。
-- `D:\ai\hermeneut-agent\dist\hermeneut-backend.exe` SHA-256：`57bd609e1201f9a8782a28df2db1e07539e96c44ee10bc66f8f74e4fca4f0fab`。
-- `D:\ai\hermeneut-agent\src-tauri\bin\hermeneut-backend-x86_64-pc-windows-msvc.exe` SHA-256：`57bd609e1201f9a8782a28df2db1e07539e96c44ee10bc66f8f74e4fca4f0fab`。
-- `D:\ai\hermeneut-agent\src-tauri\target\release\bundle\nsis\Hermeneut Agent_3.1.0_x64-setup.exe` SHA-256：`2949dc31b23c8a98ff7991ad925c3dc757ee022da1fee91df0fbb15272d81738`。
+- `D:\ai\scriptorium\dist\scriptorium-backend.exe` SHA-256：`57bd609e1201f9a8782a28df2db1e07539e96c44ee10bc66f8f74e4fca4f0fab`。
+- `D:\ai\scriptorium\src-tauri\bin\scriptorium-backend-x86_64-pc-windows-msvc.exe` SHA-256：`57bd609e1201f9a8782a28df2db1e07539e96c44ee10bc66f8f74e4fca4f0fab`。
+- `D:\ai\scriptorium\src-tauri\target\release\bundle\nsis\Scriptorium Agent_3.1.0_x64-setup.exe` SHA-256：`2949dc31b23c8a98ff7991ad925c3dc757ee022da1fee91df0fbb15272d81738`。

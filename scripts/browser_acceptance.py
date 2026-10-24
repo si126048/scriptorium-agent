@@ -191,9 +191,9 @@ def main():
         browser.require("document.readyState==='complete'", 60, 'initial load')
         # Accept the app's own one-session brand animation as already shown, without touching flow.
         browser.js("""
-          sessionStorage.setItem('hermeneut_brand_seen','1');
-          localStorage.setItem('hermeneut_startup_config', JSON.stringify({enabled:false}));
-          localStorage.setItem('hermeneut_research_url', location.origin);""")
+          sessionStorage.setItem('scriptorium_brand_seen','1');
+          localStorage.setItem('scriptorium_startup_config', JSON.stringify({enabled:false}));
+          localStorage.setItem('scriptorium_research_url', location.origin);""")
         browser.send('Page.reload')
         browser.require("!!document.querySelector('.unified-workspace')", 90, 'workspace render')
         check('UI-01 统一入口加载研究工作台', True, browser.js('return document.title'))
@@ -252,7 +252,7 @@ def main():
 
         # Draft survives a reload without sending (UI-02/UI-04 state separation).
         set_value(browser, 'form.uw-composer textarea', '未发送的草稿：先不提交。')
-        stored = browser.wait("[...Object.keys(localStorage)].filter(k=>k.startsWith('hermeneut_draft:')).some(k=>localStorage.getItem(k).includes('未发送的草稿'))",
+        stored = browser.wait("[...Object.keys(localStorage)].filter(k=>k.startsWith('scriptorium_draft:')).some(k=>localStorage.getItem(k).includes('未发送的草稿'))",
                               15, 'draft persisted locally')
         browser.send('Page.reload')
         restored = browser.wait_value('form.uw-composer textarea', '未发送的草稿', 40,
@@ -293,7 +293,7 @@ def main():
         # Upload a researcher revision and compare the two versions segment by segment (MAT-04).
         revision = browser.js("""
           const base=location.origin + '/api/v2/projects/' +
-            encodeURIComponent(localStorage.getItem('hermeneut_research_project'));
+            encodeURIComponent(localStorage.getItem('scriptorium_research_project'));
           const materials=await (await fetch(base + '/materials')).json();
           const material=materials[0];
           const tei=await (await fetch(base + '/materials/' + material.id + '/tei')).text();
@@ -358,7 +358,7 @@ def main():
         # Export through the single document area (WRITE-01 partial: saved version consistency).
         exported = browser.js("""
           const r=await fetch(location.origin + '/api/v2/projects/' +
-            encodeURIComponent(localStorage.getItem('hermeneut_research_project')) + '/export?format=md');
+            encodeURIComponent(localStorage.getItem('scriptorium_research_project')) + '/export?format=md');
           const text=await r.text();
           return [r.status, text.length, text.slice(0,80)];""")
         check('WRITE-01 项目导出可用', exported[0] == 200 and exported[1] > 0, exported)

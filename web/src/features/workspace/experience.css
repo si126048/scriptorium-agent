@@ -1,4 +1,4 @@
-/* Hermeneut archive system: warm surfaces, quiet long-form reading, clear actions. */
+/* Scriptorium archive system: warm surfaces, quiet long-form reading, clear actions. */
 .unified-workspace{--archive:#efede7;--paper:#fbf8f1;--ink:#282b25;--muted:#6e7268;--line:#dedbd1;--orange:#df642b;font-size:15px;background:var(--archive)}
 .unified-workspace button{transition:background-color .12s,color .12s,border-color .12s,box-shadow .12s;min-height:34px;border-radius:7px}
 .unified-workspace button:active{transform:translateY(1px)}

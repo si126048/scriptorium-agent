@@ -1,7 +1,7 @@
-"""Set HERMENEUT_TEST_DATABASE_URL to a disposable PostgreSQL database.
+"""Set SCRIPTORIUM_TEST_DATABASE_URL to a disposable PostgreSQL database.
 
 Tests create and drop an isolated PostgreSQL schema. Elasticsearch tests additionally need
-HERMENEUT_TEST_ELASTICSEARCH_URL pointing at a disposable local node.
+SCRIPTORIUM_TEST_ELASTICSEARCH_URL pointing at a disposable local node.
 """
 from __future__ import annotations
 
@@ -16,20 +16,20 @@ sa = pytest.importorskip('sqlalchemy')
 pytest.importorskip('psycopg')
 
 from fastapi.testclient import TestClient
-from hermeneut.research import schema as db
-from hermeneut.research.api import create_app
-from hermeneut.research.config import ResearchSettings
-from hermeneut.research.migration import migrate
-from hermeneut.research.service import ResearchError, ResearchService, row, rows
-from hermeneut.research.texts import build_tei
-from hermeneut.research.worker import run_one
+from scriptorium.research import schema as db
+from scriptorium.research.api import create_app
+from scriptorium.research.config import ResearchSettings
+from scriptorium.research.migration import migrate
+from scriptorium.research.service import ResearchError, ResearchService, row, rows
+from scriptorium.research.texts import build_tei
+from scriptorium.research.worker import run_one
 
 
 @pytest.fixture
 def research(tmp_path):
-    url = os.getenv('HERMENEUT_TEST_DATABASE_URL')
+    url = os.getenv('SCRIPTORIUM_TEST_DATABASE_URL')
     if not url:
-        pytest.skip('Real PostgreSQL integration requires HERMENEUT_TEST_DATABASE_URL')
+        pytest.skip('Real PostgreSQL integration requires SCRIPTORIUM_TEST_DATABASE_URL')
     name = 'test_research_' + db.uid()
     base = db.engine_for(url)
     with base.begin() as c:
@@ -37,7 +37,7 @@ def research(tmp_path):
     engine = sa.create_engine(url, connect_args={'options': f'-csearch_path={name}'})
     db.metadata.create_all(engine)
     settings = replace(ResearchSettings.from_env(), database_url=url, object_root=tmp_path / 'objects',
-                       elasticsearch_url=os.getenv('HERMENEUT_TEST_ELASTICSEARCH_URL', 'http://127.0.0.1:59200'),
+                       elasticsearch_url=os.getenv('SCRIPTORIUM_TEST_ELASTICSEARCH_URL', 'http://127.0.0.1:59200'),
                        api_key='test-key', principal='tester')
     service = ResearchService(engine, settings)
     try:
@@ -185,7 +185,7 @@ def test_withdrawal_removes_derived_history_and_stops_jobs(research, client):
 
 def test_browser_history_import_idempotency_and_scope(research, client):
     pid = research.create_project('tester', 'P')['id']
-    data = {'format': 'hermeneut-browser-history.v1', 'tasks': [
+    data = {'format': 'scriptorium-browser-history.v1', 'tasks': [
         {'id': 'task-1', 'messages': [{'role': 'user', 'content': 'old chat'}]}]}
     path = f'/api/v2/projects/{pid}'
     assert client.post(path + '/history-import', json=data).json()['imported'] == 1
@@ -232,9 +232,9 @@ def test_unjustified_transition_rejected(research, client):
 
 
 def test_real_elasticsearch_index_rebuild_and_revoke(research, client):
-    if not os.getenv('HERMENEUT_TEST_ELASTICSEARCH_URL'):
-        pytest.skip('Real Elasticsearch integration requires HERMENEUT_TEST_ELASTICSEARCH_URL')
-    from hermeneut.research.search import ALIAS, client as es_client, rebuild, search, sync_one
+    if not os.getenv('SCRIPTORIUM_TEST_ELASTICSEARCH_URL'):
+        pytest.skip('Real Elasticsearch integration requires SCRIPTORIUM_TEST_ELASTICSEARCH_URL')
+    from scriptorium.research.search import ALIAS, client as es_client, rebuild, search, sync_one
     pid, aid, _ = imported(research, '自由需要条件。')
     assert sync_one(research)
     with es_client(research) as es:
@@ -297,7 +297,7 @@ def test_valid_model_transition_creates_reviewable_graph(research, client, monke
         assert '不可信' in kwargs['messages'][0]['content']
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(result)))])
     monkeypatch.setenv('DASHSCOPE_API_KEY', 'test-only-not-a-real-key')
-    monkeypatch.setattr('hermeneut.llm.QwenProvider', lambda **kwargs: SimpleNamespace(
+    monkeypatch.setattr('scriptorium.llm.QwenProvider', lambda **kwargs: SimpleNamespace(
         client=SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create))), model='test-model', temperature=0))
     r = client.post(f'/api/v2/projects/{pid}/method-runs', headers={'Idempotency-Key': 'grounded'}, json={
         'method_id': 'immanent_critique.v1', 'question': 'Q', 'segment_ids': [s['id']]})
@@ -324,7 +324,7 @@ def test_revoked_import_key_cannot_republish_original(research):
 
 
 def test_backup_restore_integrity_and_nonempty_refusal(research, tmp_path):
-    from hermeneut.research.backup import backup, restore
+    from scriptorium.research.backup import backup, restore
     s = research
     pid, aid, _ = imported(s, 'archive source')
     destination = tmp_path / 'archive'
@@ -355,7 +355,7 @@ def test_backup_restore_integrity_and_nonempty_refusal(research, tmp_path):
 
 
 def test_annotation_tei_export_matches_project_schema(research, client):
-    from hermeneut.research.texts import project_tei
+    from scriptorium.research.texts import project_tei
     pid, _, _ = imported(research)
     r = client.get(f'/api/v2/projects/{pid}/export?format=tei')
     assert r.status_code == 200
@@ -393,7 +393,7 @@ def test_bibliography_changes_do_not_rewrite_text_versions(research, client):
 
 
 def test_restore_replays_withdrawal_after_old_backup(research, tmp_path):
-    from hermeneut.research.backup import backup, restore
+    from scriptorium.research.backup import backup, restore
     s = research
     pid, aid, _ = imported(s, 'revoked private source')
     archive = tmp_path / 'before-withdrawal'

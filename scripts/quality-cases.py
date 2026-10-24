@@ -10,7 +10,7 @@ model, coverage, evidence anchors and proposals, runs the objective checks it ca
 coverage, provenance, export), and writes a review sheet whose verdict is left blank for the
 researcher.
 
-    $env:HERMENEUT_DATABASE_URL = 'postgresql+psycopg://.../hermeneut_quality'
+    $env:SCRIPTORIUM_DATABASE_URL = 'postgresql+psycopg://.../scriptorium_quality'
     python scripts/quality-cases.py --mode live
 """
 from __future__ import annotations
@@ -114,9 +114,9 @@ CASES = [
 def service_for(database_url: str, object_root: Path, es_url: str):
     from dataclasses import replace
 
-    from hermeneut.research import schema as db
-    from hermeneut.research.config import ResearchSettings
-    from hermeneut.research.service import ResearchService
+    from scriptorium.research import schema as db
+    from scriptorium.research.config import ResearchSettings
+    from scriptorium.research.service import ResearchService
     settings = replace(ResearchSettings.from_env(), database_url=database_url, object_root=object_root,
                        elasticsearch_url=es_url, principal='quality-reviewer')
     engine = db.engine_for(database_url)
@@ -124,7 +124,7 @@ def service_for(database_url: str, object_root: Path, es_url: str):
 
 
 def drain(service, limit=200):
-    from hermeneut.research.worker import run_one
+    from scriptorium.research.worker import run_one
     processed = 0
     while processed < limit and run_one(service):
         processed += 1
@@ -132,7 +132,7 @@ def drain(service, limit=200):
 
 
 def run_case(service, case, mode, out: Path):
-    from hermeneut.research.workspace import create_conversation, submit
+    from scriptorium.research.workspace import create_conversation, submit
 
     principal = 'quality-reviewer'
     project = service.create_project(principal, f"质量案例 {case['id']}", case['focus'])
@@ -150,8 +150,8 @@ def run_case(service, case, mode, out: Path):
 
 
 def collect_case(service, case, mode, out, project_id, asset_id, conversation_id, job_id):
-    from hermeneut.research import schema as db
-    from hermeneut.research.service import rows
+    from scriptorium.research import schema as db
+    from scriptorium.research.service import rows
     project = {'id': project_id}
     material = f"# {case['id']} {case['focus']}\n\n{case['material']}\n".encode()
     with service.engine.connect() as c:
@@ -211,9 +211,9 @@ def main() -> int:
     parser.add_argument('--only', default='', help='comma separated case ids, e.g. Q-01,Q-03')
     args = parser.parse_args()
 
-    database_url = os.getenv('HERMENEUT_DATABASE_URL', '')
+    database_url = os.getenv('SCRIPTORIUM_DATABASE_URL', '')
     if not database_url.startswith('postgresql+psycopg://'):
-        print(json.dumps({'error': 'HERMENEUT_DATABASE_URL must point at a dedicated PostgreSQL database'}, ensure_ascii=False))
+        print(json.dumps({'error': 'SCRIPTORIUM_DATABASE_URL must point at a dedicated PostgreSQL database'}, ensure_ascii=False))
         return 2
     if args.mode == 'live' and not os.getenv('DASHSCOPE_API_KEY'):
         print(json.dumps({'error': 'MODEL_NOT_CONFIGURED: set DASHSCOPE_API_KEY for --mode live; '
@@ -223,8 +223,8 @@ def main() -> int:
     stamp = datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')
     out = Path(args.out or f'output/quality-cases/{stamp}-{args.mode}')
     out.mkdir(parents=True, exist_ok=True)
-    object_root = Path(os.getenv('HERMENEUT_OBJECT_ROOT', './data/research-objects'))
-    es_url = os.getenv('HERMENEUT_ELASTICSEARCH_URL', 'http://127.0.0.1:9200')
+    object_root = Path(os.getenv('SCRIPTORIUM_OBJECT_ROOT', './data/research-objects'))
+    es_url = os.getenv('SCRIPTORIUM_ELASTICSEARCH_URL', 'http://127.0.0.1:9200')
     service, engine = service_for(database_url, object_root, es_url)
     selected = [case for case in CASES if not args.only or case['id'] in {x.strip().upper() for x in args.only.split(',')}]
     packets = []
@@ -238,7 +238,7 @@ def main() -> int:
         engine.dispose()
 
     lines = ['# 学术质量案例评议表', '',
-             f'- 运行：`{stamp}`　模式：`{args.mode}`', f'- 数据库：`{__import__("hermeneut.research.config",fromlist=["redacted_service_url"]).redacted_service_url(database_url)}`',
+             f'- 运行：`{stamp}`　模式：`{args.mode}`', f'- 数据库：`{__import__("scriptorium.research.config",fromlist=["redacted_service_url"]).redacted_service_url(database_url)}`',
              '- 说明：机械检查只证明引文可定位、覆盖已记录、来源已标注；判断是否成立必须由研究者签认。', '',
              '| 编号 | 关注点 | 应观察到 | 判为失败的情况 | 机械检查 | 结论（通过/需修订/不通过） | 理由与材料位置 |',
              '|---|---|---|---|---|---|---|']
@@ -250,7 +250,7 @@ def main() -> int:
         lines.append(f"| {case['id']} | {case['focus']} | {case['expect']} | {case['fail']} | {mechanical} |  |  |")
     lines += ['', '每个案例的完整产物见 `<case>/packet.json`，材料见 `<case>/material.md`。', '']
     (out / 'review.md').write_text('\n'.join(lines), encoding='utf-8')
-    (out / 'run.json').write_text(json.dumps({'mode': args.mode, 'database': __import__('hermeneut.research.config',fromlist=['redacted_service_url']).redacted_service_url(database_url),
+    (out / 'run.json').write_text(json.dumps({'mode': args.mode, 'database': __import__('scriptorium.research.config',fromlist=['redacted_service_url']).redacted_service_url(database_url),
         'cases': [p['case']['id'] for p in packets], 'review_sheet': str(out / 'review.md')},
         ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps({'out': str(out), 'cases': len(packets), 'review': str(out / 'review.md')}, ensure_ascii=False))

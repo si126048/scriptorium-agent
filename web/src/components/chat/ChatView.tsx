@@ -28,7 +28,7 @@ export function ChatView() {
               className="text-2xl font-bold text-ink/70 dark:text-ink-dark/60 tracking-widest mb-2"
               style={{ fontFamily: 'var(--font-din)' }}
             >
-              HERMENEUT-AGENT
+              SCRIPTORIUM
             </h2>
             <p
               className="text-[11px] text-muted tracking-[0.3em] mb-5"

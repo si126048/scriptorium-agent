@@ -1,6 +1,6 @@
 """Independent call accounting, citation review, conversation events and chapters."""
 from alembic import op
-from hermeneut.research.schema_v4 import metadata, NEW_TABLES
+from scriptorium.research.schema_v4 import metadata, NEW_TABLES
 
 revision = 'research_0004'
 down_revision = 'research_0003'

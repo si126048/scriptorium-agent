@@ -66,8 +66,8 @@ interface ChatState {
   clearMessages: () => void;
 }
 
-const STORAGE_KEY = 'hermeneut_tasks';
-const TASK_KEY = 'hermeneut_current_task';
+const STORAGE_KEY = 'scriptorium_tasks';
+const TASK_KEY = 'scriptorium_current_task';
 const MAX_STORED = 100;
 
 function taskNameFromMessages(messages: ChatMessage[]): string {

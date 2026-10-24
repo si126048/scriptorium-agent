@@ -17,9 +17,9 @@ boto3 = pytest.importorskip('boto3')
 from botocore.exceptions import ClientError
 
 from test_research_integration import research  # noqa: F401
-from hermeneut.research.service import ResearchService
-from hermeneut.research.storage import S3Objects
-from hermeneut.research.worker import run_one
+from scriptorium.research.service import ResearchService
+from scriptorium.research.storage import S3Objects
+from scriptorium.research.worker import run_one
 
 
 class FakeS3:
@@ -80,7 +80,7 @@ def test_s3_keys_are_content_addressed_immutable_and_checksummed(research, monke
 
 
 def test_s3_backend_serves_import_queue_read_and_backup(research, monkeypatch, tmp_path):  # noqa: F811
-    from hermeneut.research.backup import backup
+    from scriptorium.research.backup import backup
     store, fake = s3_store(research.settings, monkeypatch)
     service = ResearchService(research.engine, replace(research.settings, object_backend='s3',
                                                       s3_bucket='research-test'))

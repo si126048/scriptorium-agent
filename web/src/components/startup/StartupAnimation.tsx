@@ -703,7 +703,7 @@ export function StartupAnimation({ onComplete, brandingOnly = false }: Props) {
         /* 揭幕 */
         finish();
       } catch (err) {
-        console.warn('[hermeneut-startup] animation error:', err);
+        console.warn('[scriptorium-startup] animation error:', err);
         finish();
       }
     }
@@ -756,7 +756,7 @@ export function StartupAnimation({ onComplete, brandingOnly = false }: Props) {
     /* 9 秒兜底 */
     const safetyTimer = setTimeout(() => {
       if (!finished && !skipped) {
-        console.warn('[hermeneut-startup] safety timeout');
+        console.warn('[scriptorium-startup] safety timeout');
         releaseAll();
         stopVoice();
         finish();

@@ -19,7 +19,7 @@ function message(error: unknown) { return error instanceof Error ? error.message
 
 export default function ResearchWorkbench() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [projectId, setProjectId] = useState(localStorage.getItem('hermeneut_research_project') || '');
+  const [projectId, setProjectId] = useState(localStorage.getItem('scriptorium_research_project') || '');
   const [materials, setMaterials] = useState<Material[]>([]);
   const [records, setRecords] = useState<ResearchRecord[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -43,7 +43,7 @@ export default function ResearchWorkbench() {
   const [selectedSegments, setSelectedSegments] = useState<string[]>([]);
   const [legacy, setLegacy] = useState<LegacyRecord[]>([]);
   const [url, setUrl] = useState(serviceUrl());
-  const [key, setKey] = useState(localStorage.getItem('hermeneut_research_key') || '');
+  const [key, setKey] = useState(localStorage.getItem('scriptorium_research_key') || '');
   const [graph, setGraph] = useState<{ nodes: ResearchRecord[]; edges: { from: string; to: string; type: string }[] }>();
   const [compare, setCompare] = useState<string[]>([]);
   const reading = useRef<HTMLDivElement>(null);
@@ -60,7 +60,7 @@ export default function ResearchWorkbench() {
 
   const chooseProject = useCallback((id: string) => {
     currentProject.current = id;
-    localStorage.setItem('hermeneut_research_project', id);
+    localStorage.setItem('scriptorium_research_project', id);
     setProjectId(id); setMaterials([]); setRecords([]); setJobs([]);
     setAssetId(''); setVersionId(''); setSegments([]); setEvidence([]); setSelection(undefined);
     setEditing(undefined); setDraft({ title: '', text: '' }); setSearchResults([]); setSelectedSegments([]);
@@ -69,7 +69,7 @@ export default function ResearchWorkbench() {
 
   const applyProjects = useCallback((result: Project[]) => {
     setProjects(result);
-    const previous = localStorage.getItem('hermeneut_research_project');
+    const previous = localStorage.getItem('scriptorium_research_project');
     chooseProject(result.some(p => p.id === previous) ? previous! : result[0]?.id || '');
   }, [chooseProject]);
   const loadProjects = useCallback(async () => {
@@ -177,7 +177,7 @@ export default function ResearchWorkbench() {
   const shown = records.filter(r => tabKinds[tab]?.includes(r.kind));
 
   return <div className="research-workbench">
-    <header className="rw-header"><div><span className="rw-wordmark">HERMENEUT</span><span className="rw-subtitle">材料 · 构境 · 论证</span></div>
+    <header className="rw-header"><div><span className="rw-wordmark">SCRIPTORIUM</span><span className="rw-subtitle">材料 · 构境 · 论证</span></div>
       <select aria-label="研究项目" value={projectId} onChange={e => chooseProject(e.target.value)}><option value="">选择研究项目</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
       <button onClick={() => void act(async () => { const name = prompt('研究项目名称'); if (!name?.trim()) return;
         const p = await request<Project>('/api/v2/projects', { method: 'POST', body: JSON.stringify({ name }) }); await loadProjects(); chooseProject(p.id); })}>新建项目</button>
@@ -260,7 +260,7 @@ export default function ResearchWorkbench() {
           <p className="rw-help">SQLite 迁移通过独立命令执行，先生成预览报告。这里按原结构保留访谈、分析、Persona 和历史对话；不会重新生成历史结果。</p>
           {legacy.map(r => <details className="rw-card" key={r.id}><summary>{r.table_name} · {r.legacy_key} · {r.status}</summary><pre>{JSON.stringify(r.payload, null, 2)}</pre></details>)}</>}
 
-        {tab === 'settings' && <><h2>研究服务连接</h2><form className="rw-card" onSubmit={e => { e.preventDefault(); void act(async () => { const parsed = new URL(url); if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password || parsed.pathname !== '/') throw new Error('请填写不包含凭证和路径的 HTTP 服务地址。'); localStorage.setItem('hermeneut_research_url', parsed.origin); localStorage.setItem('hermeneut_research_key', key); await loadProjects(); await persistDesktopConnection(parsed.origin); setNotice('已连接研究服务。桌面端重启后将使用外部服务模式。'); }); }}>
+        {tab === 'settings' && <><h2>研究服务连接</h2><form className="rw-card" onSubmit={e => { e.preventDefault(); void act(async () => { const parsed = new URL(url); if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password || parsed.pathname !== '/') throw new Error('请填写不包含凭证和路径的 HTTP 服务地址。'); localStorage.setItem('scriptorium_research_url', parsed.origin); localStorage.setItem('scriptorium_research_key', key); await loadProjects(); await persistDesktopConnection(parsed.origin); setNotice('已连接研究服务。桌面端重启后将使用外部服务模式。'); }); }}>
           <label>服务地址<input value={url} onChange={e => setUrl(e.target.value)} placeholder="http://127.0.0.1:8010" /></label><label>访问密钥<input type="password" value={key} onChange={e => setKey(e.target.value)} autoComplete="off" /></label><button>保存并连接</button>
           <p className="rw-help">新版需要独立启动研究服务与 Worker；旧版功能可以通过顶栏返回。单人身份由服务端配置，不能通过界面切换为其他成员。</p></form>
           <button onClick={() => void act(async () => { await persistDesktopConnection(''); setNotice('桌面端下次启动时恢复旧版后端自动启动。'); })}>恢复桌面旧版启动方式</button>

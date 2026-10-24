@@ -1,12 +1,12 @@
 import uuid
 from pathlib import Path
-from hermeneut.db import Store
-from hermeneut.models import (
+from scriptorium.db import Store
+from scriptorium.models import (
     ConsentScope, Participant, Project, ReviewDecision, ReviewRequest,
     RunState, ReviewStatus,
 )
-from hermeneut.rag import ingest
-from hermeneut.workflow import Workflow
+from scriptorium.rag import ingest
+from scriptorium.workflow import Workflow
 
 
 def _setup(tmp_path):

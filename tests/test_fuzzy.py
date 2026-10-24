@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from hermeneut.fuzzy import (
+from scriptorium.fuzzy import (
     FuzzyGrounding, MembershipFunction, aggregate_grounding,
     HallucinationGuard, HallucinationReport,
     t_norm, t_conorm, fuzzy_complement, alpha_cut,
 )
-from hermeneut.models import Hypothesis, EvidenceSpan, Observation
+from scriptorium.models import Hypothesis, EvidenceSpan, Observation
 
 
 def _span(sid: str, text: str) -> EvidenceSpan:

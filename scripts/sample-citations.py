@@ -15,19 +15,19 @@ from pathlib import Path
 
 import sqlalchemy as sa
 
-from hermeneut.research import schema as db
-from hermeneut.research.config import ResearchSettings
-from hermeneut.research.service import ResearchService
+from scriptorium.research import schema as db
+from scriptorium.research.config import ResearchSettings
+from scriptorium.research.service import ResearchService
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('--count', type=int, default=20)
     parser.add_argument('--out', type=Path, required=True)
-    parser.add_argument('--database-url', default=os.getenv('HERMENEUT_DATABASE_URL', ''))
+    parser.add_argument('--database-url', default=os.getenv('SCRIPTORIUM_DATABASE_URL', ''))
     args = parser.parse_args()
     if not args.database_url.startswith('postgresql+psycopg://'):
-        raise SystemExit('HERMENEUT_DATABASE_URL must point at the migrated database')
+        raise SystemExit('SCRIPTORIUM_DATABASE_URL must point at the migrated database')
 
     service = ResearchService(db.engine_for(args.database_url), ResearchSettings.from_env())
     with service.engine.connect() as c:
