@@ -2,6 +2,10 @@ import pytest
 
 from pathlib import Path
 
+# CI installs only the core package; the research extras are optional there.
+pytest.importorskip('sqlalchemy')
+pytest.importorskip('elasticsearch')
+
 from scriptorium.research import search
 from scriptorium.research.config import ResearchSettings
 from scriptorium.research.service import ResearchError
