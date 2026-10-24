@@ -1,6 +1,7 @@
 # ruff: noqa: F811
 from dataclasses import replace
 import json
+import test_research_integration  # noqa: F401 — module-level importorskip('sqlalchemy') guards this file
 import sqlalchemy as sa
 from fastapi.testclient import TestClient
 from test_research_integration import research, client, imported  # noqa: F401
