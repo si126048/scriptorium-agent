@@ -4,6 +4,8 @@
 
 报告日期：2026-10-24  
 报告对象：Scriptorium 全面整合与统一工作台（开发版）  
+
+> **时效提示（2026-10-24 深夜补记）**：本报告对应 18:00 的 `8e8d7db4…` 版本。此后该检出改名为 Scriptorium（提交 `9ac0ee5`），新增“提问即研究”（ask.v1）与 `research_0004` 迁移。当前证据见 [提问即研究记录](ask-first-research-20261024.md) 与验收文档 3.5；本报告“尚未通过正式验收”的结论不变。
 基线文档：[统一工作台验收文档](scriptorium-unified-workbench-acceptance.md)  
 修缮计划：[未通过项修缮计划](../plans/scriptorium-remaining-gap-plan.md)
 

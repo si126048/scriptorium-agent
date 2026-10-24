@@ -37,7 +37,7 @@ python -m scriptorium.research.cli worker
 
 也可通过 `scripts/start-research.ps1 -Mode serve`、`-Mode worker`、`-Mode init-db` 启动。脚本不会安装或启动数据库服务。
 
-真实方法分析沿用 `DASHSCOPE_API_KEY` 和 `LACAN_MODEL`；在 API 和 Worker 进程设置一致配置。没有密钥时可以显式选择“演示流程”，演示不产生学术结论。未对真实服务商调用做质量验收。
+研究模型不绑定单一服务商：可选通义千问、DeepSeek、OpenAI、Moonshot、智谱 GLM、本机 Ollama 或任意 OpenAI 兼容端点。可在工作台“设置与档案 → 研究模型”里选择服务商、填写接口地址与模型、保存密钥并测试连接；也可继续用环境变量（`DASHSCOPE_API_KEY`、`DEEPSEEK_API_KEY`、`OPENAI_API_KEY`、`MOONSHOT_API_KEY`、`ZHIPU_API_KEY`、`SCRIPTORIUM_MODEL_API_KEY`）。密钥与配置细节见 3.2。没有密钥时可以显式选择“演示流程”，演示不产生学术结论。未对真实服务商调用做质量验收。
 
 ## 2. 可选 Compose 部署
 
@@ -58,6 +58,42 @@ docker compose -f compose.research.yml up --build -d
 5. 输入问题，选择构境、内在批判或视差。查看结果中的证据、覆盖范围与未决问题。
 6. 在构境比较中查看竞争档案；在论证或视差页面编辑结构对象。
 7. 在文稿页面关联论点，保存文稿并导出 Markdown、JSON 或 TEI 标注。
+
+### 3.1 直接提问（默认）
+
+对话框默认就是“提问”：不需要先勾材料、也不需要选方法。输入问题后服务会：
+
+1. 用项目检索（Elasticsearch，CJK 分析器）找相关片段；检索不可用或没有命中时，退回到已就绪材料的顺序扫描，并在回答记录里写明 `plan.retrieval` 是 `search` 还是 `material_scan`；
+2. 只读选定的窗口（默认最多 8 段、24,000 字符），放不下的窗口记为 `unread`，不静默截断；
+3. 只依据这些材料回答，每个事实判断都附逐字引文；引文用 code point 半开区间对齐，重复引文用 prefix/suffix 消歧，定位不唯一就报错，绝不猜测；
+4. 生成 `research_answer` 记录（含 `scope`、`plan`、`coverage`、`open_questions`、`followups` 与调用用量），并在对话里给出回答正文与“原文 N”按钮。
+
+选中的材料或选区会收窄范围（`plan.retrieval=explicit`）；回答卡片上的“深入完整研究”会把同一冻结范围交给完整方法流水线（构境／内在批判／视差／审查）。演示模式只说明读了哪些材料，不产生学术结论；真实模式缺少模型密钥时任务失败并报 `MODEL_NOT_CONFIGURED`，不会退回演示。
+
+相关错误码：`NO_MATERIALS_FOR_QUESTION`（项目里没有可读材料）、`ANSWER_REQUIRES_CITATION`（有事实判断却没有任何引文）、`ANSWER_CLAIM_REQUIRES_CITATION`（某条判断缺引文）、`CITATION_AMBIGUOUS`／`CITATION_EXACT_QUOTE_NOT_FOUND`（摘录无法唯一定位）、`SEARCH_UNAVAILABLE`（会记录并退回材料扫描）。
+
+### 3.2 模型服务商与密钥
+
+工作台“设置与档案 → 研究模型”支持多个 OpenAI 兼容服务商：
+
+| 服务商 | 默认接口 | 默认模型 | 环境变量 |
+|---|---|---|---|
+| 通义千问（DashScope） | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | `DASHSCOPE_API_KEY` |
+| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` | `DEEPSEEK_API_KEY` |
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini` | `OPENAI_API_KEY` |
+| Moonshot（Kimi） | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` | `MOONSHOT_API_KEY` |
+| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` | `ZHIPU_API_KEY` |
+| Ollama（本机） | `http://127.0.0.1:11434/v1` | `qwen2.5:7b` | 无需密钥 |
+| 自定义端点 | 自行填写 | 自行填写 | `SCRIPTORIUM_MODEL_API_KEY` |
+
+- 保存后立即切换到该服务商；接口地址与模型会记住，可在同一表单里改。
+- **密钥位置**：Windows 默认写入当前用户的系统凭据（Credential Manager）；非 Windows 或设置 `SCRIPTORIUM_KEY_STORAGE=file` 时写入私有文件（`SCRIPTORIUM_HOME`／`%APPDATA%\Scriptorium` 下的 `provider-keys.json`，POSIX 权限 0600）。接口只返回“已配置／来源”，从不回显密钥。
+- 环境变量始终可用作后备；保存的密钥优先于环境变量。`SCRIPTORIUM_PROVIDER` 可指定默认服务商，`SCRIPTORIUM_MODEL` 可覆盖模型。
+- “测试连接”只调用服务商的模型列表接口（列出模型），不发送研究材料，不需要额度消耗；失败返回 `PROVIDER_PROBE_FAILED:<错误>`，不打印密钥。
+- 旧 CLI／ACP／MCP 运行时在未显式传参时也跟随当前服务商；显式传入 `api_key`／`base_url` 时保持原有行为。
+- 相关错误码：`UNKNOWN_PROVIDER`、`PROVIDER_KEY_REQUIRED`、`INVALID_PROVIDER_KEY`、`INVALID_PROVIDER_BASE_URL`、`PROVIDER_BASE_URL_REQUIRED`、`MODEL_NOT_CONFIGURED`。
+
+
 
 未发送的对话输入与文档临时编辑保存在当前浏览器；文档区显示“未保存修改”或“与已保存版本一致”，两者不混同。切换会话、刷新或另一窗口先写入后再返回时，工作区会取回最新 revision 重试保存，标题、正文与未发送输入仍可恢复。已保存的修订写入数据库并以修订号区分。
 
@@ -230,7 +266,7 @@ python -m scriptorium.desktop_entry local-runtime stop
 
 数据库、搜索和 API 只监听回环，独立凭证保存在 Windows Credential Manager。`installation.json` 与 `runtime.json` 只记录路径、端口、状态和进程身份。前端通过 IPC 获取实际 API 端口与认证，不依赖固定 8000 或 8010。不要手动把 `connection` 命令输出写入日志或报告，该命令专供可信桌面 IPC 捕获凭证。
 
-本机模式可在统一设置中保存 Qwen key 到系统凭证存储；API 不回显密钥，Worker 后续调用读取最新值。服务器模式继续使用 `DASHSCOPE_API_KEY` 环境变量，模型设置接口不接受修改。历史桌面设置的密钥不会因安装自动迁入或外发，请在新本机模式明确配置。
+本机模式可在统一设置中保存任意受支持服务商的密钥到系统凭据存储；API 不回显密钥，Worker 后续调用读取最新值。服务器模式可改用 `DASHSCOPE_API_KEY`／`DEEPSEEK_API_KEY` 等环境变量，也可以在模型设置里直接保存（此时以保存值为准）。历史桌面设置的密钥不会因安装自动迁入或外发，请在新本机模式明确配置。
 
 后台对 API/Worker 最多退避重启三次；数据库或搜索退出会停止本产品的其他子进程，记录 failed 状态。日志位于根目录 logs/。恢复时先检查 status 与日志，再执行 ensure，不按端口强杀其他程序。依赖失败、认证缺失及散列不一致均保留数据并报错。
 
