@@ -278,7 +278,7 @@ export function StartupAnimation({ onComplete, brandingOnly = false }: Props) {
     /* ── 阶段格 + 时钟 ────────────────────────────────────────── */
     for (let i = 0; i < STEPS.length + 1; i++) slats.appendChild(document.createElement('i'));
     (slats.querySelectorAll('.ha-slat') as NodeListOf<HTMLElement>).forEach(el => el.className = 'ha-slat');
-    meta1.textContent = 'REV 3.1.0 · WEB PROFILE';
+    meta1.textContent = 'REV 3.3.0 · WEB PROFILE';
     function paintClock() {
       const d = new Date();
       const p = (n: number) => (n < 10 ? '0' : '') + n;

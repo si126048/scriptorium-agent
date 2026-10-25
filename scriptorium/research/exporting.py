@@ -110,16 +110,20 @@ def execute(s, job):
     p = job['payload']; pid = job['project_id']; actor = p['principal']
     with s.engine.connect() as c:
         s.access(c, pid, actor)
-        record = row(c, db.records, db.records.c.id == p['record_id'], db.records.c.project_id == pid)
+        snapshot = p.get('snapshot')
+        record = snapshot['record'] if snapshot else row(c, db.records, db.records.c.id == p['record_id'], db.records.c.project_id == pid)
         if not record:
             raise ResearchError('ARTIFACT_NOT_FOUND', 404)
         s.validate_evidence(c, pid, record['payload'])
-        chapters = list(c.execute(db.document_chapters.select().where(db.document_chapters.c.record_id == record['id']).order_by(db.document_chapters.c.ordinal)).mappings())
+        chapters = snapshot['chapters'] if snapshot else list(c.execute(db.document_chapters.select().where(db.document_chapters.c.record_id == record['id']).order_by(db.document_chapters.c.ordinal)).mappings())
         for ch in chapters:
             s.validate_evidence(c, pid, ch['payload'])
-        anchors = {r['id']: r for r in rows(c, db.anchors, db.anchors.c.project_id == pid)}
-        segments = {r['id']: r for r in rows(c, db.segments, db.segments.c.project_id == pid)}
-        assets = rows(c, db.assets, db.assets.c.project_id == pid, db.assets.c.status != 'revoked')
+        from .documents import citation_ids
+        used_anchors = {aid for item in [record, *chapters] for aid in citation_ids(item['payload'].get('editor_json'))}
+        anchors = {r['id']: r for r in rows(c, db.anchors, db.anchors.c.project_id == pid, db.anchors.c.id.in_(used_anchors))}
+        segments = {r['id']: r for r in rows(c, db.segments, db.segments.c.project_id == pid,
+            db.segments.c.id.in_([a['segment_id'] for a in anchors.values()]))}
+        assets = snapshot['assets'] if snapshot else rows(c, db.assets, db.assets.c.project_id == pid, db.assets.c.status != 'revoked')
     from .documents import citation_ids
     documents = [record['payload'], *[ch['payload'] for ch in chapters]]
     used = {segments[anchors[aid]['segment_id']]['asset_id'] for payload in documents for aid in citation_ids(payload.get('editor_json'))}
@@ -127,7 +131,7 @@ def execute(s, job):
     for asset in assets:
         if asset['id'] not in used:
             continue
-        m = asset['metadata']; ref = {'id': asset['id'], 'type': 'book', 'title': m.get('title') or asset['name']}
+        m = asset['metadata']; ref = {'id': asset['id'], 'type': m.get('csl_type', 'book'), 'title': m.get('title') or asset['name']}
         for field in ('author', 'translator'):
             if m.get(field):
                 ref[field] = [{'literal': m[field]}]
@@ -136,6 +140,9 @@ def execute(s, job):
             ref['issued'] = {'date-parts': [[int(year)]]}
         if m.get('publisher'):
             ref['publisher'] = m['publisher']
+        for field, key in {'journal': 'container-title', 'volume': 'volume', 'issue': 'issue', 'pages': 'page', 'doi': 'DOI', 'isbn': 'ISBN', 'language': 'language'}.items():
+            if m.get(field):
+                ref[key] = m[field]
         references.append(ref)
     body = []
     for payload in documents:
@@ -165,7 +172,8 @@ def execute(s, job):
         current = row(c, db.records, db.records.c.id == record['id'], db.records.c.project_id == pid)
         if not current:
             raise ResearchError('SOURCE_NO_LONGER_AVAILABLE', 404)
-        s.validate_evidence(c, pid, current['payload'])
+        for document in [record, *chapters]:
+            s.validate_evidence(c, pid, document['payload'])
         from .governance import audit
         audit(c, pid, actor, 'artifact.exported', record['id'], {'format': p['format'], 'revision': record['revision']})
-        s.finish(c, job, {'object_key': key, 'filename': 'manuscript.' + p['format'], 'revision': record['revision'], 'record_id': record['id'], 'format': p['format']})
+        s.finish(c, job, {'object_key': key, 'filename': 'manuscript.' + p['format'], 'revision': record['revision'], 'record_id': record['id'], 'format': p['format'], 'chapter_revisions': {ch['id']: ch['revision'] for ch in chapters}, 'created_at': db.now()})

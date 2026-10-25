@@ -38,12 +38,12 @@ export function setStoredConnection(url:string,key:string){
 }
 export interface Project { id: string; name: string; description: string }
 export interface Version { id: string; quality: Record<string, unknown>; created_at: number }
-export interface Material { id: string; name: string; status: string; revision: number; versions: Version[]; metadata: Record<string, unknown> }
+export interface Material { id: string; name: string; status: string; revision: number; versions: Version[]; metadata: Record<string, unknown>; sha256?:string }
 export interface Segment { id: string; asset_id: string; version_id: string; xml_id: string; text: string; page_label: string | null }
 export interface Anchor { id: string; segment_id: string; start_codepoint: number; end_codepoint: number; exact_quote: string; segment?: Segment }
 export interface ResearchRecord { id: string; kind: string; revision: number; payload: Payload; created_at: number }
 export interface Payload {
-  editor_json?: Record<string, unknown>; legacy_run_id?: string; title?: string; text?: string; status?: string; provider_mode?: string; evidence_ids?: string[];
+  pinned?:boolean;archived?:boolean;research_question?:string;editor_json?: Record<string, unknown>; legacy_run_id?: string; title?: string; text?: string; status?: string; provider_mode?: string; evidence_ids?: string[];
   dimensions?: Record<string, string>; findings?: { title: string; text: string; evidence_ids: string[] }[];
   open_questions?: string[]; alternatives?: string[]; outcome?: string; method_id?: string;
   coverage?: { segment_id: string; status: string }[];
@@ -65,13 +65,13 @@ export function serviceUrl() {
       location.protocol.startsWith('http') ? location.origin : 'http://127.0.0.1:8010')).replace(/\/$/, '');
 }
 
-export async function response(path: string, init: RequestInit = {}) {
+export async function response(path: string, init: RequestInit = {}, stream=false) {
   await hydrateConnection();
   const headers = new Headers(init.headers);
   const key = localKey || localStorage.getItem('scriptorium_research_key');
   if (key) headers.set('Authorization', `Bearer ${key}`);
   if (typeof init.body === 'string') headers.set('Content-Type', 'application/json');
-  const r = await fetch(`${serviceUrl()}${path}`, { ...init, credentials:'include', headers, signal: timeoutSignal(init, 30000) });
+  const r = await fetch(`${serviceUrl()}${path}`, { ...init, credentials:'include', headers, signal: stream?init.signal:timeoutSignal(init, 30000) });
   if (!r.ok) throw new Error(`${r.status}：${await r.text()}`);
   return r;
 }
@@ -79,7 +79,9 @@ export async function response(path: string, init: RequestInit = {}) {
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!init.method || init.method === 'GET') return queryClient.fetchQuery<T>({queryKey:['api',serviceUrl(),path],queryFn:async ({signal})=>(await response(path,{...init,signal:init.signal ? AbortSignal.any([signal,init.signal]) : signal})).json()});
   const value = await (await response(path, init)).json();
-  await queryClient.invalidateQueries({queryKey:['api',serviceUrl()]});
+  const clean=path.split('?')[0];const parts=clean.split('/');const root=parts.slice(0,5).join('/');
+  const resource=parts[5];const affected=resource==='records'?['records','artifacts']:resource==='artifacts'||resource==='change-proposals'?['records','artifacts','tasks','jobs']:resource==='imports'?['materials','jobs','tasks']:resource==='materials'?['materials','citation-labels']:resource==='conversations'?(parts[7]==='workspace'?[]:['conversations','jobs','tasks']):resource==='jobs'||resource==='research-runs'||resource==='decisions'?['jobs','tasks','decisions','records','model-calls']:[resource];
+  await queryClient.invalidateQueries({predicate:q=>q.queryKey[0]==='api'&&q.queryKey[1]===serviceUrl()&&typeof q.queryKey[2]==='string'&&(clean.startsWith('/api/v2/projects/')?affected.some(name=>name&&String(q.queryKey[2]).startsWith(root+'/'+name)):String(q.queryKey[2]).split('?')[0]===clean)});
   return value;
 }
 
@@ -123,7 +125,8 @@ export async function configureConnection(url:string,key:string){
 }
 
 /** Route contracts come from the same OpenAPI document as the service. */
-export function endpoint<K extends keyof Endpoints>(route:K,params:Record<string,string>,body?:Endpoints[K]['request']):Promise<Endpoints[K]['response']>{
- const split=route.indexOf(' ');const method=route.slice(0,split);const path=route.slice(split+1).replace(/\{([^}]+)\}/g,(_,name:string)=>{if(!(name in params))throw new Error('Missing path parameter: '+name);return encodeURIComponent(params[name]);});
- return request<Endpoints[K]['response']>(path,{method,...(body===undefined?{}:{body:JSON.stringify(body)})});
+export function endpoint<K extends keyof Endpoints>(route:K,params:Record<string,string>,body?:Endpoints[K]['request'],options:RequestInit&{query?:Record<string,string|number|boolean|undefined>}={}):Promise<Endpoints[K]['response']>{
+ const split=route.indexOf(' ');const method=route.slice(0,split);let path=route.slice(split+1).replace(/\{([^}]+)\}/g,(_,name:string)=>{if(!(name in params))throw new Error('Missing path parameter: '+name);return encodeURIComponent(params[name]);});
+ const {query,...init}=options;if(query){const values=new URLSearchParams();for(const [key,value]of Object.entries(query))if(value!==undefined)values.set(key,String(value));if(values.size)path+='?'+values;}
+ return request<Endpoints[K]['response']>(path,{...init,method,...(body===undefined?{}:{body:JSON.stringify(body)})});
 }

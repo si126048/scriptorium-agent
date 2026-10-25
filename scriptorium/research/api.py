@@ -23,7 +23,7 @@ from .service import ResearchError, ResearchService, SUPPORTED_JOB_KINDS, row, r
 
 from .contracts import ProjectOut, RecordOut, MaterialOut, AnchorOut, JobOut
 
-SERVICE_VERSION = '4.0.0-dev'
+from scriptorium import __version__ as SERVICE_VERSION
 
 KINDS = Literal['question', 'annotation', 'concept', 'context', 'claim', 'position', 'criterion',
     'difficulty', 'transition', 'standpoint', 'appearance', 'shift', 'parallax', 'branch',
@@ -93,9 +93,11 @@ class BibliographyIn(BaseModel):
     @field_validator('metadata')
     @classmethod
     def bibliography_fields(cls, value):
-        allowed = {'title', 'author', 'translator', 'language', 'publication_date', 'edition_description', 'source_note', 'purpose'}
+        allowed = {'title', 'author', 'translator', 'language', 'publication_date', 'edition_description', 'source_note', 'purpose', 'publisher', 'journal', 'volume', 'issue', 'pages', 'doi', 'isbn', 'csl_type'}
         if set(value) - allowed or any(len(v) > 2000 for v in value.values()):
             raise ValueError('INVALID_BIBLIOGRAPHY')
+        if value.get('csl_type', 'book') not in {'book', 'article-journal'}:
+            raise ValueError('INVALID_BIBLIOGRAPHY_TYPE')
         return value
 
 
@@ -231,11 +233,24 @@ def create_app(settings=None, engine=None):
 
     @app.post(prefix + '/imports', status_code=202, response_model=JobOut, response_model_exclude_unset=True)
     async def import_material(project_id: str, file: UploadFile = File(...),
-        idempotency_key: str = Header(min_length=1, max_length=128), principal=Depends(identity), s=Depends(service)):
+        idempotency_key: str = Header(min_length=1, max_length=128), conversation_id: str | None = None, principal=Depends(identity), s=Depends(service)):
         with s.engine.connect() as c:
             s.access(c, project_id, principal, True)
         raw = await file.read(settings.max_upload_bytes + 1)
-        return s.import_material(project_id, principal, raw, file.filename or 'material.txt', idempotency_key)
+        if conversation_id:
+            from .workspace import conversation
+            with s.engine.connect() as c:
+                conversation(s, c, project_id, conversation_id)
+        job = s.import_material(project_id, principal, raw, file.filename or 'material.txt', idempotency_key)
+        if conversation_id:
+            with s.engine.begin() as c:
+                s.access(c, project_id, principal, True)
+                current = row(c, db.jobs, db.jobs.c.id == job['id'])
+                if current['payload'].get('conversation_id') not in {None, conversation_id}:
+                    raise ResearchError('IDEMPOTENCY_CONFLICT', 409)
+                job = {**current, 'payload': {**current['payload'], 'conversation_id': conversation_id}}
+                c.execute(db.jobs.update().where(db.jobs.c.id == job['id']).values(payload=job['payload']))
+        return job
 
     @app.get(prefix + '/materials', response_model=list[MaterialOut], response_model_exclude_unset=True)
     def materials(project_id: str, principal=Depends(identity), s=Depends(service)):
@@ -311,12 +326,18 @@ def create_app(settings=None, engine=None):
             return {**a, 'segment': segment}
 
     @app.get(prefix + '/records', response_model=list[RecordOut], response_model_exclude_unset=True)
-    def records(project_id: str, kind: KINDS | None = None, principal=Depends(identity), s=Depends(service)):
+    def records(project_id: str, kind: KINDS | None = None, summary: bool = False, principal=Depends(identity), s=Depends(service)):
         with s.engine.connect() as c:
             s.access(c, project_id, principal)
             filters = [db.records.c.project_id == project_id]
             if kind:
                 filters.append(db.records.c.kind == kind)
+            if summary:
+                columns = [col for col in db.records.c if col.name != 'payload']
+                found = c.execute(sa.select(*columns, *[db.records.c.payload[key].label(key) for key in
+                    ['title', 'pinned', 'archived', 'research_question', 'status']]).where(*filters).order_by(db.records.c.created_at.desc())).mappings()
+                return [{**{k: v for k, v in r.items() if k not in {'title', 'pinned', 'archived', 'research_question', 'status'}},
+                    'payload': {k: r[k] for k in ['title', 'pinned', 'archived', 'research_question', 'status'] if r[k] is not None}} for r in found]
             return rows(c, db.records, *filters)
 
     def save(project_id, body, principal, s, record_id=None):
@@ -364,9 +385,14 @@ def create_app(settings=None, engine=None):
             return s.enqueue(c, project_id, 'method', body.model_dump(), idempotency_key)
 
     @app.get(prefix + '/jobs')
-    def jobs(project_id: str, principal=Depends(identity), s=Depends(service)):
+    def jobs(project_id: str, summary: bool = False, principal=Depends(identity), s=Depends(service)):
         with s.engine.connect() as c:
             s.access(c, project_id, principal)
+            if summary:
+                columns = [col for col in db.jobs.c if col.name not in {'payload', 'request_hash'}]
+                found = c.execute(sa.select(*columns, db.jobs.c.payload['conversation_id'].as_string().label('conversation_id'))
+                    .where(db.jobs.c.project_id == project_id).order_by(sa.case((db.jobs.c.state.in_(['queued','running','cancel_requested']),0),else_=1),db.jobs.c.created_at.desc()).limit(200)).mappings()
+                return [{**r, 'payload': {'conversation_id': r['conversation_id']}} for r in found]
             return [dict(r) for r in c.execute(sa.select(db.jobs).where(db.jobs.c.project_id == project_id)
                 .order_by(db.jobs.c.created_at.desc()).limit(100)).mappings()]
 

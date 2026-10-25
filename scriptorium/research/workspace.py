@@ -58,6 +58,9 @@ def submit(s, pid, principal, cid, body, idem):
         job = s.enqueue(c, pid, 'workspace', request, idem)
         message_id = quote_hash(f'{pid}:{cid}:{job["id"]}:user')
         if not row(c, db.messages, db.messages.c.id == message_id):
+            if conv['title'] == '新研究':
+                title = ' '.join(body['text'].split())[:36]
+                c.execute(db.conversations.update().where(db.conversations.c.id == cid).values(title=title, revision=conv['revision'] + 1))
             add_message(c, pid, cid, 'user', body['text'], metadata={'job_id': job['id'],
                 'asset_ids': request['asset_ids'], 'tool': body['tool'], 'persona_id': body.get('persona_id'),
                 'participant_id': body.get('participant_id')}, identifier=message_id)

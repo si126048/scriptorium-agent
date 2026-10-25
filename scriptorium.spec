@@ -113,7 +113,7 @@ a = Analysis(
         'starlette.staticfiles',
         'starlette.responses',
         'numpy',
-        'scikit-learn',
+        'sklearn',
         'sklearn',
         'ripser',
     ],

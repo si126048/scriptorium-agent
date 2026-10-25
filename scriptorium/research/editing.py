@@ -10,6 +10,9 @@ def execute(s, job):
     with s.engine.connect() as c:
         s.access(c, pid, actor, True)
         record = row(c, db.records, db.records.c.id == p['record_id'], db.records.c.project_id == pid)
+        if p.get('chapter_id'):
+            from .manuscripts import chapter
+            record = chapter(s, c, pid, p['record_id'], p['chapter_id'])
         if not record or record['revision'] != p['base_revision']:
             raise ResearchError('REVISION_CONFLICT', 409)
         s.validate_evidence(c, pid, record['payload'])
@@ -38,11 +41,11 @@ def execute(s, job):
     with s.engine.begin() as c:
         s.access(c, pid, actor, True); s.locked_job(c, job)
         s.validate_evidence(c, pid, {'editor_json': proposed})
-        item = {'id': job['id'], 'project_id': pid, 'record_id': record['id'], 'base_revision': record['revision'],
+        item = {'id': job['id'], 'project_id': pid, 'record_id': p['record_id'], 'base_revision': record['revision'],
             'author': actor, 'state': 'pending', 'created_at': db.now(), 'payload': {'before': source,
-                'before_text': old.get('text', ''), 'reason': explanation, 'provider_mode': p.get('provider_mode', 'live'),
+                'chapter_id': p.get('chapter_id'), 'before_text': old.get('text', ''), 'reason': explanation, 'provider_mode': p.get('provider_mode', 'live'),
                 'proposed': {'editor_json': proposed, 'text': markdown(proposed)}}}
         c.execute(db.change_proposals.insert().values(**item))
         from .governance import audit
         audit(c, pid, actor, 'proposal.created', item['id'])
-        s.finish(c, job, {'proposal_id': item['id'], 'record_id': record['id']})
+        s.finish(c, job, {'proposal_id': item['id'], 'record_id': p['record_id']})

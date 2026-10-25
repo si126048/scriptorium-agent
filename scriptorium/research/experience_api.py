@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from . import schema as db
 from .service import ResearchError, row, rows
 from .workspace import conversation
+from .contracts import ChapterOut
 
 
 class CitationResolution(BaseModel):
@@ -74,13 +75,21 @@ def install(app, service, identity):
         return StreamingResponse(events(), media_type='text/event-stream', headers={'Cache-Control': 'no-store'})
 
     @router.get('/model-calls')
-    def calls(project_id: str, run_id: str | None = None, principal=Depends(identity), s=Depends(service)):
+    def calls(project_id: str, run_id: str | None = None, summary: bool = False, principal=Depends(identity), s=Depends(service)):
         from .calls import usage_totals
         with s.engine.connect() as c:
             s.access(c, project_id, principal)
             if run_id and not row(c, db.research_runs, db.research_runs.c.id == run_id,
                                   db.research_runs.c.project_id == project_id):
                 raise ResearchError('RUN_NOT_FOUND', 404)
+            if summary:
+                filters = [db.model_calls.c.project_id == project_id]
+                if run_id:
+                    filters.append(db.model_calls.c.run_id == run_id)
+                totals = c.execute(sa.select(sa.func.coalesce(sa.func.sum(db.model_calls.c.usage['total_tokens'].as_integer()), 0).label('used_tokens'),
+                    sa.func.coalesce(sa.func.sum(sa.case((db.model_calls.c.state == 'unknown', 1), else_=0)), 0).label('unknown_calls'))
+                    .where(*filters)).mappings().one()
+                return {'items': [], 'totals': dict(totals)}
             items = rows(c, db.model_calls, db.model_calls.c.project_id == project_id)
             if run_id:
                 items = [r for r in items if r['run_id'] == run_id]
@@ -95,6 +104,8 @@ def install(app, service, identity):
             result = rows(c, db.method_drafts, db.method_drafts.c.project_id == project_id,
                           db.method_drafts.c.state == 'pending')
             for draft in result:
+                job = row(c, db.jobs, db.jobs.c.id == draft['job_id'])
+                draft['conversation_id'] = job['payload'].get('conversation_id') if job else None
                 for aid in draft['payload'].get('source_assets', []):
                     s.asset(c, project_id, aid)
             return result
@@ -177,7 +188,7 @@ def install(app, service, identity):
             emit(c, project_id, job['payload'].get('conversation_id'), 'citation.resolved', {'draft_id': did})
         return {'state': 'queued'}
 
-    @router.get('/artifacts/{record_id}/chapters')
+    @router.get('/artifacts/{record_id}/chapters', response_model=list[ChapterOut])
     def chapters(project_id: str, record_id: str, principal=Depends(identity), s=Depends(service)):
         with s.engine.connect() as c:
             s.access(c, project_id, principal)
@@ -203,34 +214,12 @@ def install(app, service, identity):
                 if r['payload'].get('chapter_id') == chapter_id and r['payload'].get('previous_chapter')]
             return sorted(versions, key=lambda r: r['revision'], reverse=True)
 
-    @router.put('/artifacts/{record_id}/chapters/{chapter_id}')
+    @router.put('/artifacts/{record_id}/chapters/{chapter_id}', response_model=ChapterOut)
     def save_chapter(project_id: str, record_id: str, chapter_id: str, body: ChapterIn,
                      principal=Depends(identity), s=Depends(service)):
-        from .documents import validate_editor, markdown
-        validate_editor(body.payload.get('editor_json'))
-        body.payload['text'] = markdown(body.payload['editor_json'])
-        if len(json.dumps(body.payload)) > 500000:
-            raise ResearchError('CHAPTER_TOO_LARGE', 413)
+        from .manuscripts import save_chapter as apply
         with s.engine.begin() as c:
             s.access(c, project_id, principal, True)
-            record = row(c, db.records, db.records.c.id == record_id, db.records.c.project_id == project_id)
-            if not record:
-                raise ResearchError('ARTIFACT_NOT_FOUND', 404)
-            s.validate_evidence(c, project_id, body.payload)
-            old = row(c, db.document_chapters, db.document_chapters.c.id == chapter_id)
-            if old and (old['project_id'] != project_id or old['record_id'] != record_id):
-                raise ResearchError('CHAPTER_NOT_FOUND', 404)
-            if (old and old['revision'] != body.revision) or (not old and body.revision is not None):
-                raise ResearchError('REVISION_CONFLICT', 409)
-            values = {'id': chapter_id, 'project_id': project_id, 'record_id': record_id,
-                'ordinal': body.ordinal, 'revision': old['revision'] + 1 if old else 1,
-                'payload': body.payload, 'created_at': old['created_at'] if old else db.now()}
-            if old:
-                s.put_record(c, project_id, 'review', {'title': '文稿章节修订记录', 'text': '',
-                    'source_record_ids': [record_id], 'chapter_id': chapter_id, 'previous_chapter': old})
-                c.execute(db.document_chapters.update().where(db.document_chapters.c.id == chapter_id).values(**values))
-            else:
-                c.execute(db.document_chapters.insert().values(**values))
-            return values
+            return apply(s, c, project_id, record_id, chapter_id, body.revision, body.ordinal, body.payload)
 
     app.include_router(router)

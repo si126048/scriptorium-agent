@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "binary_sha256": "154e38e3dfa7afcae339c11cf195ce0c08520bb7c9f0b104741cfbde590d3c2c",
+  "database": "scriptorium_stability_packaged_20261025",
+  "project": "bc9ad29cf8524807ba6940459bf9a820",
+  "health": {
+    "status": "ok",
+    "service": "research",
+    "version": "3.3.0",
+    "search": "disabled",
+    "job_kinds": [
+      "edit",
+      "export",
+      "import",
+      "method",
+      "ocr",
+      "persona_train",
+      "workspace"
+    ]
+  },
+  "api_pid": 30564,
+  "worker_pid": 42620,
+  "import_job": "6ecd4b71fd874bab8bc8810f568ba71e",
+  "docx_export_job": "26d2066d1be847c782695aa3586893e9",
+  "docx_bytes": 10632,
+  "static_asset": "/assets/index-V3ef7AsB.js",
+  "paid_model_calls": 0,
+  "installed_into_user_profile": false
+}

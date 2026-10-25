@@ -1,3 +1,4 @@
+import {insertResearch} from './api/writing-target';
 import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { MarkdownRenderer } from '../../components/ui/MarkdownRenderer';
 import { loadConfig, saveConfig } from '../../components/startup/startupConfig';
@@ -14,23 +15,22 @@ import { ProjectSidebar, ConversationMenu } from './components/ProjectSidebar';
 import { SurfaceDialog } from './components/SurfaceDialog';
 import { CommandPalette,type Command } from './components/CommandPalette';
 import { SectionBoundary } from './components/SectionBoundary';
+import {BibliographyForm} from './components/BibliographyForm';
 import {SourceReader} from './components/SourceReader';
 import {ResearchDecision,type ResearchDecisionData} from './components/ResearchDecision';
 import {sameDocument,documentKey} from './document-tabs';
-import {readingPages,pageForAnchor} from './reader';
+import {readWindow,windowSegments,type ReadingView} from './api/reading';
 const ArtifactWorkspace=lazy(()=>import('./components/ArtifactWorkspace').then(m=>({default:m.ArtifactWorkspace})));
 const ProjectGovernance=lazy(()=>import('./components/ProjectGovernance').then(m=>({default:m.ProjectGovernance})));
 import { ModelProviderForm } from './components/ModelProviderForm';
 import type {DocumentTab} from './state';
 import { useWorkspaceUI } from './state';
 import { useConversationEvents } from './hooks/useConversationEvents';
+import {useProjectResources,refreshProject} from './hooks/useProjectResources';
+import type {Conversation,Message,Participant,Persona,Interview} from './workspace-types';
 import { queryClient } from './api/query';
 
-interface Conversation { id: string; title: string; archived: boolean; revision: number; workspace: { source_page?:number; tabs?:DocumentTab[]; layout?:'chat'|'split'|'focus'; selection?:Omit<Anchor,'id'>; draft?: string; asset_ids?: string[]; open_artifact?: string; open_material?: string; scroll?: number; document_scroll?: number; panel?: string; version_id?: string; edit_text?: string; edit_title?: string } }
-interface Message { id: string; role: string; content: string; artifact_ids: string[]; metadata: { provider_mode?: string; interview_id?: string; job_id?: string; decision_id?: string } }
-interface Participant { id: string; pseudonym: string; permissions: Record<string, boolean>; withdrawn_at: string | null }
-interface Persona { id: string; name: string; participant_id: string; status: string }
-interface Interview { id: string; participant_id: string; state: string; current_question?: { id: string; text: string } | null; conversation_id?: string }
+function safeJson(value:string|null):unknown{try{return JSON.parse(value||'null');}catch{return null;}}
 
 type Decision=ResearchDecisionData;
 interface VersionDiffRow { xml_id: string; state: 'same' | 'added' | 'removed' | 'changed'; before?: string; now?: string }
@@ -40,7 +40,7 @@ const err = (e: unknown) => e instanceof Error ? e.message : String(e);
 
 export default function UnifiedWorkspace() {
   const { ask, confirm: confirmDialog } = useDialogs();
-  const { sidebarOpen, toggleSidebar, quiet, documentWidth, setDocumentWidth, setQuiet, layout, setLayout, tabs, setTabs, openTab } = useWorkspaceUI();
+  const {writingTarget, sidebarOpen, toggleSidebar, quiet, documentWidth, setDocumentWidth, setQuiet, layout, setLayout, tabs, setTabs, openTab } = useWorkspaceUI();
   const [settingsOpen,setSettingsOpen]=useState(false);
   const [projectOpen,setProjectOpen]=useState(false);
   const [commandsOpen,setCommandsOpen]=useState(false);
@@ -56,27 +56,18 @@ export default function UnifiedWorkspace() {
   const [liveDrafts,setLiveDrafts]=useState<Record<string,string>>({});
   const [newMessages,setNewMessages]=useState(false);
   const documentRequest=useRef(0);
-  const documentTrail=useRef<{panel:Panel;assetId:string;versionId:string;artifact?:ResearchRecord;editText:string;editTitle:string;editorJson?:Record<string,unknown>;segments:Segment[];sourcePage:number;selection?:Omit<Anchor,'id'>;scroll:number}[]>([]);
+  const documentTrail=useRef<{panel:Panel;assetId:string;versionId:string;artifact?:ResearchRecord;editText:string;editTitle:string;editorJson?:Record<string,unknown>;segments:Segment[];reading?:ReadingView;sourcePage:number;selection?:Omit<Anchor,'id'>;scroll:number}[]>([]);
   const [trailLength,setTrailLength]=useState(0);
   const [graphKind,setGraphKind]=useState<'research'|'concept'>();
   const [editorJson, setEditorJson] = useState<Record<string, unknown>>();
-  const [citationDrafts,setCitationDrafts] = useState<CitationDraft[]>([]);
-  const [usage,setUsage] = useState({used_tokens:0,unknown_calls:0});
   const sendKey = useRef<{text:string;key:string}|undefined>(undefined);
   const [projects, setProjects] = useState<Project[]>([]);
   const [pid, setPid] = useState(localStorage.getItem('scriptorium_research_project') || '');
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const {conversations,setConversations,materials,setMaterials,artifacts,setArtifacts,jobs,setJobs,decisions,setDecisions,people,personas,oldAnalyses,interviews,citationDrafts,setCitationDrafts,usage,setUsage}=useProjectResources(pid,!!auth?.authenticated);
   const [cid, setCid] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-  const [materials, setMaterials] = useState<Material[]>([]);
-  const [artifacts, setArtifacts] = useState<ResearchRecord[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [decisions, setDecisions] = useState<Decision[]>([]);
-  const [people, setPeople] = useState<Participant[]>([]);
-  const [personas, setPersonas] = useState<Persona[]>([]);
-  const [oldAnalyses, setOldAnalyses] = useState<{id:string;state:string}[]>([]);
+  const contextAbort=useRef(new AbortController());const contextEpoch=useRef(0);const [restoreError,setRestoreError]=useState('');const [eventConnected,setEventConnected]=useState(false);
   const [workspaceReady,setWorkspaceReady] = useState(false);
-  const [interviews, setInterviews] = useState<Interview[]>([]);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [documentScroll, setDocumentScroll] = useState(0);
   const documentPane = useRef<HTMLDivElement>(null);
@@ -84,6 +75,7 @@ export default function UnifiedWorkspace() {
   const [assetId, setAssetId] = useState('');
   const [versionId, setVersionId] = useState('');
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [reading,setReading]=useState<ReadingView>();const [readerLoading,setReaderLoading]=useState(false);
   const [sourcePage,setSourcePage]=useState(0);
   const [selected, setSelected] = useState<string[]>([]);
   const [selection, setSelection] = useState<Omit<Anchor, 'id'>>();
@@ -92,7 +84,6 @@ export default function UnifiedWorkspace() {
  useEffect(()=>{activeArtifact.current=artifact?.id;},[artifact?.id]);
   const [editText, setEditText] = useState('');
   const [editTitle, setEditTitle] = useState('');
-  const [bibliography, setBibliography] = useState<Record<string, string>>({});
   const [searchAuthor, setSearchAuthor] = useState('');
   const [searchYear, setSearchYear] = useState('');
   const [note, setNote] = useState('');
@@ -121,43 +112,42 @@ export default function UnifiedWorkspace() {
   const current = conversations.find(c => c.id === cid);
   const currentMaterial = materials.find(a => a.id === assetId);
 
+  const resetTransient=useCallback(()=>{
+    useWorkspaceUI.getState().setWritingTarget(undefined);contextEpoch.current++;contextAbort.current.abort();contextAbort.current=new AbortController();
+    void queryClient.cancelQueries();if(workspaceTimer.current)clearTimeout(workspaceTimer.current);
+    documentRequest.current++;documentTrail.current=[];setTrailLength(0);setSelection(undefined);setSelected([]);setLiveDrafts({});setNewMessages(false);setGraphKind(undefined);setActiveInterview(undefined);setParticipantId('');setPersonaId('');setTool('ask');setMethod('');setMode('live');setArtifact(undefined);setEditorJson(undefined);setEditText('');setEditTitle('');setSegments([]);setReading(undefined);setReaderLoading(false);setSourcePage(0);setAssetId('');setVersionId('');setNote('');setHits([]);setCompare(undefined);setVersionDiff(undefined);setNotice('');setError('');setRestoreError('');setBusy(false);setEventConnected(false);sendKey.current=undefined;
+    setOriginalUrl(value=>{if(value)URL.revokeObjectURL(value);return '';});
+  },[]);
   const action = useCallback(async (fn: () => Promise<void>) => {
-    setBusy(true); setError('');
-    try { await fn(); } catch (e) { setError(err(e)); } finally { setBusy(false); }
+    const epoch=contextEpoch.current;setBusy(true);setError('');
+    try{await fn();}catch(e){if(epoch===contextEpoch.current)setError(err(e));}finally{if(epoch===contextEpoch.current)setBusy(false);}
   }, []);
 
-  const loadProject = useCallback(async (projectId: string) => {
-    if (!projectId) return;
-    const p = projectPath(projectId);
-    const [cs, ms, rs, js, ds, ps, ss, ivs, oldRuns, citationReviews, calls] = await Promise.all([
-      request<Conversation[]>(p + '/conversations'), request<Material[]>(p + '/materials'),
-      request<ResearchRecord[]>(p + '/records'), request<Job[]>(p + '/jobs'), request<Decision[]>(p + '/decisions'),
-      request<Participant[]>(p + '/participants'), request<Persona[]>(p + '/personas'), request<Interview[]>(p + '/interviews'), request<{id:string;state:string}[]>(p + '/analysis-runs'),request<CitationDraft[]>(p+'/citation-drafts'),request<{totals:{used_tokens:number;unknown_calls:number}}>(p+'/model-calls')]);
-    if (active.current.pid !== projectId) return;
-    setConversations(old=>cs.map(c=>({...c,workspace:old.find(x=>x.id===c.id)?.workspace||c.workspace}))); setMaterials(ms); setArtifacts(rs); setJobs(js); setDecisions(ds); setPeople(ps); setPersonas(ss); setInterviews(ivs); setOldAnalyses(oldRuns); setCitationDrafts(citationReviews);setUsage(calls.totals);
-  }, []);
+  const loadProject=useCallback(async(projectId:string)=>{if(projectId)await refreshProject(projectId);},[]);
 
   const chooseConversation = useCallback(async (projectId: string, conversationId: string, cs: Conversation[]) => {
-    setWorkspaceReady(false);
+    resetTransient();setWorkspaceReady(false);
+    const epoch=contextEpoch.current;try{
     active.current = { pid: projectId, cid: conversationId };
     if(window.innerWidth<1180&&useWorkspaceUI.getState().sidebarOpen)useWorkspaceUI.getState().toggleSidebar();
     setCid(conversationId); setMessages([]); setActiveInterview(undefined); setPanel('none'); setCompare(undefined);
     localStorage.setItem(`scriptorium_last_conversation:${projectId}`, conversationId);
-    const personal=await request<{revision:number;payload:Conversation['workspace']}>(`${projectPath(projectId)}/conversations/${conversationId}/workspace`);
+    const personal=await request<{revision:number;payload:Conversation['workspace']}>(`${projectPath(projectId)}/conversations/${conversationId}/workspace`,{signal:contextAbort.current.signal});
     if(active.current.pid!==projectId||active.current.cid!==conversationId)return;
-    personalRevision.current=personal.revision;
+    const pending=safeJson(localStorage.getItem(scoped(`scriptorium_workspace:${projectId}:${conversationId}`))) as{base_revision:number;workspace:Conversation['workspace']}|null;if(pending?.base_revision===personal.revision)personal.payload=pending.workspace;
+    personalRevision.current=personal.revision;useWorkspaceUI.getState().setWritingTarget(personal.payload.writing_target);
     const original=cs.find(c=>c.id===conversationId);
     const c=original?{...original,workspace:personal.payload}:undefined;
-    setConversations(items=>items.map(item=>item.id===conversationId?{...item,workspace:personal.payload}:item));
+    queryClient.setQueryData<Conversation[]>(['api',serviceUrl(),projectPath(projectId)+'/conversations'],items=>(items||cs).map(item=>item.id===conversationId?{...item,workspace:personal.payload}:item));
     useWorkspaceUI.getState().setTabs(personal.payload.tabs||[]);
     useWorkspaceUI.getState().setLayout(personal.payload.layout||'chat');
     const local = localStorage.getItem(scoped(`scriptorium_draft:${projectId}:${conversationId}`));
     // Unsaved document edits survive a session switch even when the workspace PUT lost a race.
-    const localDoc = JSON.parse(localStorage.getItem(scoped(`scriptorium_doc:${projectId}:${conversationId}`)) || 'null') as
+    const localDoc = safeJson(localStorage.getItem(scoped(`scriptorium_doc:${projectId}:${conversationId}`))) as
       { record_id?: string; title?: string; text?: string; editor_json?:Record<string,unknown> } | null;
-    setDraft(local ?? c?.workspace.draft ?? ''); setSelected(c?.workspace.asset_ids || []);
+    setDraft(local ?? c?.workspace.draft ?? '');setSelected(c?.workspace.asset_ids||[]);setTool(c?.workspace.tool||'ask');setMethod(c?.workspace.method||'');setMode(c?.workspace.provider_mode||'live');setSelection(c?.workspace.selection);
     if (conversationId) {
-      const result = await request<Message[]>(`${projectPath(projectId)}/conversations/${conversationId}/messages?limit=80`);
+      const result = await request<Message[]>(`${projectPath(projectId)}/conversations/${conversationId}/messages?limit=80`,{signal:contextAbort.current.signal});
       setHasOlder(result.length===80);setMessageLimit(80);
       if (active.current.pid !== projectId || active.current.cid !== conversationId) return;
       setMessages(result);
@@ -165,13 +155,15 @@ export default function UnifiedWorkspace() {
       setTimeout(() => { if (feed.current) feed.current.scrollTop = c?.workspace.scroll || 0; }, 80);
       const w = c?.workspace;
       if (w?.panel === 'material' && w.open_material) {
-        const data = await request<{segments:Segment[]}>(`${projectPath(projectId)}/materials/${w.open_material}/segments${w.version_id ? '?version_id='+w.version_id : ''}`);
-        if (active.current.pid !== projectId || active.current.cid !== conversationId) return;
-        setAssetId(w.open_material);setVersionId(w.version_id || '');setSegments(data.segments);setSourcePage(w.source_page||0);setSelection(w.selection);setPanel('material');
+        const data=await readWindow(projectPath(projectId),w.open_material,w.version_id||'',w.source_page||0,contextAbort.current.signal);
+        if(active.current.pid!==projectId||active.current.cid!==conversationId)return;
+        setReading(data);setSegments(windowSegments(data));setAssetId(w.open_material);setVersionId(data.version.id);setSourcePage(data.page);setSelection(w.selection);setPanel('material');
+        useWorkspaceUI.getState().setTabs((personal.payload.tabs||[]).map(tab=>tab.kind==='material'&&tab.id===w.open_material&&!tab.version?{...tab,version:data.version.id}:tab));
       } else if (w?.panel === 'artifact' && w.open_artifact) {
-        const a = await request<ResearchRecord>(`${projectPath(projectId)}/artifacts/${w.open_artifact}`);
+        const a = await request<ResearchRecord>(`${projectPath(projectId)}/artifacts/${w.open_artifact}`,{signal:contextAbort.current.signal});
         if (active.current.pid !== projectId || active.current.cid !== conversationId) return;
         const unsaved = localDoc && localDoc.record_id === a.id ? localDoc : null;
+        const recoveryKey=`scriptorium_document:${projectId}:${a.id}:user:${userRef.current}`;if(unsaved&&!localStorage.getItem(recoveryKey)&&(unsaved.text!==a.payload.text||unsaved.title!==a.payload.title))localStorage.setItem(recoveryKey,JSON.stringify({base_revision:0,title:unsaved.title||'',text:unsaved.text||'',json:unsaved.editor_json}));
         setArtifact(a);setEditorJson(unsaved?.editor_json ?? a.payload.editor_json);
         setEditTitle(unsaved?.title ?? w.edit_title ?? a.payload.title ?? '');
         setEditText(unsaved?.text ?? w.edit_text ?? a.payload.text ?? '');
@@ -180,12 +172,14 @@ export default function UnifiedWorkspace() {
       setWorkspaceReady(true);
       setTimeout(() => {if(documentPane.current) documentPane.current.scrollTop=w?.document_scroll || 0;},80);
     }
-  }, []);
+    }catch(e){if(epoch===contextEpoch.current){setRestoreError(err(e));setError('工作区恢复未完成，临时草稿仍保留。');}}
+  }, [resetTransient]);
 
   const chooseProject = useCallback(async (projectId: string) => {
+    resetTransient();setWorkspaceReady(false);try{
     void queryClient.cancelQueries({predicate:q => typeof q.queryKey[2] === 'string' && !q.queryKey[2].includes(projectPath(projectId))});
     active.current = { pid: projectId, cid: '' };
-    setPid(projectId); setCid(''); setMessages([]); setConversations([]); setMaterials([]); setArtifacts([]);
+    setPid(projectId); setCid(''); setMessages([]);
     useWorkspaceUI.getState().setTabs([]);useWorkspaceUI.getState().setLayout('chat');documentTrail.current=[];setTrailLength(0);setLiveDrafts({});setNewMessages(false);setGraphKind(undefined);
     setPanel('none'); setDraft(''); setSelected([]); setParticipantId(''); setPersonaId(''); setSegments([]); setSelection(undefined);
     localStorage.setItem('scriptorium_research_project', projectId);
@@ -196,8 +190,9 @@ export default function UnifiedWorkspace() {
     if (active.current.pid !== projectId) return;
     const saved = localStorage.getItem(`scriptorium_last_conversation:${projectId}`);
     const latest = cs.find(c => c.id === saved && !c.archived) || cs.find(c => !c.archived);
-    if (latest) await chooseConversation(projectId, latest.id, cs);
-  }, [chooseConversation, loadProject]);
+    if(latest)await chooseConversation(projectId,latest.id,cs);else setWorkspaceReady(true);
+    }catch(e){if(active.current.pid===projectId)setError(err(e));}
+  }, [chooseConversation, loadProject,resetTransient]);
 
   useEffect(()=>{document.documentElement.dataset.quiet=String(quiet);return()=>{delete document.documentElement.dataset.quiet;};},[quiet]);
   useEffect(() => {
@@ -209,8 +204,8 @@ export default function UnifiedWorkspace() {
   }, [chooseProject]);
 
   useEffect(() => {
-    if (!pid) return;
-    let stopped = false;
+    if(!pid||eventConnected)return;
+    let stopped=false;
     const timer = setInterval(() => {
       void loadProject(pid).catch(e => { if (!stopped) setError(err(e)); });
       if (cid) void request<Message[]>(`${projectPath(pid)}/conversations/${cid}/messages?limit=80`).then(ms => {
@@ -218,25 +213,20 @@ export default function UnifiedWorkspace() {
       }).catch(e => { if (!stopped) setError(err(e)); });
     }, 10000);
     return () => { stopped = true; clearInterval(timer); };
-  }, [pid, cid, loadProject]);
+  }, [pid, cid, loadProject,eventConnected]);
 
   useEffect(() => {
     if (!pid || !cid || !current || !workspaceReady) return;
     localStorage.setItem(scoped(`scriptorium_draft:${pid}:${cid}`), draft);
-    if (panel === 'artifact' && artifact) {
-      const stored = JSON.stringify({ record_id: artifact.id, title: editTitle, text: editText, editor_json:editorJson });
-      const saved = JSON.stringify({ record_id: artifact.id, title: artifact.payload.title ?? '', text: artifact.payload.text ?? '' });
-      if (stored === saved) localStorage.removeItem(scoped(`scriptorium_doc:${pid}:${cid}`));
-      else localStorage.setItem(scoped(`scriptorium_doc:${pid}:${cid}`), stored);
-    }
-    const workspace = {...current.workspace,tabs,layout,draft,asset_ids:selected,scroll:scrollPosition,document_scroll:documentScroll,
+    const workspace = {...current.workspace,writing_target:writingTarget,tool,method,provider_mode:mode,tabs,layout,draft,asset_ids:selected,scroll:scrollPosition,document_scroll:documentScroll,
       panel,selection,source_page:sourcePage,open_material:assetId,version_id:versionId,open_artifact:artifact?.id,edit_text:editText,edit_title:editTitle};
+    localStorage.setItem(scoped(`scriptorium_workspace:${pid}:${cid}`),JSON.stringify({base_revision:personalRevision.current,workspace}));
     if (JSON.stringify(current.workspace) === JSON.stringify(workspace)) return;
     if (workspaceTimer.current) clearTimeout(workspaceTimer.current);
     workspaceTimer.current = setTimeout(() => {
       const save = (_revision: number, retried: boolean) => {
         void request<{revision:number;payload:Conversation['workspace']}>(`${projectPath(pid)}/conversations/${cid}/workspace`, { method: 'PUT', body: JSON.stringify({revision:personalRevision.current,payload:workspace}) })
-          .then(updated=>{if(active.current.pid!==pid||active.current.cid!==cid)return;personalRevision.current=updated.revision;setConversations(cs=>cs.map(c=>c.id===cid?{...c,workspace:updated.payload}:c));})
+          .then(updated=>{if(active.current.pid!==pid||active.current.cid!==cid)return;personalRevision.current=updated.revision;const recovery=scoped(`scriptorium_workspace:${pid}:${cid}`);const pending=safeJson(localStorage.getItem(recovery)) as{workspace:unknown}|null;if(JSON.stringify(pending?.workspace)===JSON.stringify(workspace))localStorage.removeItem(recovery);setConversations(cs=>cs.map(c=>c.id===cid?{...c,workspace:updated.payload}:c));})
           .catch(async e => {
             if (String(e).includes('409')) {
               if (retried) return;
@@ -253,7 +243,7 @@ export default function UnifiedWorkspace() {
       save(current.revision, false);
     }, 900);
     return () => { if (workspaceTimer.current) clearTimeout(workspaceTimer.current); };
-  }, [draft, selected, pid, cid, current, workspaceReady, scrollPosition, documentScroll, panel, assetId, versionId, artifact, editText, editTitle, editorJson, selection, sourcePage, tabs, layout]);
+  }, [draft, selected, pid, cid, current, workspaceReady, scrollPosition, documentScroll, panel, assetId, versionId, artifact, editText, editTitle, editorJson, selection, sourcePage, tabs, layout,tool,method,mode,writingTarget,setConversations]);
 
 
   async function newResearch() {
@@ -263,32 +253,43 @@ export default function UnifiedWorkspace() {
   }
 
   function rememberDocument(){
-    if(panel==='material'||panel==='artifact'){documentTrail.current.push({panel,assetId,versionId,artifact,editText,editTitle,editorJson,segments,sourcePage,selection,scroll:documentPane.current?.scrollTop||0});if(documentTrail.current.length>12)documentTrail.current.shift();setTrailLength(documentTrail.current.length);}
+    if(panel==='material'||panel==='artifact'){documentTrail.current.push({panel,assetId,versionId,artifact,editText,editTitle,editorJson,segments,reading,sourcePage,selection,scroll:documentPane.current?.scrollTop||0});if(documentTrail.current.length>12)documentTrail.current.shift();setTrailLength(documentTrail.current.length);}
   }
-  function previousDocument(){documentRequest.current++;const old=documentTrail.current.pop();if(!old)return;setTrailLength(documentTrail.current.length);setPanel(old.panel);setAssetId(old.assetId);setVersionId(old.versionId);setArtifact(old.artifact);setEditText(old.editText);setEditTitle(old.editTitle);setEditorJson(old.editorJson);setSegments(old.segments);setSourcePage(old.sourcePage);setSelection(old.selection);setTimeout(()=>{if(documentPane.current)documentPane.current.scrollTop=old.scroll;},50);}
+  function previousDocument(){documentRequest.current++;const old=documentTrail.current.pop();if(!old)return;setTrailLength(documentTrail.current.length);setPanel(old.panel);setAssetId(old.assetId);setVersionId(old.versionId);setArtifact(old.artifact);setEditText(old.editText);setEditTitle(old.editTitle);setEditorJson(old.editorJson);setSegments(old.segments);setReading(old.reading);setSourcePage(old.sourcePage);setSelection(old.selection);setTimeout(()=>{if(documentPane.current)documentPane.current.scrollTop=old.scroll;},50);}
   async function openMaterial(id: string, version = '', anchor?: Anchor) {
-    rememberDocument();
+    const remembered=useWorkspaceUI.getState().tabs.find(t=>sameDocument(t,{kind:'material',id,version}));rememberDocument();
     const project=pid;const conversation=cid;const requestId=++documentRequest.current;
-    setBibliography(Object.fromEntries(Object.entries(materials.find(m => m.id === id)?.metadata || {}).filter(([k, v]) => ['title', 'author', 'translator', 'language', 'publication_date', 'purpose', 'source_note'].includes(k) && typeof v === 'string')) as Record<string,string>);
     if(window.innerWidth<1180&&useWorkspaceUI.getState().sidebarOpen)useWorkspaceUI.getState().toggleSidebar();
     openTab({kind:'material',id,version,title:(materials.find(m=>m.id===id)?.name||'原文')+(version?' · 版本 '+([...(materials.find(m=>m.id===id)?.versions||[])].sort((a,b)=>a.created_at-b.created_at).findIndex(v=>v.id===version)+1):'')});
     setSourcePage(useWorkspaceUI.getState().tabs.find(t=>sameDocument(t,{kind:'material',id,version}))?.readerPage||0);
-    setSegments([]);setSelection(undefined);setAssetId(id); setVersionId(version); setPanel('material'); setOriginalUrl(''); setVersionDiff(undefined);
-    const data = await request<{ segments: Segment[] }>(`${root}/materials/${id}/segments${version ? '?version_id=' + version : ''}`);
+    setReading(undefined);setSegments([]);setSelection(undefined);setAssetId(id); setVersionId(version); setPanel('material');setOriginalUrl(value=>{if(value)URL.revokeObjectURL(value);return '';}); setVersionDiff(undefined);
+    setReaderLoading(true);
+    try{const data=await readWindow(root,id,version,useWorkspaceUI.getState().tabs.find(t=>sameDocument(t,{kind:'material',id,version}))?.readerPage||0,contextAbort.current.signal,anchor);
     if(active.current.pid!==project||active.current.cid!==conversation||documentRequest.current!==requestId)return;
-    setSegments(data.segments); setSelection(anchor);if(anchor)setSourcePage(Math.max(0,pageForAnchor(readingPages(data.segments),anchor)));
-    if(anchor)setTimeout(()=>{const section=document.getElementById(`uw-segment-${anchor.segment_id}`);(section?.querySelector('mark')||section)?.scrollIntoView({block:'center',behavior:quiet||window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});},100);
+    setReading(data);setSegments(windowSegments(data));setVersionId(data.version.id);setSourcePage(data.page);setSelection(anchor);
+    const canonicalTab={kind:'material' as const,id,version:data.version.id,title:(materials.find(m=>m.id===id)?.name||'原文')+' · 版本 '+([...(materials.find(m=>m.id===id)?.versions||[])].sort((a,b)=>a.created_at-b.created_at).findIndex(v=>v.id===data.version.id)+1),readerPage:data.page,scroll:remembered?.scroll||0};
+    setTabs(useWorkspaceUI.getState().tabs.filter(t=>!(t.kind==='material'&&t.id===id&&!t.version)));openTab(canonicalTab);
+    if(anchor)setTimeout(()=>{if(documentRequest.current!==requestId)return;const section=document.getElementById(`uw-segment-${anchor.segment_id}`);(section?.querySelector('mark')||section)?.scrollIntoView({block:'center',behavior:quiet||window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});},100);else setTimeout(()=>{if(documentRequest.current===requestId&&documentPane.current)documentPane.current.scrollTop=remembered?.scroll||0;},150);
+    }finally{if(documentRequest.current===requestId)setReaderLoading(false);}
+
   }
 
+  async function changeReadingPage(page:number){
+    const identity=active.current;const requestId=++documentRequest.current;setReaderLoading(true);
+    try{const data=await readWindow(root,assetId,versionId,page,contextAbort.current.signal);
+      if(identity!==active.current||requestId!==documentRequest.current)return;
+      setReading(data);setSegments(windowSegments(data));setSourcePage(data.page);setTabs(useWorkspaceUI.getState().tabs.map(tab=>sameDocument(tab,{kind:'material',id:assetId,version:versionId})?{...tab,readerPage:data.page}:tab));
+    }finally{if(requestId===documentRequest.current)setReaderLoading(false);}
+  }
   async function openArtifact(id: string) {
     if(window.innerWidth<1180&&useWorkspaceUI.getState().sidebarOpen)useWorkspaceUI.getState().toggleSidebar();
-    rememberDocument();
+    const remembered=useWorkspaceUI.getState().tabs.find(t=>sameDocument(t,{kind:'artifact',id}));rememberDocument();
     const project=pid;const conversation=cid;const requestId=++documentRequest.current;
-    const a = await request<ResearchRecord>(root + '/artifacts/' + id);
+    const a = await request<ResearchRecord>(root + '/artifacts/' + id,{signal:contextAbort.current.signal});
     if(active.current.pid!==project||active.current.cid!==conversation||documentRequest.current!==requestId)return;
     openTab({kind:'artifact',id,title:a.payload.title||'研究文档'});
     setArtifact(a);setEditorJson(a.payload.editor_json); setEditTitle(a.payload.title || '研究文档'); setEditText(a.payload.text || '');
-    setPanel('artifact'); setCompare(undefined);
+    setPanel('artifact');setCompare(undefined);setTimeout(()=>{if(documentRequest.current===requestId&&documentPane.current)documentPane.current.scrollTop=remembered?.scroll||0;},200);
   }
 
   async function locate(id: string) {
@@ -386,11 +387,12 @@ export default function UnifiedWorkspace() {
   }
 
   async function upload(file: File) {
-    const form = new FormData(); form.append('file', file);
-    const job = await request<Job & { payload: { asset_id: string } }>(root + '/imports', {
+    const epoch=contextEpoch.current;const form = new FormData(); form.append('file', file);
+    const job = await request<Job & { payload: { asset_id: string } }>(root + '/imports'+(cid?'?conversation_id='+encodeURIComponent(cid):''), {
       method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() }, body: form });
+    if(epoch!==contextEpoch.current)return;
     setSelected(xs => [...new Set([...xs, job.payload.asset_id])]);
-    setNotice('材料已加入项目，正在处理。完成后可阅读和研究。'); await loadProject(pid);
+    setNotice('材料已加入项目，正在处理。完成后可阅读和研究。');
   }
 
   const conversationJobs=jobs.filter(j=>j.payload?.conversation_id===cid);
@@ -406,7 +408,20 @@ export default function UnifiedWorkspace() {
     {!!a.payload.evidence_ids?.length && <div className="uw-inline-actions">{a.payload.evidence_ids.map((id, i) => <button key={id} onClick={() => void action(() => locate(id))}>原文 {i + 1}</button>)}</div>}
   </article>;
 
-  useConversationEvents(pid,cid,()=>{void loadProject(pid);if(cid)void request<Message[]>(`${projectPath(pid)}/conversations/${cid}/messages?limit=80`).then(ms=>{if(active.current.pid===pid&&active.current.cid===cid){setMessages(old=>mergeMessages(old,ms));if(feed.current && feed.current.scrollHeight-feed.current.scrollTop-feed.current.clientHeight>180)setNewMessages(true);}});},event=>{if(event.type==='material.withdrawn'){setMessages([]);setPanel('none');setArtifact(undefined);setSegments([]);setTabs([]);void loadProject(pid);}if(event.type==='message.delta')setLiveDrafts(old=>({...old,[event.payload.job_id]:(old[event.payload.job_id]||'')+event.payload.text}));if(event.type==='message.created'||event.type==='job.progress'){const id=event.payload.message?.metadata?.job_id || (['failed','cancelled','running'].includes(event.payload.state||'')?event.payload.job_id:undefined);if(id)setLiveDrafts(old=>{const next={...old};delete next[id];return next;});}});
+  useConversationEvents(pid,cid,event=>{
+    const resources=event?.type==='message.created'?['conversations','records']:event?.type==='job.progress'?['conversations','jobs','records','materials','decisions','citation-drafts','model-calls']:['messages','jobs','records','materials','decisions','citation-drafts','model-calls'];
+    const path=projectPath(pid);
+    for(const resource of resources){const route=resource==='messages'?`/conversations/${cid}/messages?limit=80`:'/'+resource+(['jobs','records','model-calls'].includes(resource)?'?summary=true':'');void queryClient.invalidateQueries({queryKey:['api',serviceUrl(),path+route]}).then(()=>request(path+route)).then(data=>{if(active.current.pid!==pid||active.current.cid!==cid)return;switch(resource){case'messages':setMessages(old=>mergeMessages(old,data as Message[]));break;case'jobs':setJobs(data as Job[]);break;case'records':setArtifacts(data as ResearchRecord[]);break;case'materials':setMaterials(data as Material[]);break;case'conversations':setConversations(old=>(data as Conversation[]).map(c=>({...c,workspace:old.find(x=>x.id===c.id)?.workspace||c.workspace})));break;case'decisions':setDecisions(data as Decision[]);break;case'citation-drafts':setCitationDrafts(data as CitationDraft[]);break;case'model-calls':setUsage((data as{totals:typeof usage}).totals);}}).catch(()=>{});}
+    void queryClient.invalidateQueries({queryKey:['api',serviceUrl(),path+'/tasks']});
+  },event=>{
+    if(event.type==='access.denied'){resetTransient();queryClient.removeQueries({predicate:q=>String(q.queryKey[2]||'').startsWith(projectPath(pid)+'/')});setMessages([]);setPid('');setCid('');setPanel('none');setNotice('当前会话不可访问，请重新选择项目或登录。');return;}
+    if(event.type==='message.delta'||event.type==='message.created'){const view=feed.current;const follow=!!view&&view.scrollHeight-view.scrollTop-view.clientHeight<180;if(follow){const identity=active.current;requestAnimationFrame(()=>{if(identity===active.current&&feed.current)feed.current.scrollTop=feed.current.scrollHeight;});}else setNewMessages(true);}
+    if(event.type==='material.withdrawn'){setSelection(undefined);setSelected([]);setLiveDrafts({});setMessages([]);setPanel('none');setArtifact(undefined);setSegments([]);setTabs([]);void loadProject(pid);}
+    if(event.type==='message.delta')setLiveDrafts(old=>({...old,[event.payload.job_id]:(old[event.payload.job_id]||'')+event.payload.text}));
+    if(event.type==='message.created'&&event.payload.message){setMessages(old=>mergeMessages(old,[event.payload.message as Message]));}
+    if(event.type==='message.created'||event.type==='job.progress'){const id=event.payload.message?.metadata?.job_id||(['failed','cancelled','running','succeeded'].includes(event.payload.state||'')?event.payload.job_id:undefined);if(id)setLiveDrafts(old=>{const next={...old};delete next[id];return next;});}
+  },setEventConnected);
+
 
   useEffect(()=>{const handler=(e:KeyboardEvent)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setCommandsOpen(v=>!v);}if(e.key==='Escape'&&!settingsOpen&&!projectOpen&&!commandsOpen&&layout==='focus')setLayout('split');};window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler);},[layout,settingsOpen,projectOpen,commandsOpen,setLayout]);
   useEffect(()=>{const resize=()=>{if(window.innerWidth<1180&&useWorkspaceUI.getState().sidebarOpen)useWorkspaceUI.getState().toggleSidebar();};window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize);},[]);
@@ -416,12 +431,12 @@ export default function UnifiedWorkspace() {
   return <div className={'layout-'+layout+' unified-workspace ' + (panel !== 'none' ? 'uw-document-open ' : '') + (!sidebarOpen ? 'uw-sidebar-collapsed ' : '') + (quiet ? 'uw-quiet' : '')}>
     <ProjectSidebar projects={projects} pid={pid} conversations={conversations} cid={cid} materials={materials} artifacts={artifacts} selected={selected} open={sidebarOpen} busy={busyJobs.length} readOnly={readOnly}
       onToggle={toggleSidebar} onProject={id=>void action(()=>chooseProject(id))} onCreateProject={()=>void action(async()=>{const name=await ask('项目名称');if(!name)return;const p=await request<Project>('/api/v2/projects',{method:'POST',body:JSON.stringify({name})});setProjects(xs=>[...xs,p]);await chooseProject(p.id);})}
-      onResearch={()=>void action(newResearch)} onConversation={id=>void action(()=>chooseConversation(pid,id,conversations))} onMaterial={id=>void action(()=>openMaterial(id))} onArtifact={id=>void action(()=>openArtifact(id))} onSelect={id=>setSelected(xs=>xs.includes(id)?xs.filter(x=>x!==id):[...xs,id])} onUpload={f=>void action(()=>upload(f))} onSearch={()=>setCommandsOpen(true)} onSettings={()=>setSettingsOpen(true)} onTeam={()=>setProjectOpen(true)} onNewManuscript={()=>void action(async()=>{const a=await request<ResearchRecord>(root+'/records',{method:'POST',body:JSON.stringify({kind:'manuscript',payload:{title:'未命名文稿',text:''}})});await loadProject(pid);await openArtifact(a.id);})}/>
+      onResearch={()=>void action(newResearch)} onConversation={id=>void action(()=>chooseConversation(pid,id,conversations))} onMaterial={id=>void action(()=>openMaterial(id))} onArtifact={id=>void action(()=>openArtifact(id))} onSelect={id=>setSelected(xs=>xs.includes(id)?xs.filter(x=>x!==id):[...xs,id])} onUpload={upload} onRecordPatch={(id,value)=>action(async()=>{const record=await request<ResearchRecord>(`${root}/artifacts/${id}`);await request(`${root}/records/${id}`,{method:'PUT',body:JSON.stringify({kind:record.kind,revision:record.revision,payload:{...record.payload,...value}})});await loadProject(pid);})} onSearch={()=>setCommandsOpen(true)} onSettings={()=>setSettingsOpen(true)} onTeam={()=>setProjectOpen(true)} onNewManuscript={()=>void action(async()=>{const a=await request<ResearchRecord>(root+'/records',{method:'POST',body:JSON.stringify({kind:'manuscript',payload:{title:'未命名文稿',text:''}})});await loadProject(pid);await openArtifact(a.id);})}/>
 
 
     <main className="uw-conversation">
       <header className="uw-conversation-header"><button className="wb-icon" onClick={toggleSidebar} aria-label="切换项目导航"><Icon name="panel"/></button><div className="wb-conversation-title"><small>{projects.find(p=>p.id===pid)?.name||'研究工作台'}</small><h1>{current?.title||'开始一项研究'}</h1></div><button className="wb-icon" aria-label="搜索与操作" onClick={()=>setCommandsOpen(true)}><Icon name="search"/></button>{current&&<ConversationMenu onRename={()=>void action(async()=>{const title=await ask('会话名称',current.title);if(title){await request(`${root}/conversations/${cid}`,{method:'PUT',body:JSON.stringify({revision:current.revision,title})});await loadProject(pid);}})} onArchive={()=>void action(async()=>{await request(`${root}/conversations/${cid}`,{method:'PUT',body:JSON.stringify({revision:current.revision,archived:true})});await chooseProject(pid);})}/>}</header>
-      {error&&<div className="uw-error" role="alert"><span>{/401|LOGIN_REQUIRED/.test(error)?'请登录课题组，或检查服务连接。':/signal|timeout|fetch/i.test(error)?'连接暂时中断，已保存内容和当前输入仍然保留。':'操作未完成，当前内容已保留。'}</span><button className="wb-icon" onClick={()=>setError('')} aria-label="关闭提示"><Icon name="close" size={14}/></button><details><summary>查看详情</summary>{error}</details></div>}
+      {!eventConnected&&cid&&<div className="wb-connection-state" role="status">正在恢复实时连接 · 已保存内容可继续查看</div>}{restoreError&&<div className="uw-error"><span>工作区恢复未完成，已保留草稿。</span><button onClick={()=>void chooseConversation(pid,cid,conversations)}>重新恢复当前会话</button></div>}{error&&<div className="uw-error" role="alert"><span>{/401|LOGIN_REQUIRED/.test(error)?'请登录课题组，或检查服务连接。':/signal|timeout|fetch/i.test(error)?'连接暂时中断，已保存内容和当前输入仍然保留。':'操作未完成，当前内容已保留。'}</span><button className="wb-icon" onClick={()=>setError('')} aria-label="关闭提示"><Icon name="close" size={14}/></button><details><summary>查看详情</summary>{error}</details></div>}
       {notice && <div className="uw-notice" role="status">{notice}<button onClick={() => setNotice('')}>关闭</button></div>}
       <SectionBoundary key={cid} name="对话"><div className="uw-feed" ref={feed} onScroll={e => setScrollPosition(e.currentTarget.scrollTop)}>
         {!messages.length&&<section className="uw-welcome"><span className="wb-welcome-mark"><Icon name="spark" size={28}/></span><span className="wb-eyebrow">YOUR RESEARCH, CONNECTED</span><h2>从一个好问题开始。</h2><p>让材料、证据与解释，在同一个工作空间中相遇。</p>{auth?.authenticated===false?<a className="wb-login" href={serviceUrl()+'/api/v2/auth/login'}>登录课题组</a>:<div className="wb-starters">{['这些材料提出了什么核心问题？','比较不同文本中的同一概念','检验这项解释，寻找反例'].map((text,i)=><button key={text} disabled={!pid} onClick={()=>{setDraft(text);setTool(i===0?'ask':'research');}}><Icon name={i===0?'chat':i===1?'book':'spark'} size={17}/><span>{text}</span><Icon name="chevron" size={14}/></button>)}</div>}<div className="wb-welcome-secondary"><label><Icon name="attach" size={15}/>导入材料<input type="file" hidden accept=".txt,.md,.pdf,.xml,.tei" disabled={!pid||readOnly} onChange={e=>{const f=e.target.files?.[0];if(f)void action(()=>upload(f));}}/></label><button disabled={!pid||readOnly} onClick={()=>{setPanel('people');setLayout('split');}}><Icon name="users" size={15}/>开始访谈</button></div></section>}
@@ -433,12 +448,12 @@ export default function UnifiedWorkspace() {
         {Object.entries(liveDrafts).map(([id,text])=><article className="uw-message assistant" key={id}><small>SCRIPTORIUM / 正在生成的草稿</small><MarkdownRenderer content={text}/></article>)}
         {newMessages&&<button className="uw-new-messages" onClick={()=>{feed.current?.scrollTo({top:feed.current.scrollHeight,behavior:quiet?'auto':'smooth'});setNewMessages(false);}}>查看新进展 ↓</button>}
         {decisions.filter(d=>d.conversation_id===cid).map(d=><ResearchDecision key={d.id} decision={d} readOnly={readOnly} onAnswer={(accept,tokens)=>action(async()=>{await request(`${root}/decisions/${d.id}`,{method:'POST',body:JSON.stringify({accept,additional_tokens:tokens})});await loadProject(pid);})}/>)}
-        {citationDrafts.map(d=><CitationReview key={d.id} draft={d} onBind={index=>void action(async()=>{if(!selection)throw new Error('请先打开对应原文并选择正确摘录。');const result=await request<{state:string}>(`${root}/citation-drafts/${d.id}/resolve`,{method:'POST',body:JSON.stringify({revision:d.revision,bindings:[{index,...selection,version_id:segments.find(s=>s.id===selection.segment_id)?.version_id}]})});setNotice(result.state==='pending'?'已保存这一处绑定，其余摘录仍需核验。':'引文已通过核验，研究继续。');await loadProject(pid);})} onDiscard={()=>void action(async()=>{await request(`${root}/citation-drafts/${d.id}/resolve`,{method:'POST',body:JSON.stringify({revision:d.revision,discard:true})});await loadProject(pid);})}/>)}
+        {citationDrafts.filter(d=>d.conversation_id===cid||(!d.conversation_id&&jobs.some(j=>j.id===d.job_id&&j.payload?.conversation_id===cid))).map(d=><CitationReview key={d.id} draft={d} onBind={index=>void action(async()=>{if(!selection)throw new Error('请先打开对应原文并选择正确摘录。');const result=await request<{state:string}>(`${root}/citation-drafts/${d.id}/resolve`,{method:'POST',body:JSON.stringify({revision:d.revision,bindings:[{index,...selection,version_id:segments.find(s=>s.id===selection.segment_id)?.version_id}]})});setNotice(result.state==='pending'?'已保存这一处绑定，其余摘录仍需核验。':'引文已通过核验，研究继续。');await loadProject(pid);})} onDiscard={()=>void action(async()=>{await request(`${root}/citation-drafts/${d.id}/resolve`,{method:'POST',body:JSON.stringify({revision:d.revision,discard:true})});await loadProject(pid);})}/>)}
         <ResearchProgress jobs={conversationJobs.filter(j=>['running','queued'].includes(j.state))} usage={usage} onCancel={id=>void action(async()=>{await request(`${root}/jobs/${id}/cancel`,{method:'POST'});await loadProject(pid);})}/>
         {conversationJobs.filter(j => j.state === 'failed').slice(0, 3).map(j => <div className="uw-error" key={j.id}>任务未完成：{j.error}<button onClick={() => void action(async () => { await request(`${root}/jobs/${j.id}/retry`, { method: 'POST' }); await loadProject(pid); })}>重试</button></div>)}
       </div>
       </SectionBoundary><ResearchComposer draft={draft} onDraft={setDraft} onSend={()=>void action(send)} onUpload={f=>void action(()=>upload(f))}
-        disabled={!pid||readOnly} busy={busy} tool={tool} method={method} mode={mode} onMode={setMode}
+        disabled={!pid||readOnly||!workspaceReady} busy={busy} tool={tool} method={method} mode={mode} onMode={setMode}
         onTool={(t,m)=>{setTool(t);setMethod(m);if(t==='persona'||t==='subject'){setPanel('people');setLayout('split');}}} onPeople={()=>{setPanel('people');setLayout('split');}}
         selection={selection} onClearSelection={()=>setSelection(undefined)} materials={selected.map(id=>({id,name:materials.find(m=>m.id===id)?.name||'所选材料'}))}
         onRemoveMaterial={id=>setSelected(xs=>xs.filter(x=>x!==id))} answering={!!activeInterview?.current_question}
@@ -448,16 +463,16 @@ export default function UnifiedWorkspace() {
 
     {panel !== 'none' && panel!=='settings' && <DocumentPane width={documentWidth} onResize={setDocumentWidth}><header><button className="wb-icon" aria-label="打开项目导航" onClick={toggleSidebar}><Icon name="panel" size={16}/></button>{trailLength>0&&<button className="wb-icon" onClick={previousDocument} aria-label="返回上一个文档"><Icon name="back" size={16}/></button>}<span className="wb-doc-context">{panel==='material'?'原文阅读':panel==='artifact'?'研究文档':panel==='people'?'研究对象':panel==='search'?'项目检索':'研究访谈'}</span><button className="wb-icon" aria-label={layout==='focus'?'恢复并置布局':'专注阅读'} onClick={()=>setLayout(layout==='focus'?'split':'focus')}><Icon name={layout==='focus'?'panel':'expand'} size={16}/></button><button className="wb-icon" aria-label="关闭文档" onClick={()=>{setPanel('none');setLayout('chat');}}><Icon name="close" size={17}/></button></header>
     {tabs.length>0&&<div className="wb-document-tabs" role="tablist" aria-label="打开的文档">{tabs.map((tab,i)=><div className={'wb-document-tab '+((panel==='material'&&sameDocument(tab,{kind:'material',id:assetId,version:versionId}))||(panel==='artifact'&&sameDocument(tab,{kind:'artifact',id:artifact?.id||''}))?'active':'')} key={documentKey(tab)}><button role="tab" aria-selected={(panel==='material'&&sameDocument(tab,{kind:'material',id:assetId,version:versionId}))||(panel==='artifact'&&sameDocument(tab,{kind:'artifact',id:artifact?.id||''}))} onClick={()=>selectTab(tab)}><Icon name={tab.kind==='material'?'book':'file'} size={14}/><span>{tab.title}</span></button><button aria-label={'关闭 '+tab.title} onClick={()=>closeTab(i)}><Icon name="close" size={12}/></button></div>)}</div>}
-    <div className="uw-document-body" ref={documentPane} onScroll={e => setDocumentScroll(e.currentTarget.scrollTop)}>
+    <div className="uw-document-body" ref={documentPane} onScroll={e=>{const top=e.currentTarget.scrollTop;setDocumentScroll(top);const target=panel==='material'?{kind:'material' as const,id:assetId,version:versionId}:panel==='artifact'?{kind:'artifact' as const,id:artifact?.id||''}:undefined;if(target)setTabs(useWorkspaceUI.getState().tabs.map(tab=>sameDocument(tab,target)?{...tab,scroll:top}:tab));}}>
       {panel === 'material' && <><h2>{String(currentMaterial?.metadata.title || currentMaterial?.name || '研究材料')}</h2><div className="uw-inline-actions"><select aria-label="文本版本" value={versionId} onChange={e => { setVersionDiff(undefined); void action(() => openMaterial(assetId, e.target.value)); }}><option value="">最新文本</option>{[...(currentMaterial?.versions || [])].sort((a, b) => a.created_at - b.created_at).map((v, i) => <option key={v.id} value={v.id}>版本 {i + 1}</option>)}</select><button disabled={(currentMaterial?.versions.length || 0) < 2} onClick={() => void action(compareVersion)}>比较上一版</button><button onClick={() => void action(async () => { if(!currentMaterial?.name.toLowerCase().endsWith('.pdf')){await download(`${root}/materials/${assetId}/original`,currentMaterial?.name||'source');return;}const r = await response(`${root}/materials/${assetId}/original`); if (originalUrl) URL.revokeObjectURL(originalUrl); setOriginalUrl(URL.createObjectURL(await r.blob())); })}>原件</button><button onClick={() => void action(() => download(`${root}/materials/${assetId}/tei${versionId?'?version_id='+encodeURIComponent(versionId):''}`, 'source.xml'))}>导出 TEI</button></div>
         {versionDiff && <section className="uw-version-diff"><h3>版本对照 · {versionDiff.oldLabel} → {versionDiff.newLabel}</h3><p className="uw-muted">按 xml:id 对齐逐段比较：未变 {versionDiff.counts.same || 0} · 修改 {versionDiff.counts.changed || 0} · 新增 {versionDiff.counts.added || 0} · 删除 {versionDiff.counts.removed || 0}。旧版引用保持原段落位置，不随修订移动。</p><ol>{versionDiff.rows.filter(row => row.state !== 'same').map(row => <li key={row.xml_id} className={'uw-diff-' + row.state}><small>{({ added: '新增段落', removed: '删除段落', changed: '文本修改' } as Record<string, string>)[row.state]} · {row.xml_id}</small>{row.before && <p className="uw-diff-old">{row.before}</p>}{row.now && <p className="uw-diff-new">{row.now}</p>}</li>)}{!versionDiff.rows.some(row => row.state !== 'same') && <li className="uw-diff-same">两个版本正文没有段落差异。</li>}</ol><button onClick={() => setVersionDiff(undefined)}>关闭对照</button></section>}
         {originalUrl && <><object className="uw-original" data={originalUrl} type="application/pdf"><p>原件无法内嵌预览，请下载查看。</p></object><button onClick={() => setOriginalUrl('')}>返回文本</button></>}
-        {!originalUrl&&<SourceReader key={pid+':'+assetId+':'+versionId} segments={segments} selection={selection} page={sourcePage} onPage={page=>{setSourcePage(page);setTabs(useWorkspaceUI.getState().tabs.map(tab=>sameDocument(tab,{kind:'material',id:assetId,version:versionId})?{...tab,readerPage:page}:tab));}} onCapture={capture} onDismiss={()=>setSelection(undefined)} selectionTools={selection && <section className="uw-selection"><blockquote>{selection.exact_quote}</blockquote><div className="uw-inline-actions"><button onClick={() => { setDraft('请解释这段材料：\n' + selection.exact_quote); setTool('chat'); setSelected(xs => [...new Set([...xs, assetId])]); }}>解释</button><button onClick={() => { setDraft('请比较这段材料与所选材料：\n' + selection.exact_quote); setTool('research'); }}>比较</button><button onClick={() => { setSelected(xs => [...new Set([...xs, assetId])]); setNotice('当前材料已加入研究范围。'); }}>用于研究</button></div><textarea aria-label="原文笔记" value={note} onChange={e => setNote(e.target.value)} placeholder="记录理解；保存时自动关联原文证据" /><button onClick={() => void action(saveSelection)}>保存笔记与证据</button></section>}/> }
+        {!originalUrl&&<SourceReader key={pid+':'+assetId+':'+versionId} segments={segments} selection={selection} page={sourcePage} reading={reading} loading={readerLoading} onPage={page=>void action(()=>changeReadingPage(page))} onCapture={capture} onDismiss={()=>setSelection(undefined)} selectionTools={selection && <section className="uw-selection"><blockquote>{selection.exact_quote}</blockquote><div className="uw-inline-actions"><button onClick={() => { setDraft('请解释这段材料：\n' + selection.exact_quote); setTool('chat'); setSelected(xs => [...new Set([...xs, assetId])]); }}>解释</button><button onClick={() => { setDraft('请比较这段材料与所选材料：\n' + selection.exact_quote); setTool('research'); }}>比较</button><button onClick={() => { setSelected(xs => [...new Set([...xs, assetId])]); setNotice('当前材料已加入研究范围。'); }}>用于研究</button></div><textarea aria-label="原文笔记" value={note} onChange={e => setNote(e.target.value)} placeholder="记录理解；保存时自动关联原文证据" /><button onClick={() => void action(saveSelection)}>保存笔记与证据</button></section>}/> }
 
-        <details><summary>书目信息与处理状态</summary>{['title', 'author', 'translator', 'publication_date', 'purpose', 'source_note'].map(k => <label key={k}>{({title:'书名',author:'作者',translator:'译者',publication_date:'出版时间',purpose:'用途：theory 或 research',source_note:'来源说明'} as Record<string,string>)[k]}<input value={bibliography[k] || ''} onChange={e => setBibliography({...bibliography,[k]:e.target.value})}/></label>)}<button onClick={() => void action(async () => { await request(`${root}/materials/${assetId}/bibliography`, {method:'PUT',body:JSON.stringify({revision:currentMaterial?.revision,metadata:bibliography})});await loadProject(pid);setNotice('书目信息已保存。');})}>保存书目信息</button>{currentMaterial?.versions.map(v => <p key={v.id}>{String(v.quality.extractor).startsWith('ocr') || v.quality.extractor === 'local-tesseract' ? 'OCR 转录（' + String(v.quality.engine || v.quality.extractor) + '），未经人工校核' : '文本转录'}{Array.isArray(v.quality.empty_pages) && v.quality.empty_pages.length > 0 ? '，存在未识别页面：' + (v.quality.empty_pages as number[]).join('、') : ''}{Array.isArray(v.quality.ocr_unavailable_pages) && v.quality.ocr_unavailable_pages.length > 0 ? '，未识别（缺引擎或语言数据）：' + (v.quality.ocr_unavailable_pages as number[]).join('、') : ''}</p>)}{currentMaterial?.name.toLowerCase().endsWith('.pdf') && <button onClick={() => void action(async () => {await request(`${root}/materials/${assetId}/ocr`,{method:'POST'});await loadProject(pid);setNotice('已提交本地 OCR；结果保存为新版本并标为待校核。');})}>识别扫描页</button>}</details><details><summary>版本修订与材料管理</summary><label>上传修订 TEI<input type="file" accept=".xml,.tei" onChange={e => { const f = e.target.files?.[0]; if (f && currentMaterial) void action(async () => { await request(`${root}/materials/${assetId}/revisions`, { method: 'POST', body: JSON.stringify({ revision: currentMaterial.revision, tei: await f.text() }) }); await loadProject(pid); await openMaterial(assetId); }); }} /></label><button onClick={() => void action(async () => { if (!await confirmDialog('撤回此材料并清理相关派生内容？')) return; await request(`${root}/materials/${assetId}`, { method: 'DELETE' }); setPanel('none'); await loadProject(pid); })}>撤回材料</button></details>
+        <details><summary>书目信息与处理状态</summary>{currentMaterial&&<BibliographyForm key={currentMaterial.id} root={root} material={currentMaterial} readOnly={readOnly} onSaved={()=>void loadProject(pid)}/>}{currentMaterial?.versions.map(v => <p key={v.id}>{String(v.quality.extractor).startsWith('ocr') || v.quality.extractor === 'local-tesseract' ? 'OCR 转录（' + String(v.quality.engine || v.quality.extractor) + '），未经人工校核' : '文本转录'}{Array.isArray(v.quality.empty_pages) && v.quality.empty_pages.length > 0 ? '，存在未识别页面：' + (v.quality.empty_pages as number[]).join('、') : ''}{Array.isArray(v.quality.ocr_unavailable_pages) && v.quality.ocr_unavailable_pages.length > 0 ? '，未识别（缺引擎或语言数据）：' + (v.quality.ocr_unavailable_pages as number[]).join('、') : ''}</p>)}{currentMaterial?.name.toLowerCase().endsWith('.pdf') && <button onClick={() => void action(async () => {await request(`${root}/materials/${assetId}/ocr`,{method:'POST'});await loadProject(pid);setNotice('已提交本地 OCR；结果保存为新版本并标为待校核。');})}>识别扫描页</button>}</details><details><summary>版本修订与材料管理</summary><label>上传修订 TEI<input type="file" accept=".xml,.tei" onChange={e => { const f = e.target.files?.[0]; if (f && currentMaterial) void action(async () => { await request(`${root}/materials/${assetId}/revisions`, { method: 'POST', body: JSON.stringify({ revision: currentMaterial.revision, tei: await f.text() }) }); await loadProject(pid); await openMaterial(assetId); }); }} /></label><button onClick={() => void action(async () => { if (!await confirmDialog('撤回此材料并清理相关派生内容？')) return; await request(`${root}/materials/${assetId}`, { method: 'DELETE' }); setPanel('none'); await loadProject(pid); })}>撤回材料</button></details>
       </>}
 
-      {panel==='artifact'&&artifact&&<SectionBoundary key={artifact.id} name="文档" resetKey={artifact.id}><Suspense fallback={<div className="wb-skeleton">正在打开研究文档…</div>}><ArtifactWorkspace key={artifact.id} record={artifact} root={root} draftKey={`scriptorium_document:${pid}:${artifact.id}:user:${auth?.user_id||'local'}`} mode={mode} readOnly={readOnly} onSaved={r=>{useWorkspaceUI.getState().setTabs(useWorkspaceUI.getState().tabs.map(t=>t.id===r.id?{...t,title:r.payload.title||t.title}:t));setArtifact(r);setEditorJson(r.payload.editor_json);setEditText(r.payload.text||'');setEditTitle(r.payload.title||'');void loadProject(pid);}} onDraft={(title,text,json)=>{setEditTitle(title);setEditText(text);setEditorJson(json);}} onLocate={id=>void action(()=>locate(id))} onContinue={()=>{setDraft('请回到原文，继续检验这项解释：'+(artifact.payload.title||''));setTool('research');setLayout('split');if(artifact.kind==='research_answer')void action(()=>deepen(artifact));}} onInsert={()=>void action(async()=>{const a=await request<ResearchRecord>(root+'/records',{method:'POST',body:JSON.stringify({kind:'manuscript',payload:{title:'文稿 · '+artifact.payload.title,text:artifact.payload.text||'',editor_json:artifact.payload.editor_json,evidence_ids:artifact.payload.evidence_ids||[],source_record_ids:[artifact.id]}})});await loadProject(pid);await openArtifact(a.id);})}/></Suspense>
+      {panel==='artifact'&&artifact&&<SectionBoundary key={artifact.id} name="文档" resetKey={artifact.id}><Suspense fallback={<div className="wb-skeleton">正在打开研究文档…</div>}><ArtifactWorkspace key={artifact.id} record={artifact} root={root} conversationId={cid} online={eventConnected} draftKey={`scriptorium_document:${pid}:${artifact.id}:user:${auth?.user_id||'local'}`} mode={mode} readOnly={readOnly} onSaved={r=>{if(r.id!==artifact.id)openTab({kind:'artifact',id:r.id,title:r.payload.title||'文稿副本'});useWorkspaceUI.getState().setTabs(useWorkspaceUI.getState().tabs.map(t=>t.id===r.id?{...t,title:r.payload.title||t.title}:t));setArtifact(r);setEditorJson(r.payload.editor_json);setEditText(r.payload.text||'');setEditTitle(r.payload.title||'');}} onDraft={(title,text,json)=>{setEditTitle(title);setEditText(text);setEditorJson(json);}} onLocate={id=>void action(()=>locate(id))} onContinue={()=>{setDraft('请回到原文，继续检验这项解释：'+(artifact.payload.title||''));setTool('research');setLayout('split');if(artifact.kind==='research_answer')void action(()=>deepen(artifact));}} onInsert={()=>void action(async()=>{if(writingTarget?.project===pid&&writingTarget.record!==artifact.id){const id=await insertResearch(root,writingTarget,artifact);await openArtifact(id);setNotice('已插入当前写作位置。');await loadProject(pid);return;}const a=await request<ResearchRecord>(root+'/records',{method:'POST',body:JSON.stringify({kind:'manuscript',payload:{title:'文稿 · '+artifact.payload.title,text:artifact.payload.text||'',editor_json:artifact.payload.editor_json,evidence_ids:artifact.payload.evidence_ids||[],source_record_ids:[artifact.id]}})});await loadProject(pid);await openArtifact(a.id);})}/></Suspense>
       {artifact.payload.legacy_run_id&&<details className="wb-unresolved"><summary>历史分析与评议</summary>{['approve','revise','reject'].map(decision=><button key={decision} onClick={()=>void action(async()=>{const reason=await ask('评议说明')||'';await request(`${root}/analysis-runs/${artifact.payload.legacy_run_id}/reviews`,{method:'POST',body:JSON.stringify({decision,reason})});setNotice('评议已保存。');})}>{({approve:'通过',revise:'要求修订',reject:'驳回'} as Record<string,string>)[decision]}</button>)}<button onClick={()=>void action(()=>download(`${root}/analysis-runs/${artifact.payload.legacy_run_id}/export`,'historical-analysis.json'))}>导出原分析</button></details>}
       <details className="wb-unresolved"><summary>比较与关系视图</summary><div className="uw-inline-actions"><button onClick={()=>{setGraphKind('research');setLayout('focus');}}>研究关系</button><button onClick={()=>{setGraphKind('concept');setLayout('focus');}}>概念演化</button>{artifacts.filter(a=>a.id!==artifact.id).map(a=><button key={a.id} onClick={()=>{setCompare([artifact,a]);setLayout('focus');}}>{a.payload.title}</button>)}</div>{compare&&<div className="uw-comparison">{compare.map(card)}</div>}{graphKind&&<Suspense fallback={<p>正在打开关系视图…</p>}><ReportGraph root={root} kind={graphKind} records={artifacts} onOpen={id=>void action(()=>openArtifact(id))}/></Suspense>}</details></SectionBoundary>}
 
@@ -479,7 +494,7 @@ export default function UnifiedWorkspace() {
         {auth?.mode==='oidc'&&<div className="uw-inline-actions"><span>{auth.name||auth.user_id}</span><button onClick={()=>void action(async()=>{await request('/api/v2/auth/logout',{method:'POST'});window.location.reload();})}>退出当前登录</button></div>}<ModelProviderForm/>
         <h3>界面与动效</h3><label className="uw-check"><input type="checkbox" checked={quiet} onChange={e=>setQuiet(e.target.checked)}/>安静模式（减少转场与动态效果）</label><h3>品牌与启动</h3>{([['enabled', '启动动画'], ['requireInteraction', '交互式播放'], ['sound', '声音'], ['voice', '语音']] as const).map(([name, label]) => <label className="uw-check" key={name}><input type="checkbox" checked={startup[name]} onChange={e => { const patch = { [name]: e.target.checked }; saveConfig(patch); setStartup({ ...startup, ...patch }); }} />{label}</label>)}
         </SectionBoundary></SurfaceDialog>
-    <SurfaceDialog open={projectOpen} onClose={()=>setProjectOpen(false)} title="项目与成员" description={projects.find(p=>p.id===pid)?.name} wide>{pid&&<SectionBoundary name="项目设置"><Suspense fallback={<p>正在读取项目…</p>}><ProjectGovernance root={root}/></Suspense><h3>项目文稿与导出</h3><div className="uw-inline-actions"><button disabled={!pid} onClick={() => void action(async () => { const r = await request<ResearchRecord>(root + '/records', { method: 'POST', body: JSON.stringify({ kind: 'manuscript', payload: { title: '研究文稿', text: '' } }) }); await loadProject(pid); await openArtifact(r.id); })}>新建文稿</button>{['md', 'json', 'tei'].map(format => <button key={format} disabled={!pid} onClick={() => void action(() => download(`${root}/export?format=${format}`, `research.${format === 'tei' ? 'xml' : format}`))}>导出 {format.toUpperCase()}</button>)}</div>
+    <SurfaceDialog open={projectOpen} onClose={()=>setProjectOpen(false)} title="项目设置" description={projects.find(p=>p.id===pid)?.name} wide>{pid&&<SectionBoundary name="项目设置"><Suspense fallback={<p>正在读取项目…</p>}><details><summary>高级授权、成员与操作记录</summary><ProjectGovernance root={root}/></details></Suspense><h3>项目文稿与导出</h3><div className="uw-inline-actions"><button disabled={!pid} onClick={() => void action(async () => { const r = await request<ResearchRecord>(root + '/records', { method: 'POST', body: JSON.stringify({ kind: 'manuscript', payload: { title: '研究文稿', text: '' } }) }); await loadProject(pid); await openArtifact(r.id); })}>新建文稿</button>{['md', 'json', 'tei'].map(format => <button key={format} disabled={!pid} onClick={() => void action(() => download(`${root}/export?format=${format}`, `research.${format === 'tei' ? 'xml' : format}`))}>导出 {format.toUpperCase()}</button>)}</div>
         <h3>历史分析</h3>{oldAnalyses.map(r=><button className="uw-document-item" key={r.id} onClick={()=>void action(async()=>{const a=await request<ResearchRecord>(`${root}/analysis-runs/${r.id}/artifact`,{method:'POST'});await openArtifact(a.id);setProjectOpen(false);})}>历史分析 · {r.state}</button>)}<h3>历史迁移</h3><button onClick={exportBrowserHistory}>导出浏览器旧聊天</button><label>导入聊天备份<input type="file" accept=".json" disabled={!pid} onChange={e => { const f = e.target.files?.[0]; if (f) void action(async () => { await request(root + '/history-import', { method: 'POST', body: await f.text() }); await loadProject(pid); setNotice('历史会话已导入当前项目。'); }); }} /></label>
         <h3>归档会话</h3>{conversations.filter(c => c.archived).map(c => <button className="uw-document-item" key={c.id} onClick={() => void action(async () => { await request(`${root}/conversations/${c.id}`, { method: 'PUT', body: JSON.stringify({ revision: c.revision, archived: false }) }); await loadProject(pid); })}>恢复 {c.title}</button>)}
         <h3>任务详情</h3>{jobs.map(j => <div className="uw-task-detail" key={j.id}>{j.kind} / {j.state}{j.error ? ' · ' + j.error : ''}</div>)}</SectionBoundary>}</SurfaceDialog>

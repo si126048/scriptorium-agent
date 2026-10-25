@@ -1,5 +1,5 @@
 import {useState} from 'react';
-export interface CitationDraft {id:string;job_id:string;revision:number;payload:{error:string;result?:{findings?:{citations?:{segment_id:string;exact_quote:string}[]}[];immanent?:{citations?:{segment_id:string;exact_quote:string}[]};parallax?:{citations?:{segment_id:string;exact_quote:string}[]}}}}
+export interface CitationDraft {conversation_id?:string;id:string;job_id:string;revision:number;payload:{error:string;result?:{findings?:{citations?:{segment_id:string;exact_quote:string}[]}[];immanent?:{citations?:{segment_id:string;exact_quote:string}[]};parallax?:{citations?:{segment_id:string;exact_quote:string}[]}}}}
 export function CitationReview({draft,onBind,onDiscard}:{draft:CitationDraft;onBind:(index:number)=>void;onDiscard:()=>void}){
  const [index,setIndex]=useState(0);const r=draft.payload.result;
  const citations=[...(r?.findings||[]).flatMap(f=>f.citations||[]),...(r?.immanent?.citations||[]),...(r?.parallax?.citations||[])];

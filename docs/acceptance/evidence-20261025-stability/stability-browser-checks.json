@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-25",
+  "url": "http://127.0.0.1:8034/",
+  "database": "scriptorium_stability_preview_20261025",
+  "method": "CUA interactive browser observation, not an automated test suite",
+  "paid_model_calls": 0,
+  "checks": {
+    "edit_then_immediate_chapter_switch": "observed saved content after return",
+    "export_history": "observed completed MD task with revision and timestamp",
+    "remote_conflict": "observed comparison and saved manuscript copy",
+    "session_scope_isolation": "observed quote and documents absent in second session and restored in first",
+    "refresh_restore": "observed persisted manuscript with inserted note and citation",
+    "480px_note_to_manuscript": "observed note save and insertion with original-source label",
+    "stale_chapter_draft_recovery": "observed conflict panel after manual chapter selection in final source"
+  },
+  "console_after_final_workspace_reload": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "not_checked": [
+    "IME candidate window",
+    "all keyboard paths",
+    "quiet-mode matrix",
+    "all disconnect/crash permutations"
+  ]
+}

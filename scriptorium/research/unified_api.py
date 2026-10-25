@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from . import schema as db
 from .legacy_store import PostgresStore
 from .service import ResearchError, row, rows
-from .contracts import MessageOut, ScopeItem, RecordOut
+from .contracts import MessageOut, ScopeItem, RecordOut, ConversationOut, DecisionOut
 from .workspace import add_message, conversation, create_conversation, submit
 
 
@@ -102,7 +102,7 @@ def install(app, service, identity):
     def store_for(s, pid, principal):
         return PostgresStore(s, pid, principal)
 
-    @router.get('/conversations')
+    @router.get('/conversations', response_model=list[ConversationOut])
     def conversations(project_id: str, principal=Depends(identity), s=Depends(service)):
         with s.engine.connect() as c:
             s.access(c, project_id, principal)
@@ -110,7 +110,7 @@ def install(app, service, identity):
             return [{**dict(x), 'workspace': x['workspace'] if project['owner_id'] == principal else {}} for x in c.execute(sa.select(db.conversations).where(
                 db.conversations.c.project_id == project_id).order_by(db.conversations.c.created_at.desc())).mappings()]
 
-    @router.post('/conversations', status_code=201)
+    @router.post('/conversations', status_code=201, response_model=ConversationOut)
     def new_conversation(project_id: str, body: ConversationIn, principal=Depends(identity), s=Depends(service)):
         return create_conversation(s, project_id, principal, body.title)
 
@@ -191,7 +191,7 @@ def install(app, service, identity):
             c.execute(db.decisions.update().where(db.decisions.c.run_id == rid).values(state='cancelled'))
             return {'state': 'cancelled'}
 
-    @router.get('/decisions')
+    @router.get('/decisions', response_model=list[DecisionOut])
     def decisions(project_id: str, principal=Depends(identity), s=Depends(service)):
         with s.engine.connect() as c:
             s.access(c, project_id, principal)

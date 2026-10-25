@@ -84,3 +84,60 @@ class ScopeItem(BaseModel):
     start_codepoint: int | None = None
     end_codepoint: int | None = None
     exact_quote: str | None = None
+
+
+class ConversationOut(Resource):
+    project_id: str
+    title: str
+    archived: bool
+    revision: int
+    workspace: dict
+    created_at: float
+
+
+class DecisionOut(Resource):
+    run_id: str
+    project_id: str
+    conversation_id: str | None = None
+    kind: str
+    state: str
+    payload: dict
+
+
+class ChapterOut(Resource):
+    record_id: str
+    project_id: str
+    ordinal: int
+    revision: int
+    payload: dict
+    created_at: float
+
+
+class SegmentOut(Resource):
+    asset_id: str
+    version_id: str
+    xml_id: str
+    text: str
+    page_label: str | None = None
+
+
+class ReadingPartOut(BaseModel):
+    segment: SegmentOut
+    start: int
+    end: int
+    text: str
+
+
+class ReadingOut(BaseModel):
+    version: VersionOut
+    page: int
+    total: int
+    parts: list[ReadingPartOut]
+    total_segments: int
+    total_codepoints: int
+
+
+class CitationLabelOut(BaseModel):
+    anchor_id: str
+    label: str
+    version_id: str
