@@ -11,7 +11,7 @@
 param(
     [ValidateSet('start', 'stop', 'status')]
     [string]$Action = 'status',
-    [string]$Home = 'tmp/research-services/seaweedfs',
+    [string]$WeedHome = 'tmp/research-services/seaweedfs',
     [int]$MasterPort = 45800,
     [int]$VolumePort = 45801,
     [int]$FilerPort = 45802,
@@ -21,9 +21,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$home = Join-Path $root $Home
-$weed = Join-Path $home 'weed.exe'
-$data = Join-Path $home 'data'
+$weeds = Join-Path $root $WeedHome
+$weed = Join-Path $weeds 'weed.exe'
+$data = Join-Path $weeds 'data'
 
 function Test-S3 {
     try {
@@ -45,7 +45,7 @@ switch ($Action) {
     }
     'start' {
         if (-not (Test-Path $weed)) {
-            throw "SeaweedFS binary missing: $weed. Download windows_amd64.zip from https://github.com/seaweedfs/seaweedfs/releases into $home"
+            throw "SeaweedFS binary missing: $weed. Download windows_amd64.zip from https://github.com/seaweedfs/seaweedfs/releases into $weeds"
         }
         New-Item -ItemType Directory -Force $data | Out-Null
         if (Test-S3) { Write-Host "S3 endpoint already responding on $S3Port"; return }
@@ -55,14 +55,14 @@ switch ($Action) {
             'server', "-dir=$data", '-ip=127.0.0.1',
             "-master.port=$MasterPort", "-volume.port=$VolumePort", "-filer.port=$FilerPort",
             "-s3.port=$S3Port", '-s3') `
-            -RedirectStandardOutput (Join-Path $home 's3.stdout.log') `
-            -RedirectStandardError (Join-Path $home 's3.stderr.log') -WindowStyle Hidden
+            -RedirectStandardOutput (Join-Path $weeds 's3.stdout.log') `
+            -RedirectStandardError (Join-Path $weeds 's3.stderr.log') -WindowStyle Hidden
         $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
         while ((Get-Date) -lt $deadline) {
             if (Test-S3) { Write-Host "S3 endpoint ready: http://127.0.0.1:$S3Port"; return }
             Start-Sleep -Milliseconds 800
         }
-        throw "S3 endpoint did not become ready; inspect $home\s3.stderr.log"
+        throw "S3 endpoint did not become ready; inspect $weeds\s3.stderr.log"
     }
     'stop' {
         Get-Process weed -ErrorAction SilentlyContinue | Stop-Process -Force
