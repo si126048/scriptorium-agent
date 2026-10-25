@@ -21,6 +21,8 @@ a = Analysis(
         'scriptorium.research.api',
         'scriptorium.research.local_runtime',
         'scriptorium.research.windows_credentials',
+        'unicodedata',
+        'idna',
         'scriptorium.research.schema_v1',
         'scriptorium.research.schema_v3',
         'scriptorium.research.schema_v4',

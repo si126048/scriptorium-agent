@@ -472,27 +472,40 @@ cd web && npm run dev             # → http://localhost:5173
 
 Scriptorium 提供基于 Tauri v2 的桌面应用，打包为独立 Windows 安装程序，无需手动安装 Python 或 Node.js。
 
+### 一键启动
+
+安装后**双击即可**，不需要终端或手动启动后端：
+
+1. 首次启动显示进度页：先选择「完整安装（含全文检索）」或「精简安装（不含检索）」；
+2. 应用自己下载并安装 PostgreSQL（精简版不下载 Elasticsearch）、初始化数据库、启动 API 与 worker；
+3. 就绪后自动进入工作台；之后每次启动只是重新拉起已安装的服务。
+
+进度页会显示当前阶段（下载组件 / 初始化数据库 / 启动服务 / 连接界面），失败时给出错误码、**重试启动**和**打开日志目录**；也可以点「连接已有服务」直接填远程研究服务地址。
+
 ### 架构
 
 ```
 Tauri Application
-├── WebView (React SPA)        ← 前端界面
-├── Rust Main Binary           ← Sidecar 进程管理、API Key 存储
-└── Sidecar (PyInstaller exe)  ← Python FastAPI 后端，自动启动
+├── WebView (React SPA)        ← 工作台界面 + 启动进度页
+├── Rust Main Binary           ← 服务状态、启动/停止、连接缓存、sidecar 生命周期
+└── Sidecar (PyInstaller exe)  ← 本机 PostgreSQL/Elasticsearch/API/worker 管理
 ```
 
-数据存储在 `%APPDATA%\app.scriptorium.desktop\`（数据库 + 上传文件）。
+运行数据在 `%LOCALAPPDATA%\Scriptorium\research\`（数据库、对象、日志、依赖），应用设置在 `%APPDATA%\app.scriptorium.desktop\`。
+
+### 服务控制
+
+工作台启动页与设置页提供：查看日志目录、停止本机服务、连接已有服务。服务由应用启动时拉起，随用户登录保留；退出应用不会删除数据。
 
 ### 开发模式
 
 ```powershell
-# 终端 1: 后端（开发时手动启动）
-uvicorn scriptorium.api:app --host 127.0.0.1 --port 8000
-
-# 终端 2: Tauri 开发
-$env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
+uvicorn scriptorium.api:app --host 127.0.0.1 --port 8000   # 可选：旧单机后端
+\$env:PATH = "\$env:USERPROFILE\.cargo\bin;\$env:PATH"
 cargo tauri dev
 ```
+
+开发模式下若本机运行时未安装，启动页会提示安装；也可以用「连接已有服务」指向正在运行的 `scriptorium research serve`。
 
 ### 构建安装程序
 
@@ -507,11 +520,11 @@ cargo tauri dev
 
 # 或分步构建
 .\scripts\build-sidecar.ps1       # PyInstaller → src-tauri/bin/
-cd web && npm ci && npm run build:tauri
+cd web && npm ci && npm run build
 cargo tauri build                  # → src-tauri/target/release/bundle/nsis/
 ```
 
-输出：`Scriptorium_3.1.0_x64-setup.exe`（NSIS 安装程序）
+输出：`Scriptorium Agent_3.2.0_x64-setup.exe`（NSIS 安装程序）
 
 ### 清理构建产物
 

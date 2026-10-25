@@ -41,6 +41,11 @@ def atomic(path, value):
     os.replace(pending, path)
 
 
+def phase(root, state, **extra):
+    """Publish coarse progress for the desktop window; the supervisor overwrites it later."""
+    atomic(root / 'runtime.json', {'state': state, 'updated_at': time.time(), **extra})
+
+
 def free_port(preferred):
     with socket.socket() as listener:
         try:
@@ -55,13 +60,30 @@ def executable(*args):
             [sys.executable, '-m', 'scriptorium.desktop_entry']) + list(args)
 
 
+def _sanitize(text):
+    """Keep one short, actionable line; never echo arguments or environment values."""
+    line = next((item.strip() for item in reversed((text or '').splitlines()) if item.strip()), '')
+    return line[:160]
+
+
 def run(command, *, env=None, input=None):
     result = subprocess.run(command, check=False, env=env, input=input, capture_output=True,
         creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), timeout=180)
     if result.returncode:
-        # Command arguments and remote exception bodies can contain secrets.
-        raise RuntimeError('LOCAL_DEPENDENCY_COMMAND_FAILED:' + Path(command[0]).name)
+        detail = _sanitize((result.stderr or b'').decode('utf-8', 'replace'))
+        # Command arguments and remote exception bodies can contain secrets: report only the tool.
+        suffix = (':' + detail) if detail else ''
+        raise RuntimeError('LOCAL_DEPENDENCY_COMMAND_FAILED:' + Path(command[0]).name + suffix)
     return result
+
+
+def _log_tail(root, name):
+    path = root / 'logs' / (name + '.log')
+    try:
+        text = path.read_text(encoding='utf-8', errors='replace')
+    except OSError:
+        return ''
+    return _sanitize(text[-2000:])
 
 
 def package(root, name, cache=None):
@@ -95,9 +117,10 @@ def package(root, name, cache=None):
     return destination
 
 
-def install(root, cache=None, autostart=True):
+def install(root, cache=None, autostart=True, search=True):
     root = root.resolve()
     root.mkdir(parents=True, exist_ok=True)
+    phase(root, 'installing', progress='pandoc')
     from .exporting import ensure_pandoc
     ensure_pandoc(root / 'runtime' / 'pandoc')
     state_file = root / 'installation.json'
@@ -106,14 +129,17 @@ def install(root, cache=None, autostart=True):
             raise RuntimeError('LOCAL_CREDENTIALS_MISSING_REPAIR_REQUIRED')
         return json.loads(state_file.read_text(encoding='utf-8'))
     state = {'version': 1, 'root': str(root), 'api_port': free_port(8010),
-             'pg_port': free_port(55433), 'es_port': free_port(59201)}
+             'pg_port': free_port(55433), 'es_port': free_port(59201) if search else None,
+             'search': bool(search)}
     credentials = vault.read(target(root)) or {'database': secrets.token_hex(24),
         'elastic': secrets.token_hex(24), 'api_key': secrets.token_hex(32)}
     vault.write(target(root), credentials)
+    phase(root, 'installing', progress='postgres')
     pg = package(root, 'postgres', cache) / 'pgsql' / 'bin'
-    es = package(root, 'elasticsearch', cache) / 'elasticsearch-8.19.3'
+    es = package(root, 'elasticsearch', cache) / 'elasticsearch-8.19.3' if search else None
     for folder in ('database', 'objects', 'logs', 'backups'):
         (root / folder).mkdir(exist_ok=True)
+    phase(root, 'installing', progress='database')
     if not (root / 'database' / 'cluster' / 'PG_VERSION').exists():
         # initdb requires a password file; it exists only during initialization and is removed.
         password_file = root / 'database' / '.init-password'
@@ -125,15 +151,18 @@ def install(root, cache=None, autostart=True):
             password_file.unlink(missing_ok=True)
     (root / 'database' / 'cluster' / 'postgresql.auto.conf').write_text(
         f"listen_addresses = '127.0.0.1'\nport = {state['pg_port']}\n", encoding='utf-8')
-    config = '\n'.join(['cluster.name: scriptorium-local', 'node.name: research', 'network.host: 127.0.0.1',
-        f"http.port: {state['es_port']}", 'discovery.type: single-node', 'xpack.security.enabled: true',
-        'xpack.security.autoconfiguration.enabled: false', 'xpack.security.http.ssl.enabled: false',
-        'xpack.security.transport.ssl.enabled: false', 'xpack.ml.enabled: false'])
-    (es / 'config' / 'elasticsearch.yml').write_text(config, encoding='utf-8')
-    (es / 'config' / 'jvm.options.d' / 'scriptorium.options').write_text('-Xms512m\n-Xmx512m\n', encoding='ascii')
-    keystore = str(es / 'bin' / 'elasticsearch-keystore.bat')
-    run([keystore, 'add', '-f', '--stdin', 'bootstrap.password'], input=credentials['elastic'].encode())
+    if es is not None:
+        phase(root, 'installing', progress='elasticsearch')
+        config = '\n'.join(['cluster.name: scriptorium-local', 'node.name: research', 'network.host: 127.0.0.1',
+            f"http.port: {state['es_port']}", 'discovery.type: single-node', 'xpack.security.enabled: true',
+            'xpack.security.autoconfiguration.enabled: false', 'xpack.security.http.ssl.enabled: false',
+            'xpack.security.transport.ssl.enabled: false', 'xpack.ml.enabled: false'])
+        (es / 'config' / 'elasticsearch.yml').write_text(config, encoding='utf-8')
+        (es / 'config' / 'jvm.options.d' / 'scriptorium.options').write_text('-Xms512m\n-Xmx512m\n', encoding='ascii')
+        keystore = str(es / 'bin' / 'elasticsearch-keystore.bat')
+        run([keystore, 'add', '-f', '--stdin', 'bootstrap.password'], input=credentials['elastic'].encode())
     atomic(state_file, state)
+    phase(root, 'installing', progress='done')
     if autostart:
         import winreg
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r'Software\Microsoft\Windows\CurrentVersion\Run') as key:
@@ -150,8 +179,9 @@ def environment(root, state):
         'SCRIPTORIUM_DATABASE_URL': f"postgresql+psycopg://scriptorium:{credentials['database']}@127.0.0.1:{state['pg_port']}/scriptorium",
         'SCRIPTORIUM_OBJECT_ROOT': str(root / 'objects'), 'SCRIPTORIUM_RESEARCH_OWNER': 'local-user',
         'SCRIPTORIUM_RESEARCH_API_KEY': credentials['api_key'], 'SCRIPTORIUM_PORT': str(state['api_port']),
-        'SCRIPTORIUM_ELASTICSEARCH_URL': f"http://127.0.0.1:{state['es_port']}",
-        'SCRIPTORIUM_ELASTICSEARCH_USERNAME': 'elastic', 'SCRIPTORIUM_ELASTICSEARCH_PASSWORD': credentials['elastic'],
+        'SCRIPTORIUM_ELASTICSEARCH_URL': (f"http://127.0.0.1:{state['es_port']}" if state.get('search', True) else ''),
+        'SCRIPTORIUM_ELASTICSEARCH_USERNAME': 'elastic' if state.get('search', True) else '',
+        'SCRIPTORIUM_ELASTICSEARCH_PASSWORD': credentials['elastic'] if state.get('search', True) else '',
         'PGPASSWORD': credentials['database'], 'SCRIPTORIUM_LOCAL_RUNTIME_ROOT': str(root), 'SCRIPTORIUM_PANDOC_CACHE': str(root / 'runtime' / 'pandoc')}
 
 
@@ -193,31 +223,40 @@ def supervise(root):
                     return
             time.sleep(.5)
         raise RuntimeError('LOCAL_DEPENDENCY_START_TIMEOUT')
+    search = state.get('search', True)
     try:
-        atomic(root / 'runtime.json', {'state': 'starting', 'pid': os.getpid()})
+        phase(root, 'starting', progress='postgres', pid=os.getpid())
         launch('postgres', [str(pg / 'postgres.exe'), '-D', str(root / 'database' / 'cluster')])
-        launch('elasticsearch', [str(es / 'bin' / 'elasticsearch.bat')])
+        if search:
+            launch('elasticsearch', [str(es / 'bin' / 'elasticsearch.bat')])
         wait_ready(state['pg_port'])
+        if children['postgres'].poll() is not None:
+            # A foreign process may own the port; surface PostgreSQL's own message instead of psql noise.
+            raise RuntimeError('LOCAL_POSTGRES_EXITED:' + _log_tail(root, 'postgres'))
         exists = run([str(pg / 'psql.exe'), '-h', '127.0.0.1', '-p', str(state['pg_port']), '-U', 'scriptorium',
                       '-d', 'postgres', '-tAc', "select 1 from pg_database where datname='scriptorium'"], env=env)
         if not exists.stdout.strip():
             run([str(pg / 'createdb.exe'), '-h', '127.0.0.1', '-p', str(state['pg_port']), '-U', 'scriptorium', 'scriptorium'], env=env)
-        wait_ready(state['es_port'])
+        phase(root, 'starting', progress='schema', pid=os.getpid())
+        if search:
+            wait_ready(state['es_port'])
         import httpx
-        with httpx.Client(trust_env=False, timeout=5) as client:
-            until = time.monotonic() + 120
-            while True:
-                try:
-                    response = client.get(f"http://127.0.0.1:{state['es_port']}/_cluster/health",
-                        auth=('elastic', vault.read(target(root))['elastic']))
-                    response.raise_for_status()
-                    if response.json().get('status') in {'yellow', 'green'}:
-                        break
-                except (httpx.HTTPError, ValueError):
-                    pass
-                if time.monotonic() >= until or stop_file.exists():
-                    raise RuntimeError('LOCAL_SEARCH_HEALTH_FAILED')
-                time.sleep(1)
+        if search:
+            with httpx.Client(trust_env=False, timeout=5) as client:
+                until = time.monotonic() + 120
+                while True:
+                    try:
+                        response = client.get(f"http://127.0.0.1:{state['es_port']}/_cluster/health",
+                            auth=('elastic', vault.read(target(root))['elastic']))
+                        response.raise_for_status()
+                        if response.json().get('status') in {'yellow', 'green'}:
+                            break
+                    except (httpx.HTTPError, ValueError):
+                        pass
+                    if time.monotonic() >= until or stop_file.exists():
+                        raise RuntimeError('LOCAL_SEARCH_HEALTH_FAILED')
+                    time.sleep(1)
+        phase(root, 'starting', progress='api', pid=os.getpid())
         run(executable('research-command', 'init-db'), env=env)
         commands = {'api': executable('research-command', 'serve', '--port', str(state['api_port'])),
                     'worker': executable('research-command', 'worker')}
@@ -229,7 +268,8 @@ def supervise(root):
                 headers={'Authorization': 'Bearer ' + vault.read(target(root))['api_key']})
             response.raise_for_status()
         failures = {name: 0 for name in commands}
-        atomic(root / 'runtime.json', {'state': 'running', 'url': f"http://127.0.0.1:{state['api_port']}", 'pid': os.getpid()})
+        phase(root, 'running', progress='done', url=f"http://127.0.0.1:{state['api_port']}",
+              search=search, api_port=state['api_port'], pid=os.getpid())
         while not stop_file.exists():
             for name, child in list(children.items()):
                 if child.poll() is None:
@@ -241,7 +281,7 @@ def supervise(root):
                 launch(name, commands[name])
             time.sleep(1)
     except Exception as exc:
-        atomic(root / 'runtime.json', {'state': 'failed', 'error': type(exc).__name__ + ':' + str(exc)[:100]})
+        phase(root, 'failed', error=type(exc).__name__ + ':' + str(exc)[:100])
         raise
     finally:
         pg_child = children.get('postgres')
@@ -276,14 +316,16 @@ def main(argv=None):
     parser.add_argument('--root', type=Path, default=default_root())
     parser.add_argument('--cache', type=Path)
     parser.add_argument('--no-autostart', action='store_true')
+    parser.add_argument('--without-search', action='store_true', help='skip Elasticsearch (smaller, faster first run)')
     args = parser.parse_args(argv)
     root = args.root.resolve()
     if args.action == 'install':
-        print(json.dumps(install(root, args.cache, not args.no_autostart)))
+        print(json.dumps(install(root, args.cache, not args.no_autostart, search=not args.without_search)))
     elif args.action == 'start':
         supervise(root)
     elif args.action == 'ensure':
-        install(root, args.cache, not args.no_autostart)
+        install(root, args.cache, not args.no_autostart, search=not args.without_search)
+        phase(root, 'starting', progress='launching')
         subprocess.Popen(executable('local-runtime', 'start', '--root', str(root)),
                          creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), close_fds=True)
         print(json.dumps({'state': 'starting'}))
@@ -325,7 +367,8 @@ def main(argv=None):
     elif args.action == 'connection':
         state = json.loads((root / 'installation.json').read_text(encoding='utf-8'))
         secret = vault.read(target(root))
-        print(json.dumps({'url': f"http://127.0.0.1:{state['api_port']}", 'api_key': secret['api_key']}))
+        print(json.dumps({'url': f"http://127.0.0.1:{state['api_port']}", 'api_key': secret['api_key'],
+                          'search': state.get('search', True)}))
     else:
         state = root / 'runtime.json'
         print(state.read_text(encoding='utf-8') if state.exists() else '{"state":"not_installed"}')

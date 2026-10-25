@@ -103,6 +103,15 @@ docker compose -f compose.team.yml --env-file .env.team up -d --build
 
 ## 桌面安装包
 
+安装后的桌面应用是**一键启动**：双击 → 首次选择「完整/精简安装」→ 应用自动下载依赖、初始化数据库、启动 API 与 worker → 进入工作台。进度页显示阶段，失败给出错误码、重试与日志目录；也可改用「连接已有服务」。
+
+- 本机数据：`%LOCALAPPDATA%\Scriptorium\research\`（数据库、对象、日志、下载的依赖）。
+- 应用设置：`%APPDATA%\app.scriptorium.desktop\settings.json`。
+- 停止服务：启动页「停止本机服务」，或 `scriptorium-backend.exe local-runtime stop`。
+- 卸载应用不会删除研究数据；需要时手动删除上述目录。
+
+构建安装包（开发者）：
+
 ```bash
 npm --prefix web ci && npm --prefix web run build
 pwsh scripts/build-sidecar.ps1        # PyInstaller 打包后端（约 5 分钟）

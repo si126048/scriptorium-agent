@@ -17,17 +17,22 @@ pub async fn start_sidecar(app: &AppHandle) {
         return;
     }
     if std::env::var("SCRIPTORIUM_RUNTIME").unwrap_or_default() != "sqlite" {
-        match app.shell().sidecar("scriptorium-backend") {
-            Ok(cmd) => {
-                let ensure = tokio::time::timeout(std::time::Duration::from_secs(180),
-                    cmd.args(["local-runtime", "ensure"]).output()).await;
-                match ensure {
-                    Ok(Ok(output)) if output.status.success() => {},
-                    Ok(_) => eprintln!("[research] local services need setup or repair"),
-                    Err(_) => eprintln!("[research] local services took too long to start"),
+        // Installation and progress belong to the workbench gate: it shows download/startup
+        // state and reports failures. Here we only bring up an already installed runtime.
+        let root = std::env::var_os("LOCALAPPDATA").map(std::path::PathBuf::from)
+            .map(|base| base.join("Scriptorium").join("research"));
+        match root.filter(|dir| dir.join("installation.json").exists()) {
+            Some(dir) => {
+                if let Ok(command) = app.shell().sidecar("scriptorium-backend") {
+                    let root = dir.to_string_lossy().into_owned();
+                    if let Err(error) = command.args(["local-runtime", "start", "--root", &root]).spawn() {
+                        eprintln!("[research] cannot start local services: {error}");
+                    }
+                } else {
+                    eprintln!("[research] development mode: start the unified research service explicitly");
                 }
-            },
-            Err(_) => eprintln!("[research] development mode: start the unified research service explicitly"),
+            }
+            None => eprintln!("[research] no local runtime yet; the workbench offers one-click setup"),
         }
         return;
     }

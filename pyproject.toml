@@ -1,6 +1,6 @@
 [project]
 name = "scriptorium"
-version = "3.1.1"
+version = "3.2.0"
 description = "Scriptorium — humanities research agent: evidence-anchored, multi-perspective critical interpretation of versioned sources"
 requires-python = ">=3.12"
 dependencies = ["fastapi>=0.115", "uvicorn>=0.34", "pydantic>=2.10", "pypdf>=5.0", "httpx>=0.28", "openai>=1.0", "aiosqlite>=0.20", "python-multipart>=0.0.9", "mcp>=1.0,<2", "numpy>=2.0", "scikit-learn>=1.5", "ripser>=0.6", "python-dotenv>=1.0"]

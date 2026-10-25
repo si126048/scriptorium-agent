@@ -8,12 +8,19 @@ pub fn run() {
         .manage(commands::ApiKeyState {
             dashscope: std::sync::RwLock::new(None),
         })
+        .manage(commands::ResearchState {
+            connection: std::sync::RwLock::new(None),
+        })
         .invoke_handler(tauri::generate_handler![
             commands::get_api_key,
             commands::set_api_key,
             commands::get_data_dir,
             commands::set_research_service,
             commands::get_research_connection,
+            commands::research_status,
+            commands::research_start,
+            commands::research_stop,
+            commands::research_open_logs,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

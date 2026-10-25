@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/tauri/tauri.conf.json",
   "productName": "Scriptorium Agent",
-  "version": "3.1.1",
+  "version": "3.2.0",
   "identifier": "app.scriptorium.desktop",
   "build": {
     "frontendDist": "../web/dist",

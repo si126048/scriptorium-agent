@@ -33,6 +33,9 @@ async function hydrateConnection(){
 }
 export function connectionWarningText(){return connectionWarning;}
 export function resetConnection(){connection=undefined;localUrl='';localKey='';connectionWarning='';}
+export function setStoredConnection(url:string,key:string){
+ localUrl=url;localKey=key;connectionWarning='';connection=Promise.resolve();
+}
 export interface Project { id: string; name: string; description: string }
 export interface Version { id: string; quality: Record<string, unknown>; created_at: number }
 export interface Material { id: string; name: string; status: string; revision: number; versions: Version[]; metadata: Record<string, unknown> }
