@@ -1,3 +1,4 @@
+import {LogoSVG} from '../../components/startup/LogoSVG';
 import {useEffect,useRef,useState,type ReactNode} from 'react';
 import {resetConnection,setStoredConnection} from '../workspace/api/client';
 import './desktop-gate.css';
@@ -12,7 +13,7 @@ const bridge=()=>(window as unknown as {__TAURI_INTERNALS__?:Bridge}).__TAURI_IN
 const isDesktop=()=>!!bridge();
 
 const PHASES:Record<string,string>={
-  pandoc:'下载文档转换组件',postgres:'下载并解压 PostgreSQL',elasticsearch:'下载并解压 Elasticsearch',
+  search_wait:'等待全文检索完成首次启动',postgres_wait:'等待数据库完成启动或恢复',pandoc:'下载文档转换组件',postgres:'下载并解压 PostgreSQL',elasticsearch:'下载并解压 Elasticsearch',
   database:'初始化数据库',schema:'初始化数据表',api:'启动研究工作台服务',done:'连接工作台',
   launching:'启动本机服务',queued:'准备启动',
 };
@@ -116,7 +117,7 @@ export function DesktopGate({children}:{children:ReactNode}){
 
   return <div className="desktop-gate">
     <div className="dg-card">
-      <p className="dg-mark">SCRIPTORIUM · LOCAL ARCHIVE</p>
+      <p className="dg-mark"><LogoSVG size={36}/> SCRIPTORIUM · LOCAL ARCHIVE</p>
       <h1>本机研究工作台</h1>
       <p className="dg-lede">首次启动由应用自己准备数据库与研究服务，之后双击即用；也可以连接已有的研究服务。</p>
       <div className="dg-status" aria-live="polite">

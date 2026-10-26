@@ -53,7 +53,7 @@ def submit(s, pid, principal, cid, body, idem):
             if not item:
                 raise ResearchError('SEGMENT_NOT_FOUND', 404)
             s.asset(c, pid, item['asset_id'])
-        request = {**body, 'scope_snapshot': snapshot, 'asset_ids': list(dict.fromkeys(w['asset_id'] for w in snapshot)),
+        request = {**body, 'explicit_scope': body.get('scope') is not None or bool(asset_ids or segment_ids), 'scope_snapshot': snapshot, 'asset_ids': list(dict.fromkeys(w['asset_id'] for w in snapshot)),
                    'conversation_id': cid, 'principal': principal}
         job = s.enqueue(c, pid, 'workspace', request, idem)
         message_id = quote_hash(f'{pid}:{cid}:{job["id"]}:user')
@@ -141,10 +141,12 @@ def run_research(s, job):
             s.access(c, pid, principal, True)
             s.locked_job(c, job)
             settings = {'origin_job_id': job['id'], 'token_budget': payload.get('token_budget', 40000),
-                'max_nodes': 6, 'max_rounds': 2, 'nodes': [], 'provider_mode': payload.get('provider_mode', 'live')}
+                'max_nodes': 6, 'max_rounds': 2, 'writer_reservation': 6000, 'nodes': ['final_answer'], 'provider_mode': payload.get('provider_mode', 'live')}
             c.execute(db.research_runs.insert().values(id=rid, project_id=pid, conversation_id=cid,
                 question=payload['text'], state='running', scope=scope, settings=settings,
                 used_tokens=0, reserved_tokens=0, created_at=db.now()))
+            intake=row(c,db.intakes,db.intakes.c.job_id==job['id'])
+            if intake:c.execute(db.intakes.update().where(db.intakes.c.job_id==job['id']).values(payload={**intake['payload'],'research_run_id':rid}))
             phases = []
             if 'situating.v1' in methods:
                 phases.extend(('situating.v1', [window]) for window in scope)
@@ -155,6 +157,8 @@ def run_research(s, job):
                         step_key=f'root/{i:05d}/0', state='queued',
                         payload={'window': batch[0], 'windows': batch, 'method_id': method, 'round': 0}, created_at=db.now()))
     while True:
+        from .final_writer import prepare
+        prepare(s, job, rid)
         with s.engine.begin() as c:
             s.access(c, pid, principal, True)
             s.locked_job(c, job)
@@ -173,6 +177,11 @@ def run_research(s, job):
                 from .reports import assemble
                 composed = assemble(run['question'], reports, rows(c, db.research_steps,
                     db.research_steps.c.run_id == rid), run['settings']['provider_mode'])
+                writer = next((x for x in rows(c,db.research_steps,db.research_steps.c.run_id==rid) if x['payload']['method_id']=='writer.v1'), None)
+                if writer and (writer.get('result') or {}).get('document'):
+                    composed.update(writer['result']['document'])
+                from .documents import citation_ids
+                evidence = list(dict.fromkeys(citation_ids(composed['editor_json'])))
                 report = s.put_record(c, pid, 'manuscript', {'title': '研究报告 · ' + run['question'][:40],
                     **composed,
                     'evidence_ids': evidence, 'source_record_ids': artifacts,
@@ -181,8 +190,34 @@ def run_research(s, job):
                     'open_questions': [q for r in reports for q in r['payload'].get('open_questions', [])],
                     'status': 'candidate', 'run_id': rid})
                 c.execute(db.research_runs.update().where(db.research_runs.c.id == rid).values(state='completed_with_open_questions'))
-                add_message(c, pid, cid, 'assistant', '研究已完成。报告保留证据、材料覆盖和未决问题。', [report['id']],
-                    {'run_id': rid, 'provider_mode': run['settings']['provider_mode']})
+                current_ids = set(composed.get('current_record_ids', []))
+                current = [r for r in reports if r['id'] in current_ids] or [r for r in reports if r['kind'] != 'review'][:1]
+                highlights = [r['payload'].get('text', '').strip()[:450] for r in current[:2] if r['payload'].get('text')]
+                summary_text = '本轮研究已完成。\n\n' + '\n\n'.join(highlights)
+                summary_text += f'\n\n依据：{len(evidence)} 处可定位引用，覆盖 {len({w["asset_id"] for w in run["scope"]})} 份材料的选定窗口。'
+                pending = composed.get('open_questions', [])
+                if pending: summary_text += '\n未决问题：' + '；'.join(str(q)[:160] for q in pending[:2])
+                intake = row(c, db.intakes, db.intakes.c.job_id == job['id'])
+                if intake and intake['payload'].get('coverage_note'): summary_text += '\n' + intake['payload']['coverage_note']
+                add_message(c, pid, cid, 'assistant', summary_text, [report['id']],
+                    {'run_id': rid, 'job_id': job['id'], 'provider_mode': run['settings']['provider_mode']})
+                intake = row(c, db.intakes, db.intakes.c.job_id == job['id'])
+                if intake:
+                    if intake['payload'].get('coverage_note'):
+                        summary = intake['payload']['coverage_note'] + f" 已选 {intake['payload'].get('selected_windows', 0)} / {intake['payload'].get('available_windows', 0)} 个窗口。"
+                        updated = {**report['payload'], 'coverage_note': summary,
+                            'open_questions': [*report['payload'].get('open_questions', []), summary]}
+                        c.execute(db.records.update().where(db.records.c.id == report['id']).values(payload=updated))
+                    used_assets = set(c.execute(sa.select(db.segments.c.asset_id).join(db.anchors,
+                        db.anchors.c.segment_id == db.segments.c.id).where(db.anchors.c.id.in_(evidence))).scalars())
+                    read_assets = {w['asset_id'] for w in run['scope']}
+                    c.execute(db.intakes.update().where(db.intakes.c.job_id == job['id']).values(state='completed',
+                        payload={**intake['payload'], 'research_run_id': rid, 'decision': None}))
+                    for link in rows(c, db.run_sources, db.run_sources.c.job_id == job['id']):
+                        c.execute(db.run_sources.update().where(db.run_sources.c.job_id == job['id'],
+                            db.run_sources.c.source_id == link['source_id']).values(payload={**link['payload'],
+                            'read': link['payload'].get('asset_id') in read_assets,
+                            'used_in_report': link['payload'].get('asset_id') in used_assets}))
                 s.finish(c, job, {'run_id': rid, 'record_id': report['id']})
                 return
             p = step['payload']
@@ -219,6 +254,8 @@ def run_research(s, job):
                     state='running', result={'job_id': child_id, 'reservation': estimate}))
                 c.execute(db.research_runs.update().where(db.research_runs.c.id == rid).values(reserved_tokens=estimate))
                 s.event(c, job['id'], {'state': 'running', 'phase': p['method_id'], 'run_id': rid, 'window': window})
+        from .timeline import activity
+        activity(s,job,'step:'+step['id'],{'situating.v1':'阅读与构境','immanent_critique.v1':'检验内在困难','parallax.v1':'比较观察位置','review.v1':'查找反例与剩余','revision.v1':'修订解释'}.get(p['method_id'],'阅读与检验'),detail=f'处理 {len(batch)} 个原文窗口')
         run_one(s, child_id)
         with s.engine.begin() as c:
             s.locked_job(c, job)
@@ -263,8 +300,10 @@ def run_research(s, job):
                 for phase, method in [('0', 'revision.v1'), ('1', 'review.v1')]:
                     c.execute(db.research_steps.insert().values(id=db.uid(), run_id=rid, step_key=key + '/' + phase,
                         state='queued', payload={**p, 'method_id': method, 'round': p['round'] + 1}, created_at=db.now()))
-            add_message(c, pid, cid, 'assistant', f'{artifact["payload"].get("title", "分析")}已保存。',
-                        [artifact['id']], {'run_id': rid, 'provider_mode': run['settings']['provider_mode']})
+            from .timeline import put
+            put(c,s,job,'step:'+step['id'],'finding','completed',{
+                'title':artifact['payload'].get('title','阶段发现'),'text':artifact['payload'].get('text',''),
+                'artifact_ids':[artifact['id']],'evidence_ids':artifact['payload'].get('evidence_ids',[])})
             for proposal in artifact['payload'].get('proposals', []) if p['method_id'] == 'review.v1' else []:
                 key = quote_hash(proposal['question'].strip() + '\n' + proposal['premise'].strip())
                 known = {x['payload'].get('proposal_key') for x in rows(c, db.decisions, db.decisions.c.run_id == rid)}
@@ -282,7 +321,13 @@ def run_research(s, job):
 
 
 def execute_workspace(s, job):
+    if not job.get('_timeline_generation'):
+        from .timeline import start
+        start(s, job)
     body, pid = job['payload'], job['project_id']
+    if body['tool'] == 'auto':
+        from .automatic import execute
+        return execute(s, job)
     if body['tool'] == 'research' or body.get('resume_run_id'):
         return run_research(s, job)
     if body['tool'] == 'ask':

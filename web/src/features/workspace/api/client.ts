@@ -43,7 +43,7 @@ export interface Segment { id: string; asset_id: string; version_id: string; xml
 export interface Anchor { id: string; segment_id: string; start_codepoint: number; end_codepoint: number; exact_quote: string; segment?: Segment }
 export interface ResearchRecord { id: string; kind: string; revision: number; payload: Payload; created_at: number }
 export interface Payload {
-  pinned?:boolean;archived?:boolean;research_question?:string;editor_json?: Record<string, unknown>; legacy_run_id?: string; title?: string; text?: string; status?: string; provider_mode?: string; evidence_ids?: string[];
+  pinned?:boolean;archived?:boolean;research_question?:string;editor_json?: Record<string, unknown>; legacy_run_id?: string; run_id?: string; title?: string; text?: string; status?: string; provider_mode?: string; evidence_ids?: string[];
   dimensions?: Record<string, string>; findings?: { title: string; text: string; evidence_ids: string[] }[];
   open_questions?: string[]; alternatives?: string[]; outcome?: string; method_id?: string;
   coverage?: { segment_id: string; status: string }[];
@@ -80,7 +80,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   if (!init.method || init.method === 'GET') return queryClient.fetchQuery<T>({queryKey:['api',serviceUrl(),path],queryFn:async ({signal})=>(await response(path,{...init,signal:init.signal ? AbortSignal.any([signal,init.signal]) : signal})).json()});
   const value = await (await response(path, init)).json();
   const clean=path.split('?')[0];const parts=clean.split('/');const root=parts.slice(0,5).join('/');
-  const resource=parts[5];const affected=resource==='records'?['records','artifacts']:resource==='artifacts'||resource==='change-proposals'?['records','artifacts','tasks','jobs']:resource==='imports'?['materials','jobs','tasks']:resource==='materials'?['materials','citation-labels']:resource==='conversations'?(parts[7]==='workspace'?[]:['conversations','jobs','tasks']):resource==='jobs'||resource==='research-runs'||resource==='decisions'?['jobs','tasks','decisions','records','model-calls']:[resource];
+  const resource=parts[5];const affected=resource==='records'?['records','artifacts']:resource==='artifacts'||resource==='change-proposals'?['records','artifacts','tasks','jobs']:resource==='sources'||resource==='intakes'?['sources','intakes','materials','jobs','tasks']:resource==='imports'?['materials','jobs','tasks']:resource==='materials'?['materials','citation-labels']:resource==='conversations'?(parts[7]==='workspace'?[]:['conversations','jobs','tasks']):resource==='jobs'||resource==='research-runs'||resource==='decisions'?['jobs','tasks','decisions','records','model-calls']:[resource];
   await queryClient.invalidateQueries({predicate:q=>q.queryKey[0]==='api'&&q.queryKey[1]===serviceUrl()&&typeof q.queryKey[2]==='string'&&(clean.startsWith('/api/v2/projects/')?affected.some(name=>name&&String(q.queryKey[2]).startsWith(root+'/'+name)):String(q.queryKey[2]).split('?')[0]===clean)});
   return value;
 }

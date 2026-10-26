@@ -125,7 +125,8 @@ def install(app, service, identity):
                 segment = row(c, db.segments, db.segments.c.id == anchor['segment_id'])
                 asset = s.asset(c, project_id, segment['asset_id'])
                 title = str(asset['metadata'].get('title') or asset['name'])[:45]
-                label = ' · '.join(str(x) for x in [asset['metadata'].get('author'), title, '第'+segment['page_label']+'页' if segment['page_label'] else None] if x)
+                location = '摘要快照' if asset['metadata'].get('source_quality') == 'search_excerpt' else ('网页快照' if asset['metadata'].get('source_url') and asset['metadata'].get('source_mime')!='application/pdf' else ('文件页 '+segment['page_label'] if segment['page_label'] else None))
+                label = ' · '.join(str(x) for x in [asset['metadata'].get('author'), title, location] if x)
                 result.append({'anchor_id': aid, 'label': label, 'version_id': segment['version_id']})
             return result
 

@@ -12,7 +12,7 @@ from .texts import build_tei, extract, project_tei, quote_hash
 
 
 # A worker from an older build must never convert a newer job kind into a permanent failure.
-SUPPORTED_JOB_KINDS = frozenset({'import', 'ocr', 'method', 'workspace', 'persona_train', 'edit', 'export'})
+SUPPORTED_JOB_KINDS = frozenset({'import', 'ocr', 'method', 'workspace', 'persona_train', 'edit', 'export', 'source_fetch'})
 
 
 class ResearchError(Exception):
@@ -329,13 +329,17 @@ class ResearchService:
 
     def heartbeat(self, job):
         with self.engine.begin() as c:
-            c.execute(db.jobs.update().where(db.jobs.c.id == job['id'],
-                db.jobs.c.state == 'running', db.jobs.c.lease_token == job['lease_token']).values(
+            result = c.execute(db.jobs.update().where(db.jobs.c.id == job['id'],
+                db.jobs.c.state == 'running', db.jobs.c.lease_token == job['lease_token'], db.jobs.c.lease_until>=db.now()).values(
                 lease_until=db.now() + self.settings.lease_seconds))
+            if not result.rowcount:
+                raise ResearchError('JOB_NO_LONGER_OWNED', 409)
 
     def locked_job(self, c, job):
+        if job.get('_lease_lost') and job['_lease_lost'].is_set():
+            raise ResearchError('JOB_NO_LONGER_OWNED', 409)
         current = c.execute(sa.select(db.jobs).where(db.jobs.c.id == job['id']).with_for_update()).mappings().one()
-        if current['lease_token'] != job['lease_token'] or current['state'] != 'running':
+        if current['lease_token'] != job['lease_token'] or current['state'] != 'running' or (current['lease_until'] or 0)<db.now():
             raise ResearchError('JOB_NO_LONGER_OWNED', 409)
 
     def process_job(self, job):
@@ -382,6 +386,12 @@ class ResearchService:
         elif job['kind'] == 'edit':
             from .editing import execute
             execute(self, job)
+        elif job['kind'] == 'source_fetch':
+            from .collection import acquire
+            acquire(self, job, job['payload']['source_id'])
+            with self.engine.begin() as c:
+                self.locked_job(c, job)
+                self.finish(c, job, {'source_id': job['payload']['source_id']})
         elif job['kind'] == 'workspace':
             from .workspace import execute_workspace
             execute_workspace(self, job)
@@ -452,7 +462,12 @@ class ResearchService:
                 'schema_revision': revision}
 
     def finish(self, c, job, result):
-        c.execute(db.jobs.update().where(db.jobs.c.id == job['id']).values(
+        self.locked_job(c, job)
+        if job['kind'] == 'workspace':
+            from .timeline import finish as finish_timeline
+            finish_timeline(c, self, job, result)
+        c.execute(db.jobs.update().where(db.jobs.c.id == job['id'],
+            db.jobs.c.lease_token == job['lease_token'], db.jobs.c.state == 'running').values(
             state='succeeded', result=result, lease_until=None, error=None))
         self.event(c, job['id'], {'state': 'succeeded', 'result': result})
 
@@ -461,13 +476,18 @@ class ResearchService:
         code = exc.code if isinstance(exc, ResearchError) else (
             str(exc).split(':')[0] if isinstance(exc, ValueError) else type(exc).__name__)
         with self.engine.begin() as c:
-            current = row(c, db.jobs, db.jobs.c.id == job['id'])
+            current = c.execute(sa.select(db.jobs).where(db.jobs.c.id==job['id']).with_for_update()).mappings().first()
+            if not current:return
             if current['lease_token'] != job['lease_token']:
                 return
             if current['state'] in {'succeeded', 'cancelled'}:
                 return
+            if code == 'JOB_NO_LONGER_OWNED' and current['state']=='running':
+                c.execute(db.jobs.update().where(db.jobs.c.id==job['id'],db.jobs.c.lease_token==job['lease_token']).values(state='queued',lease_token=None,lease_until=db.now()+2))
+                self.event(c,job['id'],{'state':'queued','reason':'recovering'})
+                return
             state = 'cancelled' if current['state'] == 'cancel_requested' else 'failed'
-            c.execute(db.jobs.update().where(db.jobs.c.id == job['id']).values(
+            c.execute(db.jobs.update().where(db.jobs.c.id == job['id'],db.jobs.c.lease_token==job['lease_token']).values(
                 state=state, error=code[:128], lease_until=None))
             self.event(c, job['id'], {'state': state, 'error': code[:128]})
             if job['kind'] == 'workspace':
@@ -533,8 +553,37 @@ class ResearchService:
                 c.execute(db.document_chapters.delete().where(db.document_chapters.c.record_id.in_(remove)))
                 c.execute(db.record_history.delete().where(db.record_history.c.record_id.in_(remove)))
                 c.execute(db.records.delete().where(db.records.c.id.in_(remove)))
+            affected_jobs={j['id'] for j in rows(c,db.jobs,db.jobs.c.project_id==project_id)
+                if set(_strings(j['payload'])) & (affected | remove | {asset_id})}
+            affected_cids=set()
+            for block in rows(c,db.timeline_blocks,db.timeline_blocks.c.project_id==project_id):
+                if block['job_id'] in affected_jobs or set(_strings(block['payload'])) & (affected | remove | {asset_id}):
+                    affected_cids.add(block['conversation_id'])
+                    c.execute(db.timeline_blocks.update().where(db.timeline_blocks.c.id==block['id']).values(
+                        state='redacted',payload={'title':'关联材料已撤回'},revision=block['revision']+1))
+            for affected_cid in affected_cids:
+                c.execute(db.conversation_events.update().where(db.conversation_events.c.conversation_id==affected_cid).values(type='redacted',payload={'withdrawn':True}))
+                from .events import emit
+                emit(c,project_id,affected_cid,'material.withdrawn',{'asset_id':asset_id})
             c.execute(db.anchors.delete().where(db.anchors.c.segment_id.in_(segment_ids)))
             # Keep tombstones for external identifiers, delete all readable text and stored object references.
+            for source in rows(c, db.sources, db.sources.c.project_id == project_id):
+                links = rows(c, db.run_sources, db.run_sources.c.source_id == source['id'])
+                if source['payload'].get('asset_id') == asset_id or any(v['payload'].get('asset_id') == asset_id for v in links):
+                    c.execute(db.source_locations.update().where(db.source_locations.c.source_id==source['id']).values(url='[withdrawn]',payload={'withdrawn':True}))
+                    c.execute(db.acquisition_attempts.update().where(db.acquisition_attempts.c.source_id==source['id']).values(payload={'withdrawn':True}))
+                    c.execute(db.sources.update().where(db.sources.c.id == source['id']).values(
+                        payload={'title': '已撤回来源', 'availability': 'withdrawn'}, revision=source['revision'] + 1))
+                    c.execute(db.run_sources.update().where(db.run_sources.c.source_id == source['id']).values(payload={}, revision=db.run_sources.c.revision + 1))
+                    for link in links:
+                        intake = row(c, db.intakes, db.intakes.c.job_id == link['job_id'])
+                        if intake:
+                            c.execute(db.intakes.update().where(db.intakes.c.job_id == link['job_id']).values(
+                                state='cancelled', payload={'limits': intake['payload']['limits'], 'withdrawn': True}, revision=intake['revision'] + 1))
+                        for call in rows(c, db.discovery_calls, db.discovery_calls.c.job_id == link['job_id']):
+                            c.execute(db.discovery_calls.update().where(db.discovery_calls.c.id == call['id']).values(
+                                payload={'withdrawn': True, 'usage': call['payload'].get('usage')}))
+
             c.execute(db.segments.delete().where(db.segments.c.asset_id == asset_id))
             c.execute(db.versions.delete().where(db.versions.c.asset_id == asset_id))
             for j in rows(c, db.jobs, db.jobs.c.project_id == project_id):

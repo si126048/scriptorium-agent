@@ -110,7 +110,10 @@ def main(argv=None):
                           'problem_count': len(problems), 'problems': problems[:2000],
                           'truncated': len(problems) > 2000}
             elif args.command == 'doctor':
-                result = {**service.queue_status(), 'object_backend': settings.object_backend,
+                from .public_fetch import readable_html
+                _, extracted=readable_html(('<html><body><article><p>'+('本地正文提取检查。'*30)+'</p></article></body></html>').encode())
+                if not extracted:raise RuntimeError('EXTRACTOR_UNAVAILABLE')
+                result = {**service.queue_status(), 'extractor':'trafilatura-2.3.1', 'extractor_check':'passed', 'object_backend': settings.object_backend,
                           'object_root': str(service.objects.root),
                           'object_root_exists': service.objects.root.exists(),
                           'elasticsearch_url': settings.elasticsearch_url,
@@ -129,10 +132,13 @@ def main(argv=None):
                     parser.error('Retention must be at least one hour')
                 # Serialize with material registration/revision using a table lock, and retain young objects.
                 with engine.begin() as c:
-                    c.execute(sa.text('LOCK TABLE r_assets, r_text_versions IN EXCLUSIVE MODE'))
+                    c.execute(sa.text('LOCK TABLE r_assets, r_text_versions, r_sources, r_run_sources, r_acquisition_attempts IN EXCLUSIVE MODE'))
                     keys = set(c.execute(sa.select(db.assets.c.object_key)).scalars())
                     keys.update(c.execute(sa.select(db.versions.c.object_key)).scalars())
                     keys.update(r['result']['object_key'] for r in c.execute(sa.select(db.jobs)).mappings() if (r['result'] or {}).get('object_key'))
+                    for table in (db.sources, db.run_sources, db.acquisition_attempts):
+                        for item in c.execute(sa.select(table.c.payload)).scalars():
+                            keys.update(item[k] for k in ('snapshot_key', 'original_object_key') if item.get(k))
                     removed = []
                     cutoff = db.now() - args.retention_hours * 3600
                     for path in service.objects.root.glob('*/*'):

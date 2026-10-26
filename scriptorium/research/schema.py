@@ -194,6 +194,14 @@ from .schema_v5 import add_tables as add_governance
 users, sessions, project_policies, audit, workspaces, comments, change_proposals = add_governance(metadata)
 
 
+from .schema_v6 import add_tables as add_discovery
+sources, intakes, run_sources, discovery_calls = add_discovery(metadata)
+
+
+from .schema_v7 import add_tables as add_acquisition
+timeline_blocks, source_locations, acquisition_attempts, metadata_requests = add_acquisition(metadata)
+
+
 def engine_for(url: str, *, test=False):
     if not url or (not test and not url.startswith('postgresql+psycopg://')):
         raise ValueError('SCRIPTORIUM_DATABASE_URL must use postgresql+psycopg://')

@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod sidecar;
+mod native_connection;
 
 pub fn run() {
     tauri::Builder::default()

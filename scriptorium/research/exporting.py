@@ -76,7 +76,7 @@ def inlines(node, anchors, segments):
         return value
     if typ == 'citation':
         anchor = anchors[node['attrs']['anchorId']]; segment = segments[anchor['segment_id']]
-        locator = segment['page_label'] or ('段落 ' + segment['xml_id'])
+        locator = segment.get('citation_locator') or segment['page_label'] or ('段落 ' + segment['xml_id'])
         return [{'t': 'Cite', 'c': [[{'citationId': segment['asset_id'], 'citationPrefix': [],
             'citationSuffix': strings(', ' + locator), 'citationMode': {'t': 'NormalCitation'},
             'citationNoteNum': 0, 'citationHash': 0}], []]}]
@@ -127,11 +127,16 @@ def execute(s, job):
     from .documents import citation_ids
     documents = [record['payload'], *[ch['payload'] for ch in chapters]]
     used = {segments[anchors[aid]['segment_id']]['asset_id'] for payload in documents for aid in citation_ids(payload.get('editor_json'))}
+    by_asset = {a['id']: a for a in assets}
+    for segment in segments.values():
+        metadata = by_asset.get(segment['asset_id'], {}).get('metadata', {})
+        if metadata.get('source_quality') == 'search_excerpt': segment['citation_locator'] = '摘要快照'
+        elif metadata.get('source_url') and metadata.get('source_mime') != 'application/pdf': segment['citation_locator'] = '网页快照，段落 ' + segment['xml_id']
     references = []
     for asset in assets:
         if asset['id'] not in used:
             continue
-        m = asset['metadata']; ref = {'id': asset['id'], 'type': m.get('csl_type', 'book'), 'title': m.get('title') or asset['name']}
+        m = asset['metadata']; ref = {'id': asset['id'], 'type': m.get('csl_type', 'article-journal' if m.get('journal') else 'webpage' if m.get('source_url') else 'book'), 'title': m.get('title') or asset['name']}
         for field in ('author', 'translator'):
             if m.get(field):
                 ref[field] = [{'literal': m[field]}]
@@ -143,6 +148,7 @@ def execute(s, job):
         for field, key in {'journal': 'container-title', 'volume': 'volume', 'issue': 'issue', 'pages': 'page', 'doi': 'DOI', 'isbn': 'ISBN', 'language': 'language'}.items():
             if m.get(field):
                 ref[key] = m[field]
+        if m.get('source_url'): ref['URL'] = m['source_url']
         references.append(ref)
     body = []
     for payload in documents:

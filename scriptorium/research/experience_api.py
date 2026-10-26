@@ -9,6 +9,7 @@ from . import schema as db
 from .service import ResearchError, row, rows
 from .workspace import conversation
 from .contracts import ChapterOut
+from .timeline import TimelineSnapshot, ResearchTask
 
 
 class CitationResolution(BaseModel):
@@ -48,7 +49,9 @@ def install(app, service, identity):
                 jid = event['payload'].get('job_id')
                 if jid in active:
                     drafts[jid] = drafts.get(jid, '') + event['payload'].get('text', '')
-            return {'conversation': conv, 'messages': messages, 'cursor': cursor, 'drafts': drafts}
+            from .timeline import snapshot as timeline_snapshot
+            return {'conversation': conv, 'messages': messages, 'cursor': cursor, 'drafts': drafts,
+                    'blocks': timeline_snapshot(c,s,project_id,cid,principal)}
 
     @router.get('/conversations/{cid}/events')
     async def stream(project_id: str, cid: str, request: Request, after: int = 0,
@@ -73,6 +76,16 @@ def install(app, service, identity):
                     yield ': heartbeat\n\n'
                     await asyncio.sleep(1)
         return StreamingResponse(events(), media_type='text/event-stream', headers={'Cache-Control': 'no-store'})
+
+    @router.get('/conversations/{cid}/timeline', response_model=TimelineSnapshot)
+    def timeline(project_id: str, cid: str, principal=Depends(identity), s=Depends(service)):
+        return snapshot(project_id,cid,principal,s)
+
+    @router.get('/research-tasks/{jid}', response_model=ResearchTask)
+    def research_task(project_id: str, jid: str, principal=Depends(identity), s=Depends(service)):
+        from .timeline import task
+        with s.engine.connect() as c:
+            return task(c,s,project_id,jid,principal)
 
     @router.get('/model-calls')
     def calls(project_id: str, run_id: str | None = None, summary: bool = False, principal=Depends(identity), s=Depends(service)):

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./features/workspace/design-tokens.css";
 
 @theme {
   --color-symbolic: #4f6f78;
@@ -39,7 +40,7 @@
 }
 
 :root {
-  --font-sans: var(--font-din);
+  --font-sans: var(--wb-ui);
 }
 
 * {

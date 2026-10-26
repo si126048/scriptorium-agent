@@ -28,10 +28,11 @@ class ConversationUpdate(BaseModel):
 
 class SendIn(BaseModel):
     text: str = Field(min_length=1, max_length=100000)
-    tool: Literal['ask', 'chat', 'research', 'theory', 'subject', 'persona'] = 'ask'
+    tool: Literal['auto', 'ask', 'chat', 'research', 'theory', 'subject', 'persona'] = 'ask'
     asset_ids: list[str] = Field(default_factory=list, max_length=100)
     segment_ids: list[str] = Field(default_factory=list, max_length=2000)
     scope: list[ScopeItem] | None = Field(default=None, max_length=2000)
+    network_mode: Literal['auto', 'off'] = 'auto'
     provider_mode: Literal['live', 'demo'] = 'live'
     participant_id: str | None = None
     persona_id: str | None = None
@@ -214,6 +215,8 @@ def install(app, service, identity):
                 if d['kind'] == 'budget':
                     c.execute(db.research_runs.update().where(db.research_runs.c.id == run['id']).values(state='completed_with_open_questions'))
                     add_message(c, project_id, run['conversation_id'], 'assistant', '研究在当前范围结束，已有产物和未处理材料均保留。')
+                    from .timeline import close_waiting
+                    close_waiting(c,s,project_id,run['settings']['origin_job_id'])
                     return {'state': 'completed_with_open_questions'}
             elif d['kind'] == 'budget':
                 if body.additional_tokens <= 0:
@@ -239,6 +242,19 @@ def install(app, service, identity):
                             payload={'window': window, 'method_id': method, 'round': 0,
                                      'question': d['payload']['question'], 'premise': d['payload']['premise']}, created_at=db.now()))
             c.execute(db.research_runs.update().where(db.research_runs.c.id == run['id']).values(settings=settings, state='running'))
+            origin=row(c,db.jobs,db.jobs.c.id==run['settings']['origin_job_id'],db.jobs.c.project_id==project_id)
+            if origin:
+                if origin['state'] in {'queued','running'}:raise ResearchError('RESEARCH_ALREADY_RUNNING',409)
+                payload={**origin['payload'],'principal':principal,'resume_run_id':run['id'],'writer_retry':True}
+                if d['kind']=='budget' and body.accept:
+                    payload['_auto_total_budget']=payload.get('_auto_total_budget',payload.get('token_budget',40000))+body.additional_tokens
+                    payload['token_budget']=payload['_auto_total_budget']
+                c.execute(db.jobs.update().where(db.jobs.c.id==origin['id']).values(payload=payload,state='queued',result=None,error=None,attempts=0,lease_until=None,lease_token=None))
+                intake=row(c,db.intakes,db.intakes.c.job_id==origin['id'])
+                if intake:c.execute(db.intakes.update().where(db.intakes.c.job_id==origin['id']).values(state='planning'))
+                from .events import emit
+                emit(c,project_id,run['conversation_id'],'research.resumed',{'job_id':origin['id'],'run_id':run['id']})
+                return row(c,db.jobs,db.jobs.c.id==origin['id'])
             return s.enqueue(c, project_id, 'workspace', {'tool': 'research', 'text': run['question'],
                 'principal': principal, 'conversation_id': run['conversation_id'], 'resume_run_id': run['id']}, f'resume-{did}')
 

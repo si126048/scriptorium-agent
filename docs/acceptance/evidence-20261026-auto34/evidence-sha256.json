@@ -1,0 +1,102 @@
+[
+  {
+    "file": "auto34-api-type-check.log",
+    "sha256": "915282ccc29866ccae9c55799ed3c66c2e8babfbdc9cedefe773185b60aebfcf"
+  },
+  {
+    "file": "auto34-candidate-hashes.json",
+    "sha256": "251cabb9ba9754420acec02ed3fa96b9227f6c4d71e6b08cff725ac206f59f99"
+  },
+  {
+    "file": "auto34-final-regression.log",
+    "sha256": "b9338a3abff939c46cf98c298740b41e6c7262faeac0578299477958790fcf79"
+  },
+  {
+    "file": "auto34-frontend-build.log",
+    "sha256": "52b47a72524215ca533842139874e007eba2d122752305c4289a827513d3356a"
+  },
+  {
+    "file": "auto34-frontend-lint.log",
+    "sha256": "0eb9aa022c20bca0d0335617c58c8add55bfe0b8f5216cd676e7b401b7de9869"
+  },
+  {
+    "file": "auto34-frontend-unit.log",
+    "sha256": "135119762e7bc476525e120a4952be15d5c8031e71b95d9f3c5e7e4f1a9f6498"
+  },
+  {
+    "file": "auto34-installer-build.log",
+    "sha256": "7a2c5d801dbdb74b67dc876b872aa417dd13e265e37852f01791f121d5b62431"
+  },
+  {
+    "file": "auto34-installer-contents.log",
+    "sha256": "a26bbef3153215a0e40d2e611f14ddc58615ffdfea00f7d6eb7faaf67210fdd3"
+  },
+  {
+    "file": "auto34-migration-preview.log",
+    "sha256": "49b7e1086209ffb495af959f60073034b3e54db1599f6c89131fe10ff2fafacc"
+  },
+  {
+    "file": "auto34-native-check.json",
+    "sha256": "243bc62c3991c4686d259b60bcc24d7ed0222bb1453b6647b4c5e3c78c7be974"
+  },
+  {
+    "file": "auto34-native-check.log",
+    "sha256": "f4b45d04265bc2a9e8feb7210b0dffc559913fd99327d907ad2e2db27d71d8b5"
+  },
+  {
+    "file": "auto34-original-backup-final.log",
+    "sha256": "237ae2fb069f3bf32ab49ab2bcd2a4604067ae46a030be86444f690350e6fabf"
+  },
+  {
+    "file": "auto34-packaged-smoke.json",
+    "sha256": "d6320b1ba2f4cf90c55995c92cb75acaf236d279b8ef322c80ce42993e8db326"
+  },
+  {
+    "file": "auto34-packaged-smoke.log",
+    "sha256": "fade097d47c3791ec61efe53ee6e084e8ca0ccb5d8d101306104506d243e40fe"
+  },
+  {
+    "file": "auto34-python-lint.log",
+    "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+  },
+  {
+    "file": "auto34-rust-credential-test.log",
+    "sha256": "1b86e41e36c88f0bf33aa6c5118d625ceba5b17a2abb9517f21b730ce62d7ef6"
+  },
+  {
+    "file": "auto34-rust-tests.log",
+    "sha256": "3ec80ab189eb12cf61f82b1c8dc43119f5b7fb3c013a4e9252670b6e266acb14"
+  },
+  {
+    "file": "auto34-sidecar-build-final.log",
+    "sha256": "ca3311f7a6568c29edffa2aa5a2f14747ed7d8bb359072dd6fab29c8c56cac4f"
+  },
+  {
+    "file": "auto34-source-digest.json",
+    "sha256": "1676d81d9540fcbd92f453e00a34db4ef5bfd64793517bbb26899ef5351de329"
+  },
+  {
+    "file": "automatic-greeting.jpg",
+    "sha256": "9cdad4c056c601f6b991eda63bb190f556436df190b354c34ed5fa293016c20d"
+  },
+  {
+    "file": "browser-checks.json",
+    "sha256": "4422ce50d9e0a5e6e6ac30a6f7812846184a1d41a7c23263ab4dbb8c66051021"
+  },
+  {
+    "file": "browser-export.md",
+    "sha256": "b8c824aa172488d74037d4ab7e0701afce8f84b6844b62f03438cf93ed07874f"
+  },
+  {
+    "file": "desktop-sources.jpg",
+    "sha256": "1bdcc1ee36756a7e538c5d47218e41ada9df64bad20e14fd2cc3f8c74ee5a01a"
+  },
+  {
+    "file": "narrow-sources.jpg",
+    "sha256": "3268761df07641c802f1c528fb1efbf2cff492ffcafca303981d607ff70d6def"
+  },
+  {
+    "file": "writing-export.jpg",
+    "sha256": "23d2c2152e082a3a14153166bb161e2a1f3e5d1315e404c3fd4426a08de19ead"
+  }
+]

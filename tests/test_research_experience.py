@@ -11,6 +11,15 @@ from scriptorium.research.worker import run_one
 
 def fake_model(monkeypatch, result, usage=123):
     def create(**kwargs):
+        if kwargs.get('stream'):
+            prompt=json.loads(kwargs['messages'][-1]['content']);ids=prompt.get('evidence_ids',[])
+            answer='模拟流式研究回答。'+(' [[source:'+ids[0]+']]' if ids else '')
+            class Stream:
+                def __iter__(self):
+                    for text in [answer[:8],answer[8:]]:yield SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=text),finish_reason=None)],usage=None)
+                    yield SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=''),finish_reason='stop')],usage=SimpleNamespace(model_dump=lambda:{'total_tokens':usage}))
+                def close(self):pass
+            return Stream()
         value = result(kwargs) if callable(result) else result
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(value)), finish_reason='stop')],
                                usage=SimpleNamespace(model_dump=lambda: {'total_tokens': usage}))

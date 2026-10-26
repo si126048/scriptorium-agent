@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-26",
+  "url": "http://127.0.0.1:8036",
+  "isolated": true,
+  "syntheticSources": true,
+  "paidCalls": 0,
+  "checks": {
+    "greetingLocalReply": true,
+    "sourceFulltextExactVersion": true,
+    "excerptWarning": true,
+    "sourceFilterPreservedAfterReturn": true,
+    "sourceTitleInTabs": true,
+    "keyboardCommandAndEscape": true,
+    "quietModeDataset": true,
+    "narrow480NoHorizontalOverflow": true,
+    "reportDefaultReading": true,
+    "reportToEditableManuscript": true,
+    "chineseSaveRefreshRestore": true,
+    "exportResumeAndRedownload": true
+  },
+  "notVerified": [
+    "hardware Chinese IME composition",
+    "live provider connectivity",
+    "all external websites"
+  ],
+  "consoleErrors": [],
+  "export": {
+    "format": "md",
+    "revision": 2,
+    "contentVerified": true
+  }
+}

@@ -2649,15 +2649,17 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scriptorium-desktop"
-version = "3.3.0"
+version = "3.5.0"
 dependencies = [
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-shell",
  "tauri-plugin-store",
  "tokio",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

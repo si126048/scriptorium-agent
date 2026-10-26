@@ -13,8 +13,8 @@ pub struct ApiKeyState {
     pub dashscope: RwLock<Option<String>>,
 }
 
-/// Cache of the local runtime connection. Reading it spawns the packaged backend, so we keep it
-/// until the supervisor reports that services stopped or failed.
+/// Connection loaded from the local manifest and current user's Windows Credential Manager.
+/// Clear it when service configuration changes; never spawn the backend merely to read it.
 pub struct ResearchState {
     pub connection: RwLock<Option<serde_json::Value>>,
 }
@@ -201,23 +201,13 @@ pub async fn get_research_connection(app: tauri::AppHandle, state: State<'_, Res
     if let Some(value) = state.connection.read().unwrap().clone() {
         return Ok(value);
     }
-    use std::time::Duration;
-    use tauri_plugin_shell::ShellExt;
     if let Some(value) = app.store(STORE_PATH).map_err(|_| "settings unavailable")?.get("research_service_url") {
         if let Some(url) = value.as_str() {
             if !url.is_empty() { return Ok(serde_json::json!({"url":url,"api_key":"","search":true})); }
         }
     }
-    // Never let a missing or slow local runtime block the workbench: the UI falls back to the
-    // default service address when this command fails or times out.
-    let command = app.shell().sidecar("scriptorium-backend").map_err(|_| "research backend unavailable")?;
-    let result = tokio::time::timeout(Duration::from_secs(8), command.args(["local-runtime", "connection"]).output())
-        .await
-        .map_err(|_| "research services not ready")?
-        .map_err(|_| "research services not ready")?;
-    if !result.status.success() { return Err("research services not installed yet".to_string()); }
-    let value: serde_json::Value = serde_json::from_slice(&result.stdout)
-        .map_err(|_| "invalid local service connection".to_string())?;
+    let root = research_root().ok_or("LOCALAPPDATA is unavailable")?;
+    let value = crate::native_connection::load(&root)?;
     *state.connection.write().unwrap() = Some(value.clone());
     Ok(value)
 }

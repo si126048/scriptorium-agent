@@ -63,14 +63,49 @@ def executable(*args):
 def _sanitize(text):
     """Keep one short, actionable line; never echo arguments or environment values."""
     line = next((item.strip() for item in reversed((text or '').splitlines()) if item.strip()), '')
-    return line[:160]
+    return line[:300]
+
+
+def decode_output(data):
+    """PostgreSQL's Windows tools can emit system-code-page messages, not UTF-8."""
+    if isinstance(data, str):
+        return data
+    import locale
+    for encoding in dict.fromkeys(['utf-8', locale.getpreferredencoding(False), 'gb18030']):
+        try:
+            return (data or b'').decode(encoding)
+        except (UnicodeDecodeError, LookupError):
+            pass
+    return (data or b'').decode('utf-8', 'replace')
+
+
+def wait_postgres(root, pg, port, child, stop_file, *, timeout=120):
+    """A listening socket may still reject SQL during startup or crash recovery."""
+    until = time.monotonic() + timeout
+    while time.monotonic() < until:
+        if stop_file.exists():
+            raise RuntimeError('LOCAL_START_CANCELLED')
+        if child.poll() is not None:
+            raise RuntimeError('LOCAL_POSTGRES_EXITED:' + _log_tail(root, 'postgres'))
+        probe = subprocess.run([str(pg / 'pg_isready.exe'), '-h', '127.0.0.1',
+            '-p', str(port), '-U', 'scriptorium', '-d', 'postgres', '-t', '1'],
+            capture_output=True, check=False, timeout=5,
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        if probe.returncode == 0:
+            if child.poll() is not None:
+                raise RuntimeError('LOCAL_POSTGRES_EXITED:' + _log_tail(root, 'postgres'))
+            return
+        if probe.returncode not in (1, 2):
+            raise RuntimeError('LOCAL_POSTGRES_PROBE_FAILED:' + _sanitize(decode_output(probe.stderr)))
+        time.sleep(.5)
+    raise RuntimeError('LOCAL_POSTGRES_READY_TIMEOUT:数据库仍在启动或恢复，请查看数据库日志后重试')
 
 
 def run(command, *, env=None, input=None):
     result = subprocess.run(command, check=False, env=env, input=input, capture_output=True,
         creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), timeout=180)
     if result.returncode:
-        detail = _sanitize((result.stderr or b'').decode('utf-8', 'replace'))
+        detail = _sanitize(decode_output(result.stderr))
         # Command arguments and remote exception bodies can contain secrets: report only the tool.
         suffix = (':' + detail) if detail else ''
         raise RuntimeError('LOCAL_DEPENDENCY_COMMAND_FAILED:' + Path(command[0]).name + suffix)
@@ -80,7 +115,7 @@ def run(command, *, env=None, input=None):
 def _log_tail(root, name):
     path = root / 'logs' / (name + '.log')
     try:
-        text = path.read_text(encoding='utf-8', errors='replace')
+        text = decode_output(path.read_bytes())
     except OSError:
         return ''
     return _sanitize(text[-2000:])
@@ -229,17 +264,15 @@ def supervise(root):
         launch('postgres', [str(pg / 'postgres.exe'), '-D', str(root / 'database' / 'cluster')])
         if search:
             launch('elasticsearch', [str(es / 'bin' / 'elasticsearch.bat')])
-        wait_ready(state['pg_port'])
-        if children['postgres'].poll() is not None:
-            # A foreign process may own the port; surface PostgreSQL's own message instead of psql noise.
-            raise RuntimeError('LOCAL_POSTGRES_EXITED:' + _log_tail(root, 'postgres'))
+        phase(root, 'starting', progress='postgres_wait', pid=os.getpid())
+        wait_postgres(root, pg, state['pg_port'], children['postgres'], stop_file)
         exists = run([str(pg / 'psql.exe'), '-h', '127.0.0.1', '-p', str(state['pg_port']), '-U', 'scriptorium',
                       '-d', 'postgres', '-tAc', "select 1 from pg_database where datname='scriptorium'"], env=env)
         if not exists.stdout.strip():
             run([str(pg / 'createdb.exe'), '-h', '127.0.0.1', '-p', str(state['pg_port']), '-U', 'scriptorium', 'scriptorium'], env=env)
-        phase(root, 'starting', progress='schema', pid=os.getpid())
         if search:
-            wait_ready(state['es_port'])
+            phase(root, 'starting', progress='search_wait', pid=os.getpid())
+            wait_ready(state['es_port'], 300)
         import httpx
         if search:
             with httpx.Client(trust_env=False, timeout=5) as client:
@@ -256,8 +289,9 @@ def supervise(root):
                     if time.monotonic() >= until or stop_file.exists():
                         raise RuntimeError('LOCAL_SEARCH_HEALTH_FAILED')
                     time.sleep(1)
-        phase(root, 'starting', progress='api', pid=os.getpid())
+        phase(root, 'starting', progress='schema', pid=os.getpid())
         run(executable('research-command', 'init-db'), env=env)
+        phase(root, 'starting', progress='api', pid=os.getpid())
         commands = {'api': executable('research-command', 'serve', '--port', str(state['api_port'])),
                     'worker': executable('research-command', 'worker')}
         for name, command in commands.items():
@@ -281,7 +315,7 @@ def supervise(root):
                 launch(name, commands[name])
             time.sleep(1)
     except Exception as exc:
-        phase(root, 'failed', error=type(exc).__name__ + ':' + str(exc)[:100])
+        phase(root, 'failed', error=type(exc).__name__ + ':' + str(exc)[:500])
         raise
     finally:
         pg_child = children.get('postgres')

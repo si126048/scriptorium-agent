@@ -1,0 +1,36 @@
+{
+  "version": "3.4.0",
+  "build_date": "2026-10-26",
+  "code_digest": "fa94da88f2169f548fa0fbb494e63741577a43717226f626e3e780e1deace496",
+  "git_head": "5d1eaf9bd5163b41c96722b57e6629b2df3ef75a",
+  "uncommitted": true,
+  "artifacts": [
+    {
+      "path": "D:\\ai\\hermeneut-agent\\src-tauri\\target\\release\\bundle\\nsis\\Scriptorium Agent_3.4.0_x64-setup.exe",
+      "bytes": 130317428,
+      "sha256": "7a25834751a16020c4e68d4f81ffcc3c197d3c2bbfe03634e2aeef4ef580ffa1"
+    },
+    {
+      "path": "D:\\ai\\hermeneut-agent\\src-tauri\\target\\release\\scriptorium-desktop.exe",
+      "bytes": 13728256,
+      "sha256": "568f7fa589cbe0047b8ea91054ff8d76bfed5156a22ea9bd0317b929dc4e22d4"
+    },
+    {
+      "path": "D:\\ai\\hermeneut-agent\\desktop-build\\auto34-stage\\scriptorium-backend.exe",
+      "bytes": 127323859,
+      "sha256": "0efc5a72f1680ab329a7f470ae1b07c71230c02db939698d925d6436f08603b7",
+      "installer_payload_verified": true
+    },
+    {
+      "path": "D:\\ai\\hermeneut-agent\\src-tauri\\bin\\scriptorium-backend-x86_64-pc-windows-msvc.exe",
+      "bytes": 127323859,
+      "sha256": "0efc5a72f1680ab329a7f470ae1b07c71230c02db939698d925d6436f08603b7"
+    }
+  ],
+  "installer_desktop": {
+    "sha256": "3e5902d581f48e23dd212f815f6e797bab506ef4bf60d2267e9a48ec2fb2dace",
+    "bytes": 13728256,
+    "raw_exe_diff_bytes": 3,
+    "bundle_metadata_patched": true
+  }
+}

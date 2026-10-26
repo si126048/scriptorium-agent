@@ -286,10 +286,13 @@ def create_app(settings=None, engine=None):
         with s.engine.connect() as c:
             s.access(c, project_id, principal)
             a = s.asset(c, project_id, asset_id)
-            raw = s.objects.read(a['object_key'])
+            source_key = c.execute(sa.select(db.run_sources.c.payload['original_object_key'].as_string()).join(db.sources, db.sources.c.id == db.run_sources.c.source_id).where(
+                db.sources.c.project_id == project_id, db.run_sources.c.payload['asset_id'].as_string() == asset_id,
+                db.run_sources.c.payload['original_object_key'].as_string().is_not(None)).limit(1)).scalar()
+            raw = s.objects.read(source_key or a['object_key'])
         return Response(raw, media_type='application/octet-stream', headers={
             'Content-Disposition': "attachment; filename*=UTF-8''" + __import__('urllib.parse', fromlist=['quote']).quote(a['name']),
-            'Cache-Control': 'no-store'})
+            'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'})
 
     @app.get(prefix + '/materials/{asset_id}/tei')
     def tei(project_id: str, asset_id: str, version_id: str | None = None,
@@ -428,6 +431,15 @@ def create_app(settings=None, engine=None):
                 raise ResearchError('FAILED_JOB_REQUIRED', 409)
             if j['kind'] == 'import':
                 s.asset(c, project_id, j['payload']['asset_id'])
+            if j['kind']=='workspace':
+                for run in rows(c,db.research_runs,db.research_runs.c.project_id==project_id):
+                    if run['settings'].get('origin_job_id')!=job_id and run['id']!=j['payload'].get('resume_run_id'):continue
+                    c.execute(db.research_runs.update().where(db.research_runs.c.id==run['id']).values(state='running'))
+                    for step in rows(c,db.research_steps,db.research_steps.c.run_id==run['id'],db.research_steps.c.state!='succeeded'):
+                        child=(step.get('result') or {}).get('job_id')
+                        if child:c.execute(db.jobs.update().where(db.jobs.c.id==child,db.jobs.c.state.in_(['failed','cancelled'])).values(state='queued',attempts=0,error=None,lease_until=None,lease_token=None))
+                c.execute(db.jobs.update().where(db.jobs.c.id==job_id).values(payload={**j['payload'],'principal':principal,'writer_retry':True}))
+
             c.execute(db.jobs.update().where(db.jobs.c.id == job_id).values(
                 state='queued', attempts=0, lease_until=None, lease_token=None, error=None))
             s.event(c, job_id, {'state': 'queued', 'reason': 'manual_retry'})
@@ -613,6 +625,8 @@ def create_app(settings=None, engine=None):
     install(app, service, identity)
     from .experience_api import install as install_experience
     install_experience(app, service, identity)
+    from .source_api import install as install_sources
+    install_sources(app, service, identity)
     from .compat_api import install as install_compat
     install_compat(app, service, identity)
 
@@ -622,6 +636,12 @@ def create_app(settings=None, engine=None):
         dist = web_dist
     if (dist / 'assets').exists():
         app.mount('/assets', StaticFiles(directory=dist / 'assets'), name='research-assets')
+    if (dist / 'brand').exists():
+        app.mount('/brand', StaticFiles(directory=dist / 'brand'), name='brand-assets')
+    if (dist / 'favicon.svg').exists():
+        @app.get('/favicon.svg', include_in_schema=False)
+        def favicon():
+            return FileResponse(dist / 'favicon.svg', media_type='image/svg+xml')
     if (dist / 'index.html').exists():
         @app.get('/')
         def index():

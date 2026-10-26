@@ -1,0 +1,32 @@
+{
+  "status": "passed",
+  "health": {
+    "status": "ok",
+    "service": "research",
+    "version": "3.3.1",
+    "search": "disabled",
+    "job_kinds": [
+      "edit",
+      "export",
+      "import",
+      "method",
+      "ocr",
+      "persona_train",
+      "workspace"
+    ]
+  },
+  "startup_phases": [
+    "pandoc",
+    "postgres",
+    "postgres_wait",
+    "schema",
+    "api",
+    "done"
+  ],
+  "database_root": "D:\\ai\\hermeneut-agent\\tmp\\pgready-native-20261025\\database",
+  "user_database_changed": false,
+  "fresh_cluster": true,
+  "import_state": "succeeded",
+  "paid_model_calls": 0,
+  "binary_sha256": "17f11a30122f25617b26219bce49551c372d2f60baecf975d349c6d358d1033f"
+}

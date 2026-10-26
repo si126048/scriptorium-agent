@@ -1,9 +1,9 @@
 @layer workbench-tokens,workbench-base,workbench-components,workbench-layout;
 @layer workbench-tokens{
-:root{--wb-bg:#f7f5f0;--wb-paper:#fffefa;--wb-sidebar:#f0ede7;--wb-ink:#262a27;--wb-muted:#71776f;--wb-line:#e6e0d7;--wb-orange:#b75128;--wb-orange-soft:#f6e9dd;--wb-green:#b75128;--wb-danger:#ad493b;--wb-radius:10px;--wb-shadow:0 8px 30px #26321f0a;--wb-ui:Inter,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;--wb-reading:"Noto Serif CJK SC","Source Han Serif SC","Songti SC",Georgia,serif}
+
 }
 @layer workbench-base{
-.unified-workspace{display:flex;width:100%;height:100dvh;min-height:0;overflow:hidden;background:var(--wb-bg);font:14px/1.6 var(--wb-ui);color:var(--wb-ink);isolation:isolate}
+.unified-workspace{display:flex;width:100%;height:100dvh;min-height:0;overflow:hidden;background:var(--wb-bg);font:16px/1.65 var(--wb-ui);color:var(--wb-ink);isolation:isolate}
 .unified-workspace *,.wb-dialog *,.wb-popover *,.uw-dropdown *{box-sizing:border-box}
 .unified-workspace button,.wb-dialog button,.wb-popover button,.uw-dropdown [role=menuitem]{font:inherit;color:inherit;cursor:pointer}
 .unified-workspace button,.wb-dialog button{border:1px solid transparent;background:transparent;border-radius:7px;padding:7px 11px;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:background-color .12s,color .12s,box-shadow .12s;min-height:32px;line-height:1.4}

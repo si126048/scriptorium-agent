@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+from PyInstaller.utils.hooks import collect_data_files, copy_metadata
 
 block_cipher = None
 
@@ -15,7 +16,7 @@ a = Analysis(
         ('migrations/research', 'migrations/research'),
         ('alembic-research.ini', '.'),
         ('web/dist', 'scriptorium/static'),
-    ],
+    ] + collect_data_files('trafilatura') + copy_metadata('trafilatura'),
     hiddenimports=[
         'scriptorium',
         'scriptorium.research.api',

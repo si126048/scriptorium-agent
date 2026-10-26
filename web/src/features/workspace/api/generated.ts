@@ -22,6 +22,8 @@ export interface Schemas {
   "DecisionOut": { "id": string; "run_id": string; "project_id": string; "conversation_id"?: (string | null); "kind": string; "state": string; "payload": Record<string, unknown> };
   "ExportIn": { "revision"?: (number | null); "conversation_id"?: (string | null); "format": "docx" | "md" | "html"; "locale"?: "zh-CN" | "en-US"; "style"?: "note" | "author-date" };
   "HTTPValidationError": { "detail"?: Array<Schemas["ValidationError"]> };
+  "IntakeAction": { "revision": number; "action": "continue" | "use_collected" | "use_project" | "stop" | "resume" };
+  "IntakeOut": { "job_id": string; "state": string; "revision": number; "question": string; "phase": string; "decision"?: (string | null); "limits": Record<string, number>; "downloaded_bytes": number; "reserved_bytes"?: number; "source_count": number; "read_count"?: number; "fulltext_count"?: number; "research_run_id"?: (string | null); "used_tokens"?: number; "reserved_tokens"?: number; "discovery_requests"?: number };
   "InterviewIn": { "participant_id": string; "conversation_id": string; "config_id"?: (string | null); "provider_mode"?: "live" | "demo" };
   "JobOut": { "id": string; "project_id": string; "kind": string; "state": string; "payload": Record<string, unknown>; "attempts"?: number; "error"?: (string | null); "result"?: (Record<string, unknown> | null); "created_at": number };
   "MaterialOut": { "id": string; "name": string; "status": string; "revision": number; "metadata": Record<string, unknown>; "versions": Array<Schemas["VersionOut"]> };
@@ -41,12 +43,18 @@ export interface Schemas {
   "ReadingPartOut": { "segment": Schemas["SegmentOut"]; "start": number; "end": number; "text": string };
   "RecordIn": { "kind": "question" | "annotation" | "concept" | "context" | "claim" | "position" | "criterion" | "difficulty" | "transition" | "standpoint" | "appearance" | "shift" | "parallax" | "branch" | "objection" | "response" | "manuscript" | "review" | "method_report" | "research_answer"; "payload": Record<string, unknown>; "revision"?: (number | null) };
   "RecordOut": { "id": string; "project_id": string; "kind": string; "revision": number; "payload": Record<string, unknown>; "created_at": number; "updated_at": number };
+  "ResearchTask": { "job_id": string; "state": string; "reason"?: (string | null); "generation": number; "blocks": Array<Schemas["TimelineBlock"]> };
   "RestoreIn": { "revision": number; "source_revision": number };
   "RevisionIn": { "revision": number; "tei": string };
   "ScopeItem": { "asset_id": string; "version_id"?: (string | null); "segment_id"?: (string | null); "start_codepoint"?: (number | null); "end_codepoint"?: (number | null); "exact_quote"?: (string | null) };
   "SegmentOut": { "id": string; "asset_id": string; "version_id": string; "xml_id": string; "text": string; "page_label"?: (string | null) };
-  "SendIn": { "text": string; "tool"?: "ask" | "chat" | "research" | "theory" | "subject" | "persona"; "asset_ids"?: Array<string>; "segment_ids"?: Array<string>; "scope"?: (Array<Schemas["ScopeItem"]> | null); "provider_mode"?: "live" | "demo"; "participant_id"?: (string | null); "persona_id"?: (string | null); "perspective_ids"?: Array<string>; "methods"?: Array<"situating.v1" | "immanent_critique.v1" | "parallax.v1">; "token_budget"?: number };
+  "SendIn": { "text": string; "tool"?: "auto" | "ask" | "chat" | "research" | "theory" | "subject" | "persona"; "asset_ids"?: Array<string>; "segment_ids"?: Array<string>; "scope"?: (Array<Schemas["ScopeItem"]> | null); "network_mode"?: "auto" | "off"; "provider_mode"?: "live" | "demo"; "participant_id"?: (string | null); "persona_id"?: (string | null); "perspective_ids"?: Array<string>; "methods"?: Array<"situating.v1" | "immanent_critique.v1" | "parallax.v1">; "token_budget"?: number };
+  "SourceAction": { "job_id": string; "revision": number; "action": "adopt" | "unadopt" | "exclude" | "include" | "fetch" };
+  "SourceOut": { "id": string; "job_id": string; "revision": number; "title": string; "url": string; "source_type": string; "availability": string; "snippet"?: string; "asset_id"?: (string | null); "version_id"?: (string | null); "adopted"?: boolean; "excluded"?: boolean; "read"?: boolean; "used_in_report"?: boolean; "retrieved_at"?: (number | null); "error"?: (string | null); "provider"?: (string | null); "snapshot_key"?: (string | null); "bibliography"?: Record<string, string>; "conversation_id"?: (string | null); "original_format"?: (string | null); "locations"?: Array<Record<string, unknown>>; "attempts"?: Array<Record<string, unknown>>; "version_status"?: string };
+  "SourcePageOut": { "items": Array<Schemas["SourceOut"]>; "total": number; "next_offset"?: (number | null) };
   "TaskOut": { "id": string; "kind": string; "state": string; "phase": string; "record_id"?: (string | null); "conversation_id"?: (string | null); "error"?: (string | null); "actions": Array<string>; "result"?: (Record<string, unknown> | null) };
+  "TimelineBlock": { "id": string; "job_id": string; "project_id": string; "conversation_id": string; "block_key": string; "kind": string; "state": string; "generation": number; "revision": number; "payload"?: Record<string, unknown>; "created_at": number; "updated_at": number };
+  "TimelineSnapshot": { "blocks": Array<Schemas["TimelineBlock"]>; "cursor": number };
   "TurnIn": { "question_id": string; "answer_text": string };
   "ValidationError": { "loc": Array<(string | number)>; "msg": string; "type": string; "input"?: unknown; "ctx"?: Record<string, unknown> };
   "VersionOut": { "id": string; "quality": Record<string, unknown>; "created_at": number };
@@ -92,6 +100,7 @@ export interface Endpoints {
   "GET /api/v2/projects/{project_id}/conversations/{cid}/messages": { request: unknown; response: Array<Schemas["MessageOut"]> };
   "POST /api/v2/projects/{project_id}/conversations/{cid}/messages": { request: Schemas["SendIn"]; response: unknown };
   "GET /api/v2/projects/{project_id}/conversations/{cid}/snapshot": { request: unknown; response: unknown };
+  "GET /api/v2/projects/{project_id}/conversations/{cid}/timeline": { request: unknown; response: Schemas["TimelineSnapshot"] };
   "GET /api/v2/projects/{project_id}/conversations/{cid}/workspace": { request: unknown; response: Schemas["WorkspaceOut"] };
   "PUT /api/v2/projects/{project_id}/conversations/{cid}/workspace": { request: Schemas["WorkspaceIn"]; response: Schemas["WorkspaceOut"] };
   "GET /api/v2/projects/{project_id}/decisions": { request: unknown; response: Array<Schemas["DecisionOut"]> };
@@ -101,6 +110,8 @@ export interface Endpoints {
   "GET /api/v2/projects/{project_id}/graph/{graph_type}": { request: unknown; response: unknown };
   "POST /api/v2/projects/{project_id}/history-import": { request: unknown; response: unknown };
   "POST /api/v2/projects/{project_id}/imports": { request: unknown; response: Schemas["JobOut"] };
+  "GET /api/v2/projects/{project_id}/intakes": { request: unknown; response: Array<Schemas["IntakeOut"]> };
+  "POST /api/v2/projects/{project_id}/intakes/{job_id}/decisions": { request: Schemas["IntakeAction"]; response: unknown };
   "GET /api/v2/projects/{project_id}/interviews": { request: unknown; response: unknown };
   "POST /api/v2/projects/{project_id}/interviews": { request: Schemas["InterviewIn"]; response: unknown };
   "GET /api/v2/projects/{project_id}/interviews/{iid}": { request: unknown; response: unknown };
@@ -148,11 +159,18 @@ export interface Endpoints {
   "GET /api/v2/projects/{project_id}/research-runs": { request: unknown; response: unknown };
   "GET /api/v2/projects/{project_id}/research-runs/{rid}": { request: unknown; response: unknown };
   "POST /api/v2/projects/{project_id}/research-runs/{rid}/cancel": { request: unknown; response: unknown };
+  "GET /api/v2/projects/{project_id}/research-tasks/{jid}": { request: unknown; response: Schemas["ResearchTask"] };
   "GET /api/v2/projects/{project_id}/search": { request: unknown; response: unknown };
+  "GET /api/v2/projects/{project_id}/sources": { request: unknown; response: Schemas["SourcePageOut"] };
+  "GET /api/v2/projects/{project_id}/sources/{sid}": { request: unknown; response: Schemas["SourceOut"] };
+  "POST /api/v2/projects/{project_id}/sources/{sid}/actions": { request: Schemas["SourceAction"]; response: unknown };
+  "GET /api/v2/projects/{project_id}/sources/{sid}/original": { request: unknown; response: unknown };
+  "GET /api/v2/projects/{project_id}/sources/{sid}/snapshot": { request: unknown; response: unknown };
   "GET /api/v2/projects/{project_id}/tasks": { request: unknown; response: Array<Schemas["TaskOut"]> };
   "GET /api/v2/system/model": { request: unknown; response: unknown };
   "PUT /api/v2/system/model": { request: Schemas["ModelKeyIn"]; response: unknown };
   "DELETE /api/v2/system/model": { request: unknown; response: unknown };
+  "GET /api/v2/system/model/capabilities": { request: unknown; response: unknown };
   "POST /api/v2/system/model/test": { request: unknown; response: unknown };
   "GET /api/v2/system/status": { request: unknown; response: unknown };
 }

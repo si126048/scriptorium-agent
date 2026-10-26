@@ -93,11 +93,8 @@ def execute_capability(s, pid, principal, body, job=None):
                     {'segment_id': a['id'], 'text': a['text']} for a in selected]}, ensure_ascii=False)}]
         from .calls import complete
         def on_text(delta):
-            from .events import emit
-            with s.engine.begin() as c:
-                s.access(c, pid, principal, True)
-                s.locked_job(c, job)
-                emit(c, pid, body['conversation_id'], 'message.delta', {'job_id': job['id'], 'text': delta, 'draft': True})
+            from .timeline import append
+            append(s, job, 'answer', delta)
         response, _, _ = complete(s, job, p, messages, 3000, on_text=on_text)
         answer = response.choices[0].message.content or ''
     return {'text': answer, 'metadata': {'provider_mode': mode, 'asset_ids': body.get('asset_ids', [])}}

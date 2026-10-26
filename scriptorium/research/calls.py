@@ -23,6 +23,7 @@ def reserve(s, job, provider, messages, output_tokens, run_id=None):
         s.access(c, job['project_id'], job['payload'].get('principal', s.settings.principal), True)
         if not job.get('_synchronous'):
             s.locked_job(c, job)
+        c.execute(sa.select(db.projects.c.id).where(db.projects.c.id == job['project_id']).with_for_update())
         from .governance import check_egress, audit
         source_assets = check_egress(s, c, job, provider, estimate)
         validation_limit = os.getenv('SCRIPTORIUM_VALIDATION_TOKEN_LIMIT')
@@ -38,7 +39,14 @@ def reserve(s, job, provider, messages, output_tokens, run_id=None):
             run = c.execute(sa.select(db.research_runs).where(
                 db.research_runs.c.id == run_id).with_for_update()).mappings().first()
             totals = usage_totals(c, run_id)
-            if not run or totals['used_tokens'] + totals['reserved_tokens'] + estimate > run['settings']['token_budget']:
+            if not run or totals['used_tokens'] + totals['reserved_tokens'] + estimate > run['settings']['token_budget'] - (run['settings'].get('writer_reservation',0) if job['kind']=='method' else 0):
+                raise ResearchError('CALL_BUDGET_REQUIRED', 409)
+        if job['payload'].get('tool') == 'auto' and not run_id:
+            c.execute(sa.select(db.projects.c.id).where(db.projects.c.id == job['project_id']).with_for_update())
+            existing = rows(c, db.model_calls, db.model_calls.c.job_id == job['id'])
+            spent = sum((v['usage'] or {}).get('total_tokens', 0) +
+                (v['reserved_tokens'] if v['state'] in {'reserved', 'unknown'} else 0) for v in existing)
+            if spent + estimate > job['payload'].get('_auto_total_budget', job['payload'].get('token_budget', 40000)):
                 raise ResearchError('CALL_BUDGET_REQUIRED', 409)
         c.execute(db.model_calls.insert().values(id=identifier, project_id=job['project_id'], job_id=job['id'],
             run_id=run_id, model=provider.model, state='reserved', reserved_tokens=estimate,
@@ -58,9 +66,11 @@ def complete(s, job, provider, messages, output_tokens, response_format=None, ru
         if on_text:
             stream = response
             full, pending, last, usage = '', '', time.monotonic(), None
+            finish_reason = None
             try:
                 for chunk in stream:
                     usage = getattr(chunk, 'usage', None) or usage
+                    if chunk.choices:finish_reason=getattr(chunk.choices[0],'finish_reason',None) or finish_reason
                     delta = (getattr(chunk.choices[0].delta, 'content', '') or '') if chunk.choices else ''
                     full += delta
                     pending += delta
@@ -69,7 +79,7 @@ def complete(s, job, provider, messages, output_tokens, response_format=None, ru
                         pending, last = '', time.monotonic()
                 if pending:
                     on_text(pending)
-                response = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=full))], usage=usage)
+                response = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=full),finish_reason=finish_reason)], usage=usage)
             finally:
                 stream.close()
     except Exception as exc:

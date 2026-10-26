@@ -91,9 +91,17 @@ def test_new_tables_backup_restore(research, client, tmp_path):
     from scriptorium.research.backup import backup, restore
     pid = research.create_project('tester', '备份')['id']; root = f'/api/v2/projects/{pid}'
     client.put(root + '/members/reader', json={'role': 'reader'})
+    from scriptorium.research import collection
+    cid = client.post(root + '/conversations', json={}).json()['id']
+    submitted = client.post(root + f'/conversations/{cid}/messages', headers={'Idempotency-Key':'backup-source'},
+        json={'text':'研究备份','tool':'auto'}).json()
+    job = research.claim_job(submitted['id']); collection.ensure_intake(research,job)
+    sid = collection.register(research,job,{'url':'https://example.org/backup','title':'Backup source','snippet':'A real stored fixture excerpt.'})
+    with research.engine.begin() as c: research.finish(c,job,{'state':'fixture'})
     destination = tmp_path / 'backup'; backup(research, destination)
     manifest = json.loads((destination / 'manifest.json').read_text(encoding='utf-8'))
-    assert manifest['schema'] == 'research_0005'
+    assert manifest['schema'] == 'research_0007'
+    assert manifest['tables']['r_sources']['rows']==1 and manifest['objects']
     assert 'r_audit' in manifest['tables'] and 'r_workspaces' in manifest['tables']
     from scriptorium.research.service import ResearchService
     name = 'restore_' + db.uid()
@@ -106,6 +114,8 @@ def test_new_tables_backup_restore(research, client, tmp_path):
         with restored.connect() as c:
             assert len(rows(c, db.members, db.members.c.project_id == pid)) == 2
             assert rows(c, db.audit, db.audit.c.project_id == pid)
+            link=row(c,db.run_sources,db.run_sources.c.source_id==sid)
+            assert b'example.org/backup' in target.objects.read(link['payload']['snapshot_key'])
     finally:
         restored.dispose()
         with research.engine.begin() as c:

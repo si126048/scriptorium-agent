@@ -196,12 +196,13 @@ def provider_config(provider_id: str | None = None) -> dict:
 def public(provider_id: str | None = None) -> dict:
     active = provider_id or active_id()
     items = []
+    from .native_search import capabilities
     for entry in CATALOG:
         current = provider_config(entry['id'])
         items.append({'id': entry['id'], 'label': entry['label'], 'base_url': current['base_url'],
                       'model': current['model'], 'key_optional': entry['key_optional'],
                       'configured': current['configured'], 'ready': current['ready'],
-                      'source': current['source']})
+                      'source': current['source'], 'web_search': capabilities(current)['web_search']})
     return {'active': active, 'editable': True, 'storage': storage_kind(),
             'secret_returned': False, 'providers': items}
 

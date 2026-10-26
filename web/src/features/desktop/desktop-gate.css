@@ -5,9 +5,9 @@
   padding: 6vh 1.5rem;
   background:
     radial-gradient(60rem 30rem at 50% -10%, rgba(154, 59, 38, .07), transparent 60%),
-    #f6f4ef;
-  color: #24211c;
-  font-family: ui-serif, "Songti SC", "Noto Serif SC", Georgia, serif;
+    var(--wb-bg);
+  color: var(--wb-ink);
+  font-family: var(--wb-ui);
 }
 @media (prefers-color-scheme: dark) {
   .desktop-gate { background: radial-gradient(60rem 30rem at 50% -10%, rgba(224, 128, 95, .12), transparent 60%), #1d1b18; color: #efe9de; }
@@ -23,7 +23,7 @@
 @media (prefers-color-scheme: dark) {
   .dg-card { border-color: rgba(239, 233, 222, .16); background: rgba(29, 27, 24, .7); box-shadow: 0 24px 60px -40px #000; }
 }
-.dg-mark { margin: 0 0 .6rem; font: 600 .72rem/1.4 ui-sans-serif, system-ui, sans-serif; letter-spacing: .3em; color: #9a3b26; }
+.dg-mark { margin: 0 0 .6rem; font: 600 .72rem/1.4 ui-sans-serif, system-ui, sans-serif; letter-spacing: .3em; color: var(--wb-orange); }
 @media (prefers-color-scheme: dark) { .dg-mark { color: #e0805f; } }
 .dg-card h1 { margin: 0 0 .6rem; font-size: 1.7rem; font-weight: 500; letter-spacing: .02em; }
 .dg-lede { margin: 0 0 1.6rem; color: #6b6459; font-size: .95rem; line-height: 1.7; }
@@ -32,17 +32,17 @@
 .dg-status strong { font-weight: 500; font-size: 1rem; }
 .dg-dot { width: .55rem; height: .55rem; border-radius: 50%; background: #b9a98f; flex: none; }
 .dg-dot.is-ok { background: #4f7a52; }
-.dg-dot.is-error { background: #9a3b26; }
+.dg-dot.is-error { background: var(--wb-orange); }
 .dg-spinner {
   width: .9rem; height: .9rem; margin-left: auto; border-radius: 50%;
-  border: 1.5px solid rgba(154, 59, 38, .25); border-top-color: #9a3b26;
+  border: 1.5px solid rgba(154, 59, 38, .25); border-top-color: var(--wb-orange);
   animation: dg-spin .9s linear infinite;
 }
 @keyframes dg-spin { to { transform: rotate(360deg); } }
 .dg-steps { list-style: none; margin: .4rem 0 1.4rem; padding: 0; display: grid; gap: .55rem; }
 .dg-steps li { display: flex; align-items: center; gap: .65rem; color: #8d8577; font-size: .9rem; }
 .dg-steps li.is-done { color: #4f7a52; }
-.dg-steps li.is-active { color: #24211c; }
+.dg-steps li.is-active { color: var(--wb-ink); }
 @media (prefers-color-scheme: dark) { .dg-steps li.is-active { color: #efe9de; } }
 .dg-step-dot { width: .5rem; height: .5rem; border-radius: 50%; border: 1px solid currentColor; flex: none; }
 .dg-steps li.is-done .dg-step-dot { background: currentColor; }
@@ -53,17 +53,17 @@
   border: 1px solid rgba(36, 33, 28, .2); border-radius: 2px; background: transparent; color: inherit;
   transition: border-color .15s ease, background-color .15s ease;
 }
-.dg-actions button:hover { border-color: #9a3b26; }
+.dg-actions button:hover { border-color: var(--wb-orange); }
 .dg-actions button:disabled { opacity: .55; cursor: progress; }
-.dg-actions .dg-primary { background: #24211c; border-color: #24211c; color: #f6f4ef; }
-.dg-actions .dg-primary:hover { background: #9a3b26; border-color: #9a3b26; }
+.dg-actions .dg-primary { background: var(--wb-ink); border-color: var(--wb-ink); color: var(--wb-bg); }
+.dg-actions .dg-primary:hover { background: var(--wb-orange); border-color: var(--wb-orange); }
 @media (prefers-color-scheme: dark) {
   .dg-actions .dg-primary { background: #efe9de; border-color: #efe9de; color: #1d1b18; }
 }
 .dg-first { border-top: 1px dashed rgba(36, 33, 28, .18); padding-top: 1rem; margin-top: .4rem; }
 .dg-first p { margin: 0; font-size: .88rem; color: #6b6459; }
-.dg-error { border-left: 2px solid #9a3b26; padding: .2rem 0 .2rem .9rem; margin: .4rem 0; }
-.dg-error p { margin: 0 0 .2rem; font-size: .88rem; color: #9a3b26; word-break: break-word; }
+.dg-error { border-left: 2px solid var(--wb-orange); padding: .2rem 0 .2rem .9rem; margin: .4rem 0; }
+.dg-error p { margin: 0 0 .2rem; font-size: .88rem; color: var(--wb-orange); word-break: break-word; }
 .dg-external { display: grid; gap: .7rem; border-top: 1px solid rgba(36, 33, 28, .12); padding-top: 1rem; margin-top: .6rem; }
 .dg-external label { display: grid; gap: .25rem; font-size: .82rem; color: #6b6459; }
 .dg-external input { font: inherit; padding: .5rem .6rem; border: 1px solid rgba(36, 33, 28, .22); border-radius: 2px; background: transparent; color: inherit; }
