@@ -207,25 +207,34 @@ def main():
         browser.require("!!document.querySelector('.unified-workspace')", 90, 'workspace render')
         check('UI-01 统一入口加载研究工作台', True, browser.js('return document.title'))
 
-        # Prompt-free project creation: the UI uses prompt() for the project name.
-        click_text(browser, '.uw-sidebar button', '＋ 项目')
+        # 3.5 creates projects through the ProjectPicker popover and a Radix dialog.
+        browser.js("document.querySelector('button[aria-label=\"创建项目\"]')?.click()")
         fill_dialog(browser, args.project)
-        browser.require(f"[...document.querySelectorAll('.uw-sidebar option')].some(o=>o.textContent==={json.dumps(args.project)})",
-                        30, 'project option')
-        click_text(browser, '.uw-sidebar button', '＋ 新研究')
+        browser.require(f"document.querySelector('.wb-project-picker span')?.textContent==={json.dumps(args.project)}",
+                        30, 'project picker')
+        browser.js("document.querySelector('.wb-new-research')?.click()")
         browser.require("!!document.querySelector('.uw-conversation-header h1')", 30, 'conversation header')
         check('UI-01 同页创建项目与会话', True, browser.js(
             "return document.querySelector('.uw-conversation-header h1').textContent;"))
 
         # Import material through the composer attachment input (same single service).
         browser.set_files('form.uw-composer input[type=file]', [material])
-        browser.require("!!document.querySelector('.uw-material')", 60, 'material listed')
-        processed = browser.wait("[...document.querySelectorAll('.uw-material button')].some(b=>b.textContent.includes('可阅读'))",
+        # CDP fills the file list; React needs the change event in this WebView.
+        browser.js("const i=document.querySelector('form.uw-composer input[type=file]');"
+                   "i.dispatchEvent(new Event('input',{bubbles:true}));"
+                   "i.dispatchEvent(new Event('change',{bubbles:true}));")
+        # CDP sets the file list; React still needs the change event in this WebView.
+        browser.js("const i=document.querySelector('form.uw-composer input[type=file]');"
+                   "i.dispatchEvent(new Event('input',{bubbles:true}));"
+                   "i.dispatchEvent(new Event('change',{bubbles:true}));")
+        click_text(browser, '.wb-nav button', '项目材料')
+        browser.require("!!document.querySelector('.wb-material-row')", 60, 'material listed')
+        processed = browser.wait("[...document.querySelectorAll('.wb-material-row button')].some(b=>b.textContent.includes('可阅读'))",
                                  150, 'material processed')
         check('MAT-01 导入材料并被后台任务处理', processed, browser.js(
-            "return [...document.querySelectorAll('.uw-material button')].map(b=>b.textContent).join(' | ');"))
+            "return [...document.querySelectorAll('.wb-material-row button')].map(b=>b.textContent).join(' | ');"))
 
-        click_text(browser, '.uw-material button', '')
+        click_text(browser, '.wb-material-row button', '')
         browser.require("!!document.querySelector('.uw-source p[data-source]')", 60, 'reader segments')
         check('MAT-01 原文可阅读', True, browser.js(
             "return document.querySelectorAll('.uw-source p[data-source]').length + ' segments';"))
@@ -321,10 +330,10 @@ def main():
         browser.screenshot(out / '06b-model-provider.png')
 
         # Version comparison must not pretend to work with a single text version (MAT-04).
-        if not browser.js("return !!document.querySelector('.uw-material')"):
+        if not browser.js("return !!document.querySelector('.wb-material-row')"):
             click_text(browser, '.uw-sidebar button', '材料', starts=True)
-            browser.require("!!document.querySelector('.uw-material')", 30, 'material library opened')
-        click_text(browser, '.uw-material button', '')
+            browser.require("!!document.querySelector('.wb-material-row')", 30, 'material library opened')
+        click_text(browser, '.wb-material-row button', '')
         browser.require("!!document.querySelector('.uw-source')", 60, 'reader again')
         disabled = browser.js("""
           const b=[...document.querySelectorAll('.uw-document-body button')].find(x=>x.textContent.includes('比较上一版'));
@@ -382,7 +391,7 @@ def main():
         assert empty_project, 'new project did not open its empty workspace'
         empty = browser.js("""
           return {messages: document.querySelectorAll('.uw-message').length,
-                  materials: document.querySelectorAll('.uw-material').length,
+                  materials: document.querySelectorAll('.wb-material-row').length,
                   welcome: !!document.querySelector('.uw-welcome')};""")
         check('UI-03 切换项目不串消息与材料',
               empty['messages'] == 0 and empty['materials'] == 0 and empty['welcome'], json.dumps(empty))
