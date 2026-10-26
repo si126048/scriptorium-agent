@@ -145,3 +145,18 @@
 .rt-activity[data-state=running] .fd-stamp,.rt-activity[data-state=streaming] .fd-stamp{color:var(--fd-orange);border-color:var(--fd-orange)}
 .rt-activity[data-state=waiting] .fd-stamp{color:var(--fd-amber);border-color:var(--fd-amber)}
 .rt-activity[data-state=failed] .fd-stamp{color:var(--fd-red);border-color:var(--fd-red)}
+
+
+/* dark-mode hard overrides for rules that still carry literal backgrounds in workbench.css */
+.unified-workspace .wb-starters>button{background:transparent!important;color:var(--fd-ink-2)!important;border-bottom-color:var(--fd-seam)!important}
+.unified-workspace .wb-starters>button:hover{background:var(--fd-panel)!important;color:var(--fd-ink)!important}
+.unified-workspace .wb-project-picker{background:transparent!important;color:var(--fd-ink)!important;border:1px solid transparent}
+.unified-workspace .wb-project-picker:hover{background:var(--fd-paper)!important;border-color:var(--fd-seam-strong)}
+.unified-workspace .wb-project-popover{background:var(--fd-paper);border-color:var(--fd-seam-strong);box-shadow:0 18px 50px #00000033}
+.unified-workspace .wb-project-popover input{background:var(--fd-panel);border-color:var(--fd-seam-strong);color:var(--fd-ink)}
+.unified-workspace .wb-project-popover [role=option]{color:var(--fd-ink)}
+.unified-workspace .wb-project-popover [role=option].focused{background:var(--fd-panel)}
+.unified-workspace .wb-select-trigger,.unified-workspace .wb-select-content{background:var(--fd-paper);border-color:var(--fd-seam-strong);color:var(--fd-ink)}
+.unified-workspace .wb-select-item[data-highlighted]{background:var(--fd-panel)}
+.unified-workspace .wb-welcome-secondary label,.unified-workspace .wb-welcome-secondary button{color:var(--fd-muted)!important}
+.unified-workspace .wb-session.selected{background:var(--fd-paper)!important;color:var(--fd-ink)!important}

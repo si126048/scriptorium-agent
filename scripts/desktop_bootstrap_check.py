@@ -91,7 +91,7 @@ def main() -> int:
         workspace = browser.wait("!!document.querySelector('.unified-workspace')", 40, 'workspace after bootstrap')
         check('DESKTOP-04 服务就绪后自动进入工作台', workspace, 'workspace mounted')
 
-        projects = browser.wait("!!document.querySelector('.uw-sidebar select')&&document.querySelectorAll('.uw-sidebar select option').length>0",
+        projects = browser.wait("(document.querySelector('.wb-project-picker span')?.textContent||'').length>0",
                                 30, 'projects loaded through the connected service')
         check('DESKTOP-05 前端与后端连接畅通', projects, '项目列表来自 8010')
 
