@@ -3,9 +3,9 @@ import {Icon} from './Icon';
 
 export interface MissionUsage{used_tokens?:number;reserved_tokens?:number;unknown_calls?:number}
 
-export function MissionBar({project,title,runId,usage,sources,jobs,connected,theme,onTheme,onMenu,onSearch,menu}:{
+export function MissionBar({project,title,runId,usage,sources,jobs,connected,theme,onTheme,onMenu,onSearch,menu,halo,onHalo}:{
   project:string;title:string;runId:string;usage?:MissionUsage;sources:number;jobs:number;
-  connected:boolean;theme:'light'|'dark';onTheme:()=>void;onMenu:()=>void;onSearch:()=>void;menu?:ReactNode;
+  connected:boolean;theme:'light'|'dark';onTheme:()=>void;onMenu:()=>void;onSearch:()=>void;menu?:ReactNode;halo?:boolean;onHalo?:()=>void;
 }){
   const used=usage?.used_tokens||0;const reserved=usage?.reserved_tokens||0;const total=used+reserved;
   const budget=40000;const ratio=Math.min(1,total/budget);
@@ -29,6 +29,8 @@ export function MissionBar({project,title,runId,usage,sources,jobs,connected,the
       <div className="fd-gauge" title="项目来源数量"><div><b>{sources}</b><span>SOURCES</span></div></div>
       <div className="fd-gauge" title="进行中的任务"><div><b>{jobs}</b><span>JOBS</span></div></div>
     </div>
+    {onHalo&&<button className="fd-toggle fd-halo-toggle" onClick={onHalo} aria-label="切换 HALOFLUX 环境光"
+      aria-pressed={!!halo} title="HALOFLUX 环境光"><span className="fd-switch"/><span>HALO</span></button>}
     <button className="fd-toggle" onClick={onTheme} aria-label="切换白班 / 夜班" aria-pressed={theme==='dark'}>
       <span className="fd-switch"/><span>{theme==='dark'?'NIGHT':'DAY'}</span>
     </button>

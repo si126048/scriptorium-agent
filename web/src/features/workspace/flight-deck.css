@@ -204,3 +204,19 @@
 .wb-source-card .uw-inline-actions button{font:9px var(--fd-mono)!important;min-height:24px!important;border:1px solid var(--fd-seam)!important;background:var(--fd-panel)!important;color:var(--fd-ink-2)!important}
 .wb-source-snapshot{border-radius:var(--fd-radius);border-color:var(--fd-seam-strong);background:var(--fd-panel)}
 .wb-task-failure{border-radius:var(--fd-radius);border-color:var(--fd-seam-strong);border-left:3px solid var(--fd-red);background:var(--fd-panel)}
+
+
+/* ---- HALOFLUX ambient layer (optional, noncommercial component) ---- */
+.unified-workspace.fd-halo{background:var(--fd-hull)}
+.fd-halo-layer{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.fd-halo-layer iframe{width:100%;height:100%;border:0;display:block;opacity:.62;filter:saturate(.85)}
+.fd-halo-layer:after{content:"";position:absolute;inset:0;background:
+  radial-gradient(80% 60% at 50% 45%, transparent 0%, color-mix(in srgb,var(--fd-hull) 55%,transparent) 62%, var(--fd-hull) 100%),
+  linear-gradient(color-mix(in srgb,var(--fd-hull) 20%,transparent),color-mix(in srgb,var(--fd-hull) 70%,transparent))}
+.unified-workspace.fd-halo>.uw-sidebar,.unified-workspace.fd-halo>.uw-conversation,.unified-workspace.fd-halo>.uw-document-pane{position:relative;z-index:1}
+.unified-workspace.fd-halo>.uw-conversation{background:color-mix(in srgb,var(--fd-paper) 76%,transparent);backdrop-filter:blur(2px)}
+.unified-workspace.fd-halo .uw-feed{background:transparent}
+.unified-workspace.fd-halo .uw-welcome{background:color-mix(in srgb,var(--fd-paper) 86%,transparent);border:1px solid var(--fd-seam-strong);padding:22px 24px;backdrop-filter:blur(6px)}
+.unified-workspace.fd-halo .uw-composer{background:color-mix(in srgb,var(--fd-panel) 92%,transparent);backdrop-filter:blur(6px)}
+.unified-workspace.fd-halo .uw-sidebar{background:color-mix(in srgb,var(--fd-hull) 88%,transparent);backdrop-filter:blur(4px)}
+.fd-halo-toggle[aria-pressed=true]{border-color:var(--fd-teal);color:var(--fd-teal)}

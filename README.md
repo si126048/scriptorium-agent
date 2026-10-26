@@ -749,6 +749,14 @@ Qwen 结构抽取需要设置 `DASHSCOPE_API_KEY` 环境变量。Qwen 失败时�
 | 验收记录与证据 | [docs/acceptance/](docs/acceptance/) |
 | 体验与设计参考 | [docs/agent-experience-references.md](docs/agent-experience-references.md) |
 
+## 第三方视觉组件
+
+工作台可选的「HALO」环境光背景来自 [HALOFLUX](https://github.com/Ryder191/haloflux)，
+作者 **Ryder191（RYDER CODE / Ms MAIKEBAIs CAT）**，按 **PolyForm Noncommercial License 1.0.0**
+授权，**仅限非商业用途**；该目录不在本仓库 MIT 许可范围内，详见
+[`web/public/haloflux/NOTICE.md`](web/public/haloflux/NOTICE.md) 与
+[`LICENSE`](web/public/haloflux/LICENSE)。为适配桌面工作台，已移除音频与音乐界面。
+
 ## 致谢
 
 Scriptorium 的文档系统（`scriptorium/documents/`）移植自 [MISAKA-Agent](https://github.com/Luciole-Studio/Misaka-Agent)（Copyright 2026 Luciole Studio, [Apache License 2.0](LICENSE-MISAKA)），包括内容寻址存储、层级大纲检测、引文归一化验证和多格式文本提取器。对抗性多视角辩证分析的架构设计亦受 MISAKA 多智能体编排的启发。详见 [NOTICE](NOTICE)。

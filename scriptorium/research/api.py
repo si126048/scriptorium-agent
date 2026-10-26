@@ -638,6 +638,8 @@ def create_app(settings=None, engine=None):
         app.mount('/assets', StaticFiles(directory=dist / 'assets'), name='research-assets')
     if (dist / 'brand').exists():
         app.mount('/brand', StaticFiles(directory=dist / 'brand'), name='brand-assets')
+    if (dist / 'haloflux').exists():
+        app.mount('/haloflux', StaticFiles(directory=dist / 'haloflux'), name='haloflux-assets')
     if (dist / 'favicon.svg').exists():
         @app.get('/favicon.svg', include_in_schema=False)
         def favicon():

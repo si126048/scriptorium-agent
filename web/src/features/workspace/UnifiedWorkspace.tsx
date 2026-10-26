@@ -15,6 +15,7 @@ import { ResearchComposer,type Tool } from './components/ResearchComposer';
 import { Icon } from './components/Icon';
 import { ProjectSidebar, ConversationMenu } from './components/ProjectSidebar';
 import { MissionBar } from './components/MissionBar';
+import { HaloLayer } from './components/HaloLayer';
 import { getTheme, setTheme, type Theme } from '../theme/theme';
 import { SurfaceDialog } from './components/SurfaceDialog';
 import { CommandPalette,type Command } from './components/CommandPalette';
@@ -84,6 +85,8 @@ export default function UnifiedWorkspace() {
   const documentPane = useRef<HTMLDivElement>(null);
   const [panel, setPanel] = useState<Panel>('none');
   const [theme, setThemeState] = useState<Theme>(() => getTheme());
+  const [halo, setHalo] = useState(() => localStorage.getItem('scriptorium_halo') === '1');
+  const toggleHalo = () => { const next = !halo; setHalo(next); localStorage.setItem('scriptorium_halo', next ? '1' : '0'); if (next && theme !== 'dark') { setTheme('dark'); setThemeState('dark'); } };
   const toggleTheme = () => { const next = theme === 'light' ? 'dark' : 'light'; setTheme(next); setThemeState(next); };
   const [assetId, setAssetId] = useState('');
   const [versionId, setVersionId] = useState('');
@@ -451,7 +454,8 @@ export default function UnifiedWorkspace() {
   const commands:Command[]=[{id:'new',title:'开始新研究',group:'操作',icon:'plus',run:()=>{void action(newResearch);}},{id:'settings',title:'设置与模型',group:'操作',icon:'settings',run:()=>setSettingsOpen(true)},{id:'library',title:'检索项目材料',group:'操作',icon:'search',run:()=>{setPanel('search');setLayout('split');}},...conversations.filter(c=>!c.archived).map(c=>({id:'c-'+c.id,title:c.title,group:'研究会话',icon:'chat',run:()=>{void action(()=>chooseConversation(pid,c.id,conversations));}})),...materials.map(m=>({id:'m-'+m.id,title:String(m.metadata.title||m.name),group:'项目材料',icon:'book',run:()=>{void action(()=>openMaterial(m.id));}})),...artifacts.map(a=>({id:'a-'+a.id,title:a.payload.title||'研究文档',group:'文稿与报告',icon:'file',run:()=>{void action(()=>openArtifact(a.id));}}))];
   const selectTab=(tab:DocumentTab)=>void action(()=>tab.kind==='material'?openMaterial(tab.id,tab.version):openArtifact(tab.id));
   const closeTab=(index:number)=>{const remaining=tabs.filter((_,i)=>i!==index);setTabs(remaining);const tab=tabs[index];if((panel==='material'&&sameDocument(tab,{kind:'material',id:assetId,version:versionId}))||(tab.kind==='artifact'&&artifact?.id===tab.id&&panel==='artifact')){if(remaining.length)selectTab(remaining[Math.max(0,index-1)]);else{setPanel('none');setLayout('chat');}}};
-  return <div className={'layout-'+layout+' unified-workspace ' + (panel !== 'none' ? 'uw-document-open ' : '') + (!sidebarOpen ? 'uw-sidebar-collapsed ' : '') + (quiet ? 'uw-quiet' : '')}>
+  return <div className={'layout-'+layout+' unified-workspace ' + (panel !== 'none' ? 'uw-document-open ' : '') + (!sidebarOpen ? 'uw-sidebar-collapsed ' : '') + (quiet ? 'uw-quiet' : '') + (halo ? 'fd-halo' : '')}>
+    <HaloLayer visible={halo}/>
     <ProjectSidebar onSources={openSources} sourceCount={sourceTotal} projects={projects} pid={pid} conversations={conversations} cid={cid} materials={materials} artifacts={artifacts} selected={selected} open={sidebarOpen} busy={busyJobs.length} readOnly={readOnly}
       onToggle={toggleSidebar} onProject={id=>void action(()=>chooseProject(id))} onCreateProject={()=>void action(async()=>{const name=await ask('项目名称');if(!name)return;const p=await request<Project>('/api/v2/projects',{method:'POST',body:JSON.stringify({name})});setProjects(xs=>[...xs,p]);await chooseProject(p.id);})}
       onResearch={()=>void action(newResearch)} onConversation={id=>void action(()=>chooseConversation(pid,id,conversations))} onMaterial={id=>void action(()=>openMaterial(id))} onArtifact={id=>void action(()=>openArtifact(id))} onSelect={id=>setSelected(xs=>xs.includes(id)?xs.filter(x=>x!==id):[...xs,id])} onUpload={upload} onRecordPatch={(id,value)=>action(async()=>{const record=await request<ResearchRecord>(`${root}/artifacts/${id}`);await request(`${root}/records/${id}`,{method:'PUT',body:JSON.stringify({kind:record.kind,revision:record.revision,payload:{...record.payload,...value}})});await loadProject(pid);})} onSearch={()=>setCommandsOpen(true)} onSettings={()=>setSettingsOpen(true)} onTeam={()=>setProjectOpen(true)} onNewManuscript={()=>void action(async()=>{const a=await request<ResearchRecord>(root+'/records',{method:'POST',body:JSON.stringify({kind:'manuscript',payload:{title:'未命名文稿',text:''}})});await loadProject(pid);await openArtifact(a.id);})}/>
@@ -460,7 +464,7 @@ export default function UnifiedWorkspace() {
     <main className="uw-conversation">
       <MissionBar project={projects.find(p=>p.id===pid)?.name||''} title={current?.title||''}
         runId={runId} usage={usage} sources={sourceTotal} jobs={busyJobs.length} connected={eventConnected}
-        theme={theme} onTheme={toggleTheme} onMenu={toggleSidebar} onSearch={()=>setCommandsOpen(true)}
+        theme={theme} onTheme={toggleTheme} onMenu={toggleSidebar} onSearch={()=>setCommandsOpen(true)} halo={halo} onHalo={toggleHalo}
         menu={current?<ConversationMenu onRename={()=>void action(async()=>{const title=await ask('会话名称',current.title);if(title){await request(`${root}/conversations/${cid}`,{method:'PUT',body:JSON.stringify({revision:current.revision,title})});await loadProject(pid);}})} onArchive={()=>void action(async()=>{await request(`${root}/conversations/${cid}`,{method:'PUT',body:JSON.stringify({revision:current.revision,archived:true})});await chooseProject(pid);})}/>:undefined}/>
       {!eventConnected&&cid&&<div className="wb-connection-state" role="status">正在恢复实时连接 · 已保存内容可继续查看</div>}{restoreError&&<div className="uw-error"><span>工作区恢复未完成，已保留草稿。</span><button onClick={()=>void chooseConversation(pid,cid,conversations)}>重新恢复当前会话</button></div>}{error&&<div className="uw-error" role="alert"><span>{/401|LOGIN_REQUIRED/.test(error)?'请登录课题组，或检查服务连接。':/signal|timeout|fetch/i.test(error)?'连接暂时中断，已保存内容和当前输入仍然保留。':'操作未完成，当前内容已保留。'}</span><button className="wb-icon" onClick={()=>setError('')} aria-label="关闭提示"><Icon name="close" size={14}/></button><details><summary>查看详情</summary>{error}</details></div>}
       {notice && <div className="uw-notice" role="status">{notice}<button onClick={() => setNotice('')}>关闭</button></div>}
