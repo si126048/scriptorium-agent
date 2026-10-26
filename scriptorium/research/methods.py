@@ -156,6 +156,13 @@ def generate_validated(service, job, provider, messages, readable):
             if result.outcome in ALLOWED_OUTCOMES[payload['method_id']]:
                 from .citations import sanitize_citations
                 corrections, dropped = sanitize_citations(result, readable)
+                try:
+                    from .timeline import activity
+                    activity(service, job, 'auto-citations', '引文核验', 'completed',
+                             detail=f'AUTO：保留 {len(corrections)} 条精确引文，剔除 {len(dropped)} 条未匹配引文。',
+                             stamp='AUTO', dropped=dropped)
+                except Exception:
+                    pass
                 return result, {'total_tokens': usage_total}, corrections, dropped
         except ValueError:
             pass
