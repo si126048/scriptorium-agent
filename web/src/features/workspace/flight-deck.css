@@ -1,0 +1,124 @@
+/* FLIGHT DECK shell overrides for the 3.5 workbench. Loaded after workbench.css,
+   sources.css and research-timeline.css so it only changes the visual language. */
+.unified-workspace{background:var(--fd-paper);color:var(--fd-ink);font:15px/1.6 var(--fd-ui)}
+.unified-workspace button,.wb-dialog button{border-radius:var(--fd-radius);min-height:30px}
+.unified-workspace input:not([type=checkbox]):not([type=file]),.unified-workspace select,.unified-workspace textarea,
+.wb-dialog input:not([type=checkbox]):not([type=file]),.wb-dialog select,.wb-dialog textarea{
+  border-radius:var(--fd-radius);border-color:var(--fd-seam-strong);background:var(--fd-paper);color:var(--fd-ink);font-family:var(--fd-ui)}
+.unified-workspace :focus-visible,.wb-dialog :focus-visible{outline:2px solid var(--fd-orange);outline-offset:2px}
+
+/* ---- mission bar ---- */
+.uw-conversation-header.fd-bar{height:52px;padding:0 10px 0 8px;gap:10px;background:var(--fd-hull);border-bottom:1px solid var(--fd-seam-strong);display:flex;align-items:center}
+.fd-icon{width:30px;min-width:30px;height:30px;color:var(--fd-ink-2)}
+.fd-icon:hover{background:var(--fd-paper)}
+.fd-status{display:flex;align-items:center;gap:6px;font:9px/1 var(--fd-mono);letter-spacing:.1em;color:var(--fd-muted);flex:none}
+.fd-status b{color:var(--fd-ink-2);font-weight:500}
+.fd-led{width:7px;height:7px;border-radius:50%;background:var(--fd-green);box-shadow:0 0 0 3px color-mix(in srgb,var(--fd-green) 14%,transparent)}
+.fd-led.is-warn{background:var(--fd-amber)}
+.fd-crumb{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.fd-project{font:9px/1.4 var(--fd-mono);letter-spacing:.08em;color:var(--fd-muted);max-width:24%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fd-sep{color:var(--fd-seam-strong)}
+.fd-crumb h1{margin:0;font-size:13.5px;font-weight:600;letter-spacing:.01em;color:var(--fd-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.fd-run{flex:none;border:1px solid var(--fd-seam-strong);background:var(--fd-paper);padding:2px 6px;font:9px var(--fd-mono);letter-spacing:.08em;color:var(--fd-ink-2)}
+.fd-gauges{display:flex;align-items:center;gap:12px;flex:none}
+.fd-gauge{display:flex;align-items:center;gap:5px;font:8.5px/1 var(--fd-mono);letter-spacing:.08em;color:var(--fd-muted)}
+.fd-gauge svg{width:24px;height:24px}
+.fd-gauge b{display:block;color:var(--fd-ink);font-size:10px;letter-spacing:.02em}
+.fd-toggle{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--fd-seam-strong);background:var(--fd-paper);padding:3px 6px;font:9px var(--fd-mono);letter-spacing:.08em;color:var(--fd-ink-2);min-height:24px}
+.fd-switch{width:24px;height:12px;border:1px solid var(--fd-seam-strong);background:var(--fd-hull);position:relative}
+.fd-switch:after{content:"";position:absolute;top:1px;left:1px;width:9px;height:8px;background:var(--fd-ink-2)}
+.fd-toggle[aria-pressed=true] .fd-switch:after{left:12px;background:var(--fd-orange)}
+
+/* ---- rail ---- */
+.uw-sidebar{width:236px;background:var(--fd-hull);border-right:1px solid var(--fd-seam-strong);padding:14px 10px 8px}
+.wb-sidebar-brand{padding:0 4px 14px;border-bottom:1px solid var(--fd-seam);margin-bottom:10px}
+.wb-sidebar-brand strong{font-size:14px;letter-spacing:.08em;text-transform:uppercase}
+.wb-brand-mark{width:28px;height:28px;border-radius:var(--fd-radius);background:var(--fd-paper);border:1px solid var(--fd-seam-strong);color:var(--fd-orange);box-shadow:none}
+.wb-project-switch select{font:11px var(--fd-mono)!important;letter-spacing:.04em}
+.wb-new-research,.wb-sidebar-search{background:var(--fd-paper)!important;border:1px solid var(--fd-seam-strong)!important;border-radius:var(--fd-radius)!important;box-shadow:none;font-size:12px!important}
+.wb-nav{border-bottom:1px solid var(--fd-seam);padding-bottom:10px;gap:2px}
+.wb-nav button{font-size:12px!important;min-height:30px;border-radius:0!important;border-left:2px solid transparent;color:var(--fd-ink-2)}
+.wb-nav button.active{background:var(--fd-paper);color:var(--fd-ink);border-left-color:var(--fd-orange)}
+.wb-nav button span{font:9px var(--fd-mono)}
+.wb-sidebar-section small{font:9px var(--fd-mono);letter-spacing:.12em;color:var(--fd-muted)}
+.wb-session{font-size:12px!important;min-height:30px;border-radius:0!important;border-left:2px solid transparent}
+.wb-session.selected{background:var(--fd-paper);box-shadow:none;border-left-color:var(--fd-orange);color:var(--fd-ink)}
+.wb-session svg{color:var(--fd-muted)}
+.wb-sidebar-footer button{font-size:11px!important;color:var(--fd-ink-2)!important}
+.wb-service-dot{background:var(--fd-green)}
+
+/* ---- conversation / flight log ---- */
+.uw-conversation{background:var(--fd-paper)}
+.uw-feed{padding:18px max(20px,calc((100% - 760px)/2));scrollbar-color:var(--fd-seam-strong) transparent}
+.uw-welcome{margin:5vh auto 6vh;max-width:620px}
+.wb-welcome-mark{background:var(--fd-panel);border:1px solid var(--fd-seam-strong);border-radius:var(--fd-radius);box-shadow:none;color:var(--fd-orange);width:44px;height:44px}
+.uw-welcome h2{font-size:30px;font-weight:600;letter-spacing:-.01em;line-height:1.35}
+.uw-welcome>p{font-size:13px;color:var(--fd-muted)}
+.wb-starters>button{border:1px solid var(--fd-seam)!important;background:var(--fd-panel)!important;border-radius:var(--fd-radius)!important;box-shadow:none;font-size:12.5px!important}
+.wb-starters>button:hover{border-color:var(--fd-seam-strong)!important;background:var(--fd-paper)!important}
+.uw-message{max-width:none;padding:0 0 18px;font-size:15px;line-height:1.75}
+.uw-message.user{background:var(--fd-panel);border:1px solid var(--fd-seam);border-left:3px solid var(--fd-orange);border-radius:var(--fd-radius);padding:10px 14px;margin:0 0 18px}
+.uw-message>small{font:9px var(--fd-mono);letter-spacing:.12em;color:var(--fd-muted)}
+.uw-context-chips button{border-radius:var(--fd-radius)!important;border-color:var(--fd-seam)!important;background:var(--fd-panel)!important;font:10px var(--fd-mono)!important}
+.uw-composer-area{background:linear-gradient(color-mix(in srgb,var(--fd-paper) 0%,transparent),var(--fd-paper) 22%);padding:8px max(20px,calc((100% - 760px)/2)) 10px}
+.uw-composer{background:var(--fd-panel);border:1px solid var(--fd-seam-strong);border-radius:var(--fd-radius);box-shadow:none}
+.uw-composer:focus-within{border-color:var(--fd-orange);box-shadow:0 0 0 3px color-mix(in srgb,var(--fd-orange) 10%,transparent)}
+.uw-composer textarea{font-size:15.5px!important;color:var(--fd-ink)}
+.uw-composer-toolbar button{font:10px var(--fd-mono)!important;letter-spacing:.04em;color:var(--fd-ink-2)}
+.uw-composer-toolbar .uw-send{background:var(--fd-orange);border-radius:var(--fd-radius);width:30px;height:30px}
+.uw-send:disabled{background:var(--fd-seam)!important;color:var(--fd-muted)}
+.wb-composer-caption{font:9px var(--fd-mono);color:var(--fd-muted)}
+.uw-run-card,.uw-decision,.uw-error,.uw-notice{background:var(--fd-panel);border:1px solid var(--fd-seam);border-radius:var(--fd-radius)}
+.uw-notice{border-left:3px solid var(--fd-green)}
+.uw-error{border-left:3px solid var(--fd-red)}
+.uw-decision{border-left:3px solid var(--fd-amber)}
+.uw-run-card>summary small{font:9px var(--fd-mono)}
+
+/* timeline -> flight log */
+.rt-turn{padding:14px 0 18px}
+.rt-turn-header{gap:8px;margin-bottom:12px;font:9px var(--fd-mono);letter-spacing:.08em;color:var(--fd-muted);text-transform:uppercase}
+.rt-turn-header strong{font-size:10px;letter-spacing:.14em;color:var(--fd-ink-2)}
+.rt-turn-state{font:9px var(--fd-mono);letter-spacing:.08em;color:var(--fd-muted);border:1px solid var(--fd-seam);padding:1px 5px;transform:rotate(-1.5deg)}
+.rt-turn-state.waiting{color:var(--fd-amber);border-color:var(--fd-amber)}
+.rt-turn-header>button{margin-left:auto;border:1px solid var(--fd-seam-strong);border-radius:var(--fd-radius);padding:3px 8px;font:9px var(--fd-mono);color:var(--fd-ink-2);min-height:24px}
+.rt-blocks{counter-reset:fd-stage;gap:8px}
+.rt-activity{border-left:1px solid var(--fd-seam-strong);padding-left:12px;counter-increment:fd-stage}
+.rt-activity.is-active{border-color:var(--fd-orange)}
+.rt-activity-toggle{font-size:12.5px;color:var(--fd-ink);gap:8px;padding:4px 0}
+.rt-activity-toggle:before{content:counter(fd-stage,decimal-leading-zero);font:9px var(--fd-mono);color:var(--fd-muted);letter-spacing:.06em;min-width:18px}
+.rt-step-icon{width:14px;height:14px;display:inline-grid;place-items:center;border:1px solid var(--fd-seam-strong);font-size:9px;color:var(--fd-green);border-radius:0}
+.rt-step-icon.working{color:var(--fd-orange);border-color:var(--fd-orange)}
+.rt-activity-body{padding-left:20px;color:var(--fd-ink-2);font-size:12.5px}
+.rt-answer{font-size:15px;line-height:1.75;max-width:70ch}
+.rt-answer a[href^="#anchor-"]{color:var(--fd-amber);border-bottom:1px solid var(--fd-amber-graphic);text-decoration:none}
+.rt-stream-status{font:9px var(--fd-mono);color:var(--fd-muted)}
+.rt-artifacts button{border:1px solid var(--fd-seam-strong);background:var(--fd-panel);border-radius:var(--fd-radius);font:9px var(--fd-mono);color:var(--fd-ink-2);padding:3px 7px}
+.rt-inline-decisions .wb-intake{border:1px solid var(--fd-amber)!important;background:var(--fd-panel)!important;border-radius:var(--fd-radius)}
+
+/* ---- viewport ---- */
+.uw-document-pane{border-left:1px solid var(--fd-seam-strong);background:var(--fd-paper);box-shadow:none;min-width:420px}
+.uw-document-pane>header{height:44px;background:var(--fd-hull);border-bottom:1px solid var(--fd-seam-strong);padding:6px 10px}
+.uw-document-body{padding:22px 26px}
+.wb-document-tabs{background:var(--fd-hull);max-height:34px;min-height:34px;border-bottom:1px solid var(--fd-seam-strong)}
+.wb-document-tab{border-right:1px solid var(--fd-seam)}
+.wb-document-tab>button:first-child{font:9px var(--fd-mono)!important;letter-spacing:.04em;padding:7px 6px 7px 10px!important}
+.wb-document-tab.active{background:var(--fd-paper)}
+.wb-document-tab.active:before{background:var(--fd-orange)}
+.wb-document-kind,.wb-doc-context{font:9px var(--fd-mono);letter-spacing:.08em;color:var(--fd-muted)}
+.wb-document-title{font-size:23px;font-weight:600}
+.wb-reading-prose,.wb-reading-prose .markdown-body{font-size:15.5px;line-height:1.85}
+.uw-source section>p{font-size:17px;line-height:1.85;font-family:var(--fd-ui)}
+.uw-source mark{background:var(--fd-amber-wash);color:inherit;animation:none}
+.uw-selection{background:var(--fd-panel);border:1px solid var(--fd-seam-strong);border-left:3px solid var(--fd-amber);border-radius:var(--fd-radius);box-shadow:none}
+.uw-editor-toolbar{background:var(--fd-hull);border-color:var(--fd-seam);border-radius:var(--fd-radius)}
+.uw-prose-editor{font-size:16px;line-height:1.85}
+.wb-source-card,.wb-intake,.wb-source-library .wb-source-card{border-radius:var(--fd-radius);border-color:var(--fd-seam);background:var(--fd-panel)}
+.wb-dialog,.uw-modal{border-radius:var(--fd-radius);border-color:var(--fd-seam-strong);box-shadow:0 18px 60px #00000022}
+.wb-dialog>header{background:var(--fd-hull)}
+.uw-modal-actions button{border-radius:var(--fd-radius)}
+.uw-modal-actions button:last-child{background:var(--fd-orange);border-color:var(--fd-orange)}
+
+/* narrower screens keep the mission bar readable */
+@media(max-width:1180px){.fd-gauges .fd-gauge:nth-child(n+3){display:none}.fd-project{max-width:32%}}
+@media(max-width:960px){.fd-status b,.fd-project{display:none}.uw-document-pane{min-width:0}}
+@media(max-width:600px){.fd-gauges{display:none}.fd-crumb h1{font-size:13px}}

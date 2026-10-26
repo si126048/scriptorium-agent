@@ -14,6 +14,8 @@ import { CitationReview,type CitationDraft } from './components/CitationReview';
 import { ResearchComposer,type Tool } from './components/ResearchComposer';
 import { Icon } from './components/Icon';
 import { ProjectSidebar, ConversationMenu } from './components/ProjectSidebar';
+import { MissionBar } from './components/MissionBar';
+import { getTheme, setTheme, type Theme } from '../theme/theme';
 import { SurfaceDialog } from './components/SurfaceDialog';
 import { CommandPalette,type Command } from './components/CommandPalette';
 import { SectionBoundary } from './components/SectionBoundary';
@@ -35,6 +37,7 @@ import type {ResearchSource} from './hooks/useSources';
 import {SourceLibrary,IntakeProgress} from './components/SourceLibrary';
 import {TaskFailure} from './components/TaskFailure';
 import './sources.css';
+import './flight-deck.css';
 import { queryClient } from './api/query';
 
 function safeJson(value:string|null):unknown{try{return JSON.parse(value||'null');}catch{return null;}}
@@ -80,6 +83,8 @@ export default function UnifiedWorkspace() {
   const [documentScroll, setDocumentScroll] = useState(0);
   const documentPane = useRef<HTMLDivElement>(null);
   const [panel, setPanel] = useState<Panel>('none');
+  const [theme, setThemeState] = useState<Theme>(() => getTheme());
+  const toggleTheme = () => { const next = theme === 'light' ? 'dark' : 'light'; setTheme(next); setThemeState(next); };
   const [assetId, setAssetId] = useState('');
   const [versionId, setVersionId] = useState('');
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -410,6 +415,7 @@ export default function UnifiedWorkspace() {
   const openSource=async(source:ResearchSource)=>{if(source.asset_id)await openMaterial(source.asset_id,source.version_id||'');};
   const conversationJobs=jobs.filter(j=>j.payload?.conversation_id===cid);
   const busyJobs = jobs.filter(j => ['running', 'queued'].includes(j.state));
+  const runId = (conversationJobs[0]?.id || cid || '').slice(0, 4).toUpperCase();
   // UI-04: unsaved edits and the saved version must stay distinguishable after a reload.
   const card = (a: ResearchRecord) => <article className="uw-artifact-content" key={a.id}>
     <h2>{a.payload.title}</h2>{a.payload.provider_mode === 'demo' && <span className="uw-badge">演示 · 非学术结论</span>}
@@ -452,7 +458,10 @@ export default function UnifiedWorkspace() {
 
 
     <main className="uw-conversation">
-      <header className="uw-conversation-header"><button className="wb-icon" onClick={toggleSidebar} aria-label="切换项目导航"><Icon name="panel"/></button><div className="wb-conversation-title"><small>{projects.find(p=>p.id===pid)?.name||'研究工作台'}</small><h1>{current?.title||'开始一项研究'}</h1></div><button className="wb-icon" aria-label="搜索与操作" onClick={()=>setCommandsOpen(true)}><Icon name="search"/></button>{current&&<ConversationMenu onRename={()=>void action(async()=>{const title=await ask('会话名称',current.title);if(title){await request(`${root}/conversations/${cid}`,{method:'PUT',body:JSON.stringify({revision:current.revision,title})});await loadProject(pid);}})} onArchive={()=>void action(async()=>{await request(`${root}/conversations/${cid}`,{method:'PUT',body:JSON.stringify({revision:current.revision,archived:true})});await chooseProject(pid);})}/>}</header>
+      <MissionBar project={projects.find(p=>p.id===pid)?.name||''} title={current?.title||''}
+        runId={runId} usage={usage} sources={sourceTotal} jobs={busyJobs.length} connected={eventConnected}
+        theme={theme} onTheme={toggleTheme} onMenu={toggleSidebar} onSearch={()=>setCommandsOpen(true)}
+        menu={current?<ConversationMenu onRename={()=>void action(async()=>{const title=await ask('会话名称',current.title);if(title){await request(`${root}/conversations/${cid}`,{method:'PUT',body:JSON.stringify({revision:current.revision,title})});await loadProject(pid);}})} onArchive={()=>void action(async()=>{await request(`${root}/conversations/${cid}`,{method:'PUT',body:JSON.stringify({revision:current.revision,archived:true})});await chooseProject(pid);})}/>:undefined}/>
       {!eventConnected&&cid&&<div className="wb-connection-state" role="status">正在恢复实时连接 · 已保存内容可继续查看</div>}{restoreError&&<div className="uw-error"><span>工作区恢复未完成，已保留草稿。</span><button onClick={()=>void chooseConversation(pid,cid,conversations)}>重新恢复当前会话</button></div>}{error&&<div className="uw-error" role="alert"><span>{/401|LOGIN_REQUIRED/.test(error)?'请登录课题组，或检查服务连接。':/signal|timeout|fetch/i.test(error)?'连接暂时中断，已保存内容和当前输入仍然保留。':'操作未完成，当前内容已保留。'}</span><button className="wb-icon" onClick={()=>setError('')} aria-label="关闭提示"><Icon name="close" size={14}/></button><details><summary>查看详情</summary>{error}</details></div>}
       {notice && <div className="uw-notice" role="status">{notice}<button onClick={() => setNotice('')}>关闭</button></div>}
       {!!researchSources.length&&<button className="wb-source-entry" onClick={openSources}><Icon name="book" size={16}/>查看研究来源 <span>{researchSources.length}</span></button>}
