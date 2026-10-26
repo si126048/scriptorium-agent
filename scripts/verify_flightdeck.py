@@ -38,7 +38,16 @@ def seed(base: str, material: Path) -> dict:
             if materials and materials[0]['status'] == 'ready':
                 break
             time.sleep(1)
-        return {'pid': pid, 'cid': cid, 'job': 'seeded', 'name': name}
+        sent = client.post(f'/api/v2/projects/{pid}/conversations/{cid}/messages',
+                           headers={'Idempotency-Key': 'fd-ask-' + pid},
+                           json={'text': '这些材料里“自由”是在什么意义上使用的？', 'tool': 'ask',
+                                 'provider_mode': 'demo'}).raise_for_status().json()
+        for _ in range(120):
+            job = client.get(f'/api/v2/projects/{pid}/jobs/{sent["id"]}').raise_for_status().json()
+            if job['state'] in {'succeeded', 'failed', 'cancelled'}:
+                break
+            time.sleep(1)
+        return {'pid': pid, 'cid': cid, 'job': job['state'], 'name': name}
 
 
 def main() -> int:
@@ -73,10 +82,6 @@ def main() -> int:
             f"return document.querySelector('.wb-project-picker span')?.textContent==={json.dumps(seeded['name'])}"),
             browser.js("return document.querySelector('.wb-project-picker span')?.textContent||'';"))
 
-        sent = browser.js(f"""return (async()=>{{const r=await fetch('/api/v2/projects/{seeded['pid']}/conversations/{seeded['cid']}/messages',
-          {{method:'POST',headers:{{'Content-Type':'application/json','Idempotency-Key':'fd-live-{seeded['pid']}'}},
-          body:JSON.stringify({{text:'这些材料里“自由”是在什么意义上使用的？',tool:'ask',provider_mode:'demo'}})}});return r.status;}})()""")
-        check('FD-03 提问已提交', sent in (200, 202), str(sent))
         timeline = browser.wait("!!document.querySelector('.rt-turn')", 90, 'timeline turn')
         stamps = browser.js("return [...document.querySelectorAll('.fd-stamp')].map(x=>x.textContent).join(',')")
         check('FD-04 飞行日志与状态章', bool(timeline) and bool(stamps), stamps)
@@ -95,7 +100,7 @@ def main() -> int:
         selection = browser.wait("!!document.querySelector('.uw-selection blockquote')", 20, 'floating selection')
         check('FD-06 原文可读并可选区', bool(selected) and selection, selected)
 
-        browser.js("document.querySelector('.fd-toggle')?.click()")
+        browser.js("document.querySelector('.fd-toggle:not(.fd-halo-toggle)')?.click()")
         dark = browser.wait("document.documentElement.dataset.theme==='dark'", 10, 'dark theme')
         bg = browser.js("return getComputedStyle(document.body).backgroundColor")
         check('FD-07 白班/夜班切换', dark and bg not in ('rgb(245, 243, 236)', ''), bg)
