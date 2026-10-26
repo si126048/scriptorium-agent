@@ -90,7 +90,7 @@ def main() -> int:
         check('FD-02 项目选择器', selected, browser.js(
             "return document.querySelector('.wb-project-picker span')?.textContent||'';"))
         snapshot = browser.js(f"return (async()=>{{const r=await fetch('/api/v2/projects/{seeded['pid']}/conversations/{seeded['cid']}/snapshot');const j=await r.json();return r.status+':'+(j.blocks||[]).length;}})()")
-        check('FD-03 时间线快照可读（DOM 日志见人工截图）', str(snapshot).startswith('200:')
+        check('FD-03 时间线快照可读', str(snapshot).startswith('200:')
               and int(str(snapshot).split(':')[1] or 0) > 0, snapshot)
         browser.js("document.querySelector('.fd-toggle:not(.fd-halo-toggle)')?.click()")
         dark = browser.wait("document.documentElement.dataset.theme==='dark'", 10, 'night shift')

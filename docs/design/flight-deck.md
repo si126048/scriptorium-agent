@@ -38,7 +38,14 @@
 
 - `workbench.css` 仍有约 190 处硬编码颜色；夜班下少数遗留面板仍偏亮，需逐条迁移到 token。
 - 动效只落地了拨杆、状态章与基础过渡；仪表摆针、阶段打勾、引文连线尚未实现。
-- 浏览器验收：`scripts/verify_flightdeck.py` 收敛为 5 项（任务条、项目选择器、时间线快照、主题、480）。时间线 DOM 断言已移除：长期复用的 headless Edge 会挂起，DOM 日志需在干净浏览器中人工截图确认（已用 1440×900 截图验证 `.rt-turn` 渲染）。
+- 浏览器验收：`scripts/verify_flightdeck.py` 收敛为 5 项（任务条、项目选择器、时间线快照、主题、480）。需在**独立启动**的 headless Edge 上运行，否则长期复用的实例会挂起：
+
+  ```powershell
+  python scripts/verify_flightdeck.py --no-launch --port 9561 --out output/acceptance-browser
+  # 2026-10-26：5/5 通过（任务条 / 项目 / 快照 200:3 / 夜班 / 480）
+  ```
+
+  时间线 DOM 的 `.rt-turn` 需在干净浏览器单独截图确认（已确认可渲染），脚本只断言快照 API，避免把浏览器环境的偶发挂起误报成 UI 回归。
 - 未做完整的对比度自动化与 480px 全流程截图。
 
 ## 验收边界
