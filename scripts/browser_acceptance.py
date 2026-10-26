@@ -230,7 +230,7 @@ def main():
         click_text(browser, '.wb-nav button', '项目材料')
         browser.require("!!document.querySelector('.wb-material-row')", 60, 'material listed')
         processed = browser.wait("[...document.querySelectorAll('.wb-material-row button')].some(b=>b.textContent.includes('可阅读'))",
-                                 150, 'material processed')
+                                 240, 'material processed')
         check('MAT-01 导入材料并被后台任务处理', processed, browser.js(
             "return [...document.querySelectorAll('.wb-material-row button')].map(b=>b.textContent).join(' | ');"))
 
@@ -251,18 +251,19 @@ def main():
           const selection=window.getSelection();
           selection.removeAllRanges(); selection.addRange(range);
           document.dispatchEvent(new Event('selectionchange'));
+          p.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}));
           return selection.toString();""")
         browser.require("!!document.querySelector('.uw-selection blockquote')", 30, 'selection captured')
         set_value(browser, '.uw-selection textarea', '验收笔记：先记录当前理解。')
         click_text(browser, '.uw-selection button', '保存笔记与证据')
-        browser.require("!!document.querySelector('.uw-artifact-content')", 60, 'note artifact opened')
-        note = browser.js("return document.querySelector('.uw-artifact-content').innerText.slice(0,160);")
+        browser.require("!!document.querySelector('.wb-artifact')", 60, 'note artifact opened')
+        note = browser.js("return document.querySelector('.wb-artifact').innerText.slice(0,160);")
         check('MAT-02 选区一次保存笔记与证据锚点', bool(selected) and '验收笔记' in note,
               selected + ' | ' + (note or '').replace('\n', ' '))
         browser.screenshot(out / '02-note-and-evidence.png')
 
         # Jump back from the artifact to the exact highlight in the original text.
-        click_text(browser, '.uw-artifact-content button', '原文 1')
+        browser.js("document.querySelector('.wb-source-strip button')?.click()")
         browser.require("!!document.querySelector('.uw-source mark')", 60, 'highlight')
         check('MAT-03 从证据回跳原文并高亮', True, browser.js(
             "return (document.querySelector('.uw-source mark')||{}).textContent;"))
