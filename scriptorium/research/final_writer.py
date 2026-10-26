@@ -37,7 +37,10 @@ def prepare(s,job,rid):
         if any(x['state']!='succeeded' for x in steps if x['payload']['method_id']!='writer.v1'):return
         writer=next((x for x in steps if x['payload']['method_id']=='writer.v1'),None)
         if writer and writer['state']=='succeeded':return
-        if writer and writer['state'] in {'running','failed'} and not job['payload'].get('writer_retry'):
+        auto_mode = job['payload'].get('review_mode', 'auto') == 'auto'
+        interrupted = bool(writer and writer['state'] in {'running', 'failed'} and not job['payload'].get('writer_retry'))
+        auto_retry = bool(interrupted and auto_mode and not job['payload'].get('writer_auto_retry'))
+        if interrupted and not auto_retry:
             raise ResearchError('FINAL_ANSWER_NEEDS_REVIEW',409)
         reports=[row(c,db.records,db.records.c.id==x['result']['record_id']) for x in steps if (x.get('result') or {}).get('record_id')]
         composed=assemble(run['question'],reports,steps,run['settings']['provider_mode'])
@@ -50,7 +53,8 @@ def prepare(s,job,rid):
         if writer:c.execute(db.research_steps.update().where(db.research_steps.c.id==identifier).values(**values))
         else:c.execute(db.research_steps.insert().values(id=identifier,run_id=rid,step_key='zz/final-answer',created_at=db.now(),**values))
         # Only an explicit retry can restart a paid writer after interruption.
-        c.execute(db.jobs.update().where(db.jobs.c.id==job['id']).values(payload={**job['payload'],'writer_retry':False}))
+        c.execute(db.jobs.update().where(db.jobs.c.id==job['id']).values(payload={**job['payload'],
+            'writer_retry':False, 'writer_auto_retry':job['payload'].get('writer_auto_retry',False) or auto_retry}))
         from .timeline import put
         analyzing=row(c,db.timeline_blocks,db.timeline_blocks.c.job_id==job['id'],db.timeline_blocks.c.block_key=='phase:analyzing')
         if analyzing:put(c,s,job,'phase:analyzing','activity','completed',analyzing['payload'])
@@ -58,6 +62,9 @@ def prepare(s,job,rid):
         put(c,s,job,'answer','answer','streaming',{'text':'','offset':0})
         plan=row(c,db.timeline_blocks,db.timeline_blocks.c.job_id==job['id'],db.timeline_blocks.c.block_key=='plan')
         if plan:put(c,s,job,'plan','plan','running',{**plan['payload'],'current_index':3})
+    if auto_retry:
+        activity(s,job,'auto-writer','最终写作','running',
+                 detail='AUTO：上一次写作中断，自动重试一次；失败保留草稿与账本。', stamp='AUTO')
     activity(s,job,'final-writing','整理有来源的研究回答')
     from .calls import complete
     from .providers import provider

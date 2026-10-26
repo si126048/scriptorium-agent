@@ -39,15 +39,22 @@ def reserve(s, job, provider, messages, output_tokens, run_id=None):
             run = c.execute(sa.select(db.research_runs).where(
                 db.research_runs.c.id == run_id).with_for_update()).mappings().first()
             totals = usage_totals(c, run_id)
-            if not run or totals['used_tokens'] + totals['reserved_tokens'] + estimate > run['settings']['token_budget'] - (run['settings'].get('writer_reservation',0) if job['kind']=='method' else 0):
-                raise ResearchError('CALL_BUDGET_REQUIRED', 409)
+            requested = run['settings']['token_budget'] if run else 0
+            committed = totals['used_tokens'] + totals['reserved_tokens'] + estimate
+            if not run or committed > requested - (run['settings'].get('writer_reservation', 0) if job['kind'] == 'method' else 0):
+                ceiling = int(os.getenv('SCRIPTORIUM_AUTO_TOKEN_CEILING', '200000'))
+                if job['payload'].get('review_mode', 'auto') != 'auto' or committed > ceiling:
+                    raise ResearchError('CALL_BUDGET_REQUIRED', 409)
         if job['payload'].get('tool') == 'auto' and not run_id:
             c.execute(sa.select(db.projects.c.id).where(db.projects.c.id == job['project_id']).with_for_update())
             existing = rows(c, db.model_calls, db.model_calls.c.job_id == job['id'])
             spent = sum((v['usage'] or {}).get('total_tokens', 0) +
                 (v['reserved_tokens'] if v['state'] in {'reserved', 'unknown'} else 0) for v in existing)
-            if spent + estimate > job['payload'].get('_auto_total_budget', job['payload'].get('token_budget', 40000)):
-                raise ResearchError('CALL_BUDGET_REQUIRED', 409)
+            requested = job['payload'].get('_auto_total_budget', job['payload'].get('token_budget', 40000))
+            if spent + estimate > requested:
+                ceiling = int(os.getenv('SCRIPTORIUM_AUTO_TOKEN_CEILING', '200000'))
+                if job['payload'].get('review_mode', 'auto') != 'auto' or spent + estimate > ceiling:
+                    raise ResearchError('CALL_BUDGET_REQUIRED', 409)
         c.execute(db.model_calls.insert().values(id=identifier, project_id=job['project_id'], job_id=job['id'],
             run_id=run_id, model=provider.model, state='reserved', reserved_tokens=estimate,
             source_assets=source_assets, created_at=db.now()))
