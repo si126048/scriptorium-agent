@@ -220,3 +220,17 @@
 .unified-workspace.fd-halo .uw-composer{background:color-mix(in srgb,var(--fd-panel) 92%,transparent);backdrop-filter:blur(6px)}
 .unified-workspace.fd-halo .uw-sidebar{background:color-mix(in srgb,var(--fd-hull) 88%,transparent);backdrop-filter:blur(4px)}
 .fd-halo-toggle[aria-pressed=true]{border-color:var(--fd-teal);color:var(--fd-teal)}
+
+
+/* mechanical motion: gauge needle, stage tick, stamp press, LED */
+.fd-gauge svg circle:last-of-type{transition:stroke-dasharray var(--m-gauge) var(--ease-mech)}
+.fd-led{transition:background-color var(--m-base) var(--ease-mech),box-shadow var(--m-base) var(--ease-mech)}
+.rt-step-icon{transition:transform var(--m-fast) var(--ease-mech),color var(--m-fast),border-color var(--m-fast)}
+.rt-activity[data-state=completed] .rt-step-icon{animation:fd-tick var(--m-base) var(--ease-mech) both}
+.fd-stamp{animation:fd-stamp var(--m-fast) var(--ease-mech) both}
+.rt-activity-toggle:hover .rt-step-icon{transform:translateY(-1px)}
+.uw-composer .uw-send{transition:background-color var(--m-fast),transform var(--m-instant)}
+.uw-composer .uw-send:active{transform:translateY(1px)}
+.rt-answer a[href^="#anchor-"]{transition:color var(--m-fast),border-color var(--m-fast)}
+@keyframes fd-tick{from{transform:scale(.72);opacity:.35}to{transform:scale(1);opacity:1}}
+@keyframes fd-stamp{from{transform:rotate(-1.5deg) scale(.92);opacity:.3}to{transform:rotate(-1.5deg) scale(1);opacity:1}}
