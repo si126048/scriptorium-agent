@@ -76,11 +76,13 @@ def main() -> int:
                    "localStorage.setItem('scriptorium_theme','light');")
         browser.send('Page.reload')
         browser.require("!!document.querySelector('.fd-bar')", 60, 'mission bar')
+        dashboard = browser.wait(
+            f"(document.querySelector('.wb-project-picker span')?.textContent||'')==={json.dumps(seeded['name'])}"
+            "&&document.body.innerText.includes('任务台验收')", 60, 'project and conversation selected')
         check('FD-01 任务条与运行号', True, browser.js(
             "return (document.querySelector('.fd-bar')||{}).innerText||'';"))
-        check('FD-02 项目选择器', browser.js(
-            f"return document.querySelector('.wb-project-picker span')?.textContent==={json.dumps(seeded['name'])}"),
-            browser.js("return document.querySelector('.wb-project-picker span')?.textContent||'';"))
+        check('FD-02 项目选择器', dashboard, browser.js(
+            "return document.querySelector('.wb-project-picker span')?.textContent||'';"))
 
         timeline = browser.wait("!!document.querySelector('.rt-turn')", 90, 'timeline turn')
         stamps = browser.js("return [...document.querySelectorAll('.fd-stamp')].map(x=>x.textContent).join(',')")
@@ -91,7 +93,9 @@ def main() -> int:
 
         browser.js("document.querySelector('.wb-nav button:nth-child(2)')?.click()")
         browser.require("!!document.querySelector('.wb-material-row')", 30, 'material row')
-        browser.js("document.querySelector('.wb-material-row button')?.click()")
+        browser.js("const b=[...document.querySelectorAll('.wb-material-row button')]"
+                   ".find(x=>(x.textContent||'').includes('可阅读'));b?.click()")
+        browser.require("!!document.querySelector('.uw-document-pane')", 40, 'document pane')
         browser.require("!!document.querySelector('.uw-source p[data-source]')", 40, 'reader')
         selected = browser.js("""const p=document.querySelector('.uw-source p[data-source]');const t=p.textContent||'';const n=p.firstChild;
           if(!n||t.length<4)return '';const r=document.createRange();r.setStart(n,0);r.setEnd(n,Math.min(8,t.length));
