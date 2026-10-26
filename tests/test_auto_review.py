@@ -1,5 +1,10 @@
-from scriptorium.research.citations import sanitize_citations
-from scriptorium.research.methods import Citation, Finding, MethodResult
+import pytest
+
+# CI installs the core package only; the research extras are optional there.
+pytest.importorskip('sqlalchemy')
+
+from scriptorium.research.citations import sanitize_citations  # noqa: E402
+from scriptorium.research.methods import Citation, Finding, MethodResult  # noqa: E402
 
 
 def test_auto_mode_keeps_exact_citations_and_drops_the_rest():
