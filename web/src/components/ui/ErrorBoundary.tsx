@@ -24,15 +24,15 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <div className="flex flex-col items-center justify-center h-screen gap-4 text-center px-8">
-          <h1 className="text-xl font-semibold text-red-600 dark:text-red-400">
+        <div className="error-boundary">
+          <h1>
             渲染错误
           </h1>
-          <p className="text-sm opacity-70 max-w-md">
+          <p>
             {this.state.error.message}
           </p>
           <button
-            className="px-4 py-2 rounded bg-accent text-white text-sm"
+            
             onClick={this.retry}
           >
             重试
