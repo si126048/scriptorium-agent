@@ -126,7 +126,7 @@ def generate_validated(service, job, provider, messages, readable):
         draft = row(c, db.method_drafts, db.method_drafts.c.job_id == job['id'])
     if draft and draft['state'] == 'resolved':
         result = MethodResult.model_validate(draft['payload']['result'])
-        return result, draft['payload'].get('usage'), validate_citations(result, readable)
+        return result, draft['payload'].get('usage'), validate_citations(result, readable), []
     usage_total, content, error = 0, '', 'MODEL_STRUCTURE_INVALID'
     for attempt in range(2):
         response, usage, _ = complete(service, job, provider, messages,
@@ -140,7 +140,7 @@ def generate_validated(service, job, provider, messages, readable):
             if result.outcome not in ALLOWED_OUTCOMES[payload['method_id']]:
                 raise ResearchError('METHOD_OUTCOME_INVALID', 422)
             corrections = validate_citations(result, readable)
-            return result, {'total_tokens': usage_total}, corrections
+            return result, {'total_tokens': usage_total}, corrections, []
         except (ValueError, ResearchError) as exc:
             error = exc.code if isinstance(exc, ResearchError) else 'MODEL_STRUCTURE_INVALID'
         messages = [*messages, {'role': 'assistant', 'content': content}, {'role': 'user',
@@ -150,6 +150,15 @@ def generate_validated(service, job, provider, messages, readable):
         result_data = json.loads(content)
     except ValueError:
         result_data = None
+    if payload.get('review_mode') == 'auto' and result_data is not None and error.startswith('CITATION'):
+        try:
+            result = MethodResult.model_validate(result_data)
+            if result.outcome in ALLOWED_OUTCOMES[payload['method_id']]:
+                from .citations import sanitize_citations
+                corrections, dropped = sanitize_citations(result, readable)
+                return result, {'total_tokens': usage_total}, corrections, dropped
+        except ValueError:
+            pass
     with service.engine.begin() as c:
         service.access(c, job['project_id'], payload.get('principal', service.settings.principal), True)
         service.locked_job(c, job)
@@ -253,7 +262,7 @@ def execute(service, job):
         generated = generate_validated(service, job, provider, messages, readable)
         if generated is None:
             return
-        result, usage, corrections = generated
+        result, usage, corrections, _dropped = generated
         model = provider.model
     allowed_outcomes = {
         'situating.v1': {'context_candidate', 'undetermined'},

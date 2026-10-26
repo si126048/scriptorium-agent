@@ -33,6 +33,7 @@ class SendIn(BaseModel):
     segment_ids: list[str] = Field(default_factory=list, max_length=2000)
     scope: list[ScopeItem] | None = Field(default=None, max_length=2000)
     network_mode: Literal['auto', 'off'] = 'auto'
+    review_mode: Literal['auto', 'review'] = 'review'
     provider_mode: Literal['live', 'demo'] = 'live'
     participant_id: str | None = None
     persona_id: str | None = None

@@ -39,3 +39,36 @@ def validate_citations(result, readable):
             'version_id': source['version_id']})
         citation.start_codepoint, citation.end_codepoint = start, end
     return corrections
+
+
+def sanitize_citations(result, readable):
+    """AUTO mode: keep exact citations, drop the rest and report what was dropped."""
+    corrections, dropped = [], []
+
+    def keep(citation):
+        source = next((s for s in readable if s['id'] == citation.segment_id), None)
+        if source is None:
+            dropped.append({'segment_id': citation.segment_id, 'quote': citation.exact_quote,
+                            'reason': 'CITATION_OUTSIDE_READ_SCOPE'})
+            return False
+        try:
+            start, end, basis = align(source['text'], citation.exact_quote, citation.start_codepoint,
+                                      citation.end_codepoint, citation.prefix, citation.suffix)
+        except ResearchError as exc:
+            dropped.append({'segment_id': citation.segment_id, 'quote': citation.exact_quote,
+                            'reason': exc.code})
+            return False
+        corrections.append({'index': len(corrections), 'segment_id': source['id'], 'basis': basis,
+                            'model_start': citation.start_codepoint, 'model_end': citation.end_codepoint,
+                            'start': start + source['source_offset'], 'end': end + source['source_offset'],
+                            'version_id': source['version_id']})
+        citation.start_codepoint, citation.end_codepoint = start, end
+        return True
+
+    for finding in result.findings:
+        finding.citations = [citation for citation in finding.citations if keep(citation)]
+    if result.immanent:
+        result.immanent.citations = [citation for citation in result.immanent.citations if keep(citation)]
+    if result.parallax:
+        result.parallax.citations = [citation for citation in result.parallax.citations if keep(citation)]
+    return corrections, dropped
