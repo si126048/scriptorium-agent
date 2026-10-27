@@ -13,7 +13,7 @@
 | `oxlint` | 0 警告 |
 | `ruff` | 通过 |
 | 浏览器验收 | 12/12（独立 headless Edge） |
-| 全量测试 | 上一次完整运行 427 passed / 2 skipped；本轮 `r23-suite.log` 仍在跑（约 67%） |
+| 全量测试 | 427 passed / 2 skipped（2026-10-27） |
 | CI | `8bbf5d7` 上次查询为 in_progress；更早提交 success |
 | 未提交 | 1 个文档 |
 
@@ -34,7 +34,7 @@
 | ID | 事项 | 状态 | 下一步 |
 |---|---|---|---|
 | P0-1 | 提交 `docs/design/flight-deck.md` 验收记录与最终截图章节 | 未提交 | `git add docs/design/flight-deck.md && git commit && git push` |
-| P0-2 | 收集本轮全量测试结果 | 运行中（约 67%） | 等 job `pwsh-0ed940185fa94867` 完成，确认 427+；若失败按日志修 |
+| P0-2 | 收集本轮全量测试结果 | 已完成 | 427 passed / 2 skipped |
 | P0-3 | 确认 `8bbf5d7` CI | 未确认 | GitHub Actions 查询；rate limit 时稍后重试 |
 
 ### P1 验收缺口
@@ -66,7 +66,7 @@
 
 ## 建议顺序
 
-1. **P0-2 / P0-3**：确认测试与 CI
+1. **P0-3**：确认测试与 CI（测试已完成）
 2. **P0-1**：提交并推送文档
 3. **P1-2 / P1-3**：对比度扫描 + 键盘焦点
 4. **P1-1**：480 全流程
