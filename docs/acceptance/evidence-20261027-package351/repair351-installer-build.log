@@ -1,9 +1,0 @@
-        Info Looking up installed tauri packages to check mismatched versions...
-   Compiling scriptorium-desktop v3.5.1 (D:\ai\hermeneut-agent\src-tauri)
-    Finished `release` profile [optimized] target(s) in 1m 55s
-       Built application at: D:\ai\hermeneut-agent\src-tauri\target\release\scriptorium-desktop.exe
-        Info Patching D:\ai\hermeneut-agent\src-tauri\target\release\scriptorium-desktop.exe with bundle type information: nsis
-        Info Target: x64
-     Running makensis to produce D:\ai\hermeneut-agent\src-tauri\target\release\bundle\nsis\Scriptorium Agent_3.5.1_x64-setup.exe
-    Finished 1 bundle at:
-        D:\ai\hermeneut-agent\src-tauri\target\release\bundle\nsis\Scriptorium Agent_3.5.1_x64-setup.exe (135.15 MiB)

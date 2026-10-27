@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-label="Scriptorium: Read closely. Argue carefully.">
+<rect width="1200" height="360" rx="24" fill="#f5f1e9"/>
+<path d="M0 304H1200M744 0V360" stroke="#ded7ca"/>
+<circle cx="1100" cy="65" r="155" fill="#ece5d8"/>
+<g transform="translate(56 48)"><rect width="54" height="60" rx="12" fill="#b64b27"/>
+<path d="M13 15L28 11V40L13 44ZM29 20L43 16V45L29 49Z" fill="#fffaf1"/>
+<path d="M20 20V36M36 25V40" stroke="#b64b27" stroke-width="2"/></g>
+<text x="130" y="88" font-family="Georgia,serif" font-size="40" fill="#292b27">Scriptorium</text>
+<text x="58" y="176" font-family="Georgia,serif" font-size="40" fill="#292b27">Read closely.</text>
+<text x="58" y="224" font-family="Georgia,serif" font-size="40" fill="#b64b27">Argue carefully.</text>
+<text x="60" y="276" font-family="Arial,sans-serif" font-size="17" fill="#65685e">A research and writing companion for your agent.</text>
+<text x="58" y="337" font-family="monospace" font-size="13" fill="#64665b" letter-spacing="2">HUMANITIES / EVIDENCE / MCP + ACP</text>
+<g font-family="Arial,sans-serif"><rect x="808" y="65" width="326" height="62" rx="10" fill="#fffcf6" stroke="#d8cebc"/><text x="831" y="91" font-size="12" fill="#b64b27">01 / READ</text><text x="831" y="113" font-size="18" fill="#292b27">Sources in their own words</text>
+<path d="M970 130V149" stroke="#b64b27" stroke-width="2"/>
+<rect x="808" y="153" width="326" height="62" rx="10" fill="#fffcf6" stroke="#d8cebc"/><text x="831" y="179" font-size="12" fill="#b64b27">02 / QUESTION</text><text x="831" y="201" font-size="18" fill="#292b27">Claims with traceable evidence</text>
+<path d="M970 218V237" stroke="#b64b27" stroke-width="2"/>
+<rect x="808" y="241" width="326" height="62" rx="10" fill="#b64b27"/><text x="831" y="267" font-size="12" fill="#ffddc6">03 / WRITE</text><text x="831" y="289" font-size="18" fill="#fffaf1">A manuscript you can revise</text></g>
+</svg>

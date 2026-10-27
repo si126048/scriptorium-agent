@@ -1,44 +1,39 @@
 [project]
 name = "scriptorium"
-version = "3.5.1"
-description = "Scriptorium — humanities research agent: evidence-anchored, multi-perspective critical interpretation of versioned sources"
+version = "3.6.0"
+description = "Evidence-grounded humanities research tools for MCP and ACP agents"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "LICENSE-MISAKA", "NOTICE"]
 requires-python = ">=3.12"
-dependencies = ["fastapi>=0.115", "uvicorn>=0.34", "pydantic>=2.10", "pypdf>=5.0", "httpx>=0.28", "openai>=1.0", "aiosqlite>=0.20", "python-multipart>=0.0.9", "mcp>=1.0,<2", "numpy>=2.0", "scikit-learn>=1.5", "ripser>=0.6", "python-dotenv>=1.0"]
+dependencies = ["pydantic>=2.10", "mcp>=1.30,<2"]
+
+[project.urls]
+Repository = "https://github.com/si126048/scriptorium-agent"
+Issues = "https://github.com/si126048/scriptorium-agent/issues"
+
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=1", "ruff>=0.5"]
-research = ["sqlalchemy>=2.0,<2.1", "psycopg[binary]>=3.2,<4", "alembic>=1.14,<2", "elasticsearch>=8.17,<9", "lxml>=5,<7", "boto3>=1.35,<2", "pymupdf>=1.24,<2", "PyJWT[crypto]>=2.10,<3", "trafilatura==2.3.1"]
+build = ["hatchling>=1.27"]
+providers = ["openai>=1.0"]
+
 [project.scripts]
-scriptorium = "scriptorium.cli:main"
-scriptorium-acp = "scriptorium.acp.server:main"
-scriptorium-mcp = "scriptorium.mcp_server:main"
-scriptorium-research = "scriptorium.research.cli:main"
+scriptorium = "scriptorium.plugin.__main__:main"
+scriptorium-acp = "scriptorium.plugin.acp:main"
+scriptorium-mcp = "scriptorium.plugin.mcp:main"
+
 [build-system]
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["scriptorium"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 tmp_path_retention_policy = "none"
 addopts = "--basetemp=.test-tmp"
+
 [tool.ruff]
 line-length = 100
-[tool.ruff.lint]
-ignore = [
-    "BLE001",  # blind exception catch — intentional fallback pattern
-    "B008",    # function call in defaults — FastAPI Depends/File pattern
-    "TRY004",  # prefer TypeError — style preference
-    "TRY401",  # redundant exception in logging.exception — style
-    "SIM115",  # use context manager for file open — style
-    "I001",    # import sorting — style
-    "RUF012",  # mutable class attribute — intentional
-    "RUF013",  # implicit Optional — style
-    "PERF102", # .items() vs .values() — style
-    "FLY002",  # f-string vs join — style
-    "ISC004",  # implicit string concat in collection — style
-    "S110",    # try-except-pass — intentional swallow
-    "S608",    # SQL injection check — false positives with parameterized queries
-    "FURB162", # timezone replacement — style
-    "FURB192", # min over sorted — style
-    "C401",    # generator vs set comprehension — style
-]
-[tool.hatch.build.targets.wheel]
-packages = ["scriptorium"]
+target-version = "py312"

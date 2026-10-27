@@ -1,9 +1,0 @@
-{
-  "identifier": "default",
-  "description": "Default permissions for the app",
-  "permissions": [
-    "core:default",
-    "shell:allow-spawn",
-    "store:default"
-  ]
-}

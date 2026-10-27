@@ -1,0 +1,81 @@
+{
+  "status": "passed",
+  "transport": "real MCP stdio",
+  "protocol": "2025-11-25",
+  "tools": [
+    "research_status",
+    "source_import",
+    "sources_list",
+    "source_search",
+    "source_read",
+    "quote_verify",
+    "research_prepare",
+    "manuscript_create",
+    "manuscript_write_section",
+    "manuscript_read",
+    "manuscript_restore_section",
+    "manuscript_export"
+  ],
+  "calls": [
+    {
+      "tool": "source_import",
+      "success": true
+    },
+    {
+      "tool": "source_import",
+      "success": true
+    },
+    {
+      "tool": "source_import",
+      "success": true
+    },
+    {
+      "tool": "source_search",
+      "success": true
+    },
+    {
+      "tool": "quote_verify",
+      "success": true
+    },
+    {
+      "tool": "quote_verify",
+      "success": true
+    },
+    {
+      "tool": "quote_verify",
+      "success": true
+    },
+    {
+      "tool": "research_prepare",
+      "success": true
+    },
+    {
+      "tool": "manuscript_create",
+      "success": true
+    },
+    {
+      "tool": "manuscript_write_section",
+      "success": true
+    },
+    {
+      "tool": "manuscript_export",
+      "success": true
+    }
+  ],
+  "unique_sources": 2,
+  "plugin_model_calls": 0,
+  "installed_outside_source": true,
+  "test_data": "isolated synthetic text only",
+  "artifacts": [
+    {
+      "file": "scriptorium-3.6.0-py3-none-any.whl",
+      "bytes": 32619,
+      "sha256": "c29bcec75d64b2429fc82888bcee2e80421dd8c6d3267ed58b6c8f634254addc"
+    },
+    {
+      "file": "scriptorium-3.6.0-plugin.zip",
+      "bytes": 52377,
+      "sha256": "f478ac961be93878daecfeff7982739d4012afa83cc443ce625190367d6f83fd"
+    }
+  ]
+}

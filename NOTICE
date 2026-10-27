@@ -1,3 +1,14 @@
+Scriptorium 3.6 — plugin-only edition
+Copyright (c) 2026 Scriptorium contributors
+
+The current plugin is MIT-licensed. The former workbench and its adapted
+MISAKA document components have been removed from this source tree.
+The following historical attribution and LICENSE-MISAKA are retained for
+provenance and the repository's earlier revisions; they do not indicate
+that those removed components are still shipped or required.
+
+--- Historical attribution from the pre-plugin workbench ---
+
 Scriptorium
 Copyright (c) 2026 scriptorium contributors
 

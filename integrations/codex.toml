@@ -1,0 +1,3 @@
+[mcp_servers.scriptorium]
+command = "python"
+args = ["-m", "scriptorium.plugin", "mcp", "--workspace", "/ABSOLUTE/PATH/TO/WORKSPACE"]

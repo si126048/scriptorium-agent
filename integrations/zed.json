@@ -1,0 +1,15 @@
+{
+  "agent_servers": {
+    "Scriptorium": {
+      "type": "custom",
+      "command": "python",
+      "args": [
+        "-m",
+        "scriptorium.plugin",
+        "acp",
+        "--workspace",
+        "/ABSOLUTE/PATH/TO/WORKSPACE"
+      ]
+    }
+  }
+}

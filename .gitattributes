@@ -1,34 +1,11 @@
-# Auto detect text files and perform LF normalization
 * text=auto
-
-# Python
 *.py text diff=python
-*.pyc binary
-
-# Rust
-*.rs text
-*.toml text
-
-# Frontend
-*.ts text
-*.tsx text
-*.js text
-*.jsx text
-*.css text
-*.html text
-*.json text
+*.md text
 *.svg text
-
-# Desktop binaries (large, build locally)
-src-tauri/bin/** binary
-*.exe binary
-
-# Icons
-*.ico binary
-*.icns binary
-*.png binary
-
-# Scripts
+*.json text
+*.toml text
 *.sh text eol=lf
 *.ps1 text eol=crlf
-*.bat text eol=crlf
+*.png binary
+*.zip binary
+*.whl binary

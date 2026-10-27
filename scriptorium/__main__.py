@@ -1,3 +1,4 @@
-from .cli import main
+from .plugin.__main__ import main
 
-if __name__ == '__main__': main()
+if __name__ == "__main__":
+    main()

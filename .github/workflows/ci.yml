@@ -1,14 +1,11 @@
-name: CI
-
+name: Research plugin
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
 jobs:
-  backend:
-    name: Python lint & test
+  plugin:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,37 +13,16 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-      - run: pip install -e ".[dev]"
-      - run: ruff check --output-format=github scriptorium/ tests/ scripts/ migrations/
-      - run: pytest tests/ -x --tb=short -q
-
-  frontend:
-    name: Frontend type check & build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - run: pip install -e ".[dev,build]"
+      - run: ruff check scriptorium/ tests/ scripts/
+      - run: python -m scriptorium doctor
+      - run: pytest -q --tb=short
+      - run: python scripts/verify-plugin.py
+      - run: python scripts/build-plugin.py
+      - uses: actions/upload-artifact@v4
         with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - run: cd web && npm ci
-      - run: cd web && npm run lint
-      - run: cd web && npx tsc --noEmit
-      - run: cd web && npm run build
-
-  deployment:
-    name: Deployment manifests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Validate compose files
-        run: |
-          printf 'SCRIPTORIUM_POSTGRES_PASSWORD=test-password\n' > .env.compose
-          docker compose -f compose.research.lite.yml --env-file .env.compose config -q
-          docker compose -f compose.research.yml --env-file .env.compose config -q
-      - name: Quickstart diagnostics
-        run: python scripts/quickstart.py --check || true
+          name: plugin-protocol-evidence
+          path: |
+            output/plugin36-smoke/mcp-check.json
+            output/plugin36-smoke/research-context.json
+            output/scriptorium-3.6.0/

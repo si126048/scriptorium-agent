@@ -1,48 +1,39 @@
-__pycache__/
-*.pyc
-*.pyo
-.pytest_cache/
-.ruff_cache/
-*.egg-info/
-dist/
-build/
-web/node_modules/
-web/dist/
+# Research data and local secrets
+.scriptorium/
 .env
-.env.local
-.env.compose
-data/
-.api/
-.e2e/
-.test-tmp/
-output/
-tmp/
+.env.*
+!.env.example
 *.sqlite
+*.sqlite3
 *.db
 *.db-shm
 *.db-wal
-*.log
-!.pytest_cache/.gitkeep
 
-# Coverage
+# Python / tooling
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.venv-*/
+.pytest_cache/
+.ruff_cache/
+.test-tmp/
 .coverage
 htmlcov/
-coverage.xml
 
-# Tauri
-src-tauri/target/
+# Builds and local test evidence
+output/
+tmp/
+build/
+dist/
+*.log
+
+# Retained local data/builds from the pre-plugin product (not shipped)
+data/
+.api/
+.e2e/
+web/
+src-tauri/
 desktop-build/
-src-tauri/bin/
-src-tauri/gen/
-*.wixproj
-*.wxs
-
-# PyInstaller
-*.manifest
-*.spec.bak
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
+tools/
+node_modules/
