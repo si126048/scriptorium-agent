@@ -45,3 +45,25 @@ def test_auto_mode_keeps_a_result_when_every_citation_is_invalid():
     assert corrections == []
     assert result.findings[0].citations == []
     assert dropped[0]['reason'] == 'CITATION_EXACT_QUOTE_NOT_FOUND'
+
+
+def test_auto_budget_ceiling_finishes_with_a_partial_answer(monkeypatch):
+    from scriptorium.research import automatic
+
+    seen = {}
+    monkeypatch.setattr(automatic.collection, 'associated', lambda *_: [
+        {'association': {'availability': 'fulltext'}},
+        {'association': {'availability': 'restricted'}},
+    ])
+    monkeypatch.setattr(automatic.collection, 'checkpoint', lambda *a, **k: seen.update({'checkpoint': k}))
+    monkeypatch.setattr(automatic, 'reply', lambda s, job, text, state, **k: seen.update(
+        {'text': text, 'state': state, **k}))
+
+    automatic.budget_partial(object(), {'id': 'job-1', 'project_id': 'p-1',
+                                        'payload': {'principal': 'local'}})
+
+    assert seen['state'] == 'partial_completed'
+    assert seen['reason'] == 'CALL_BUDGET_REQUIRED'
+    assert '预算上限' in seen['text']
+    assert '1 份可读全文' in seen['text'] and '1 项受限' in seen['text']
+    assert seen['checkpoint'] == {'decision': 'AUTO_BUDGET_PARTIAL'}

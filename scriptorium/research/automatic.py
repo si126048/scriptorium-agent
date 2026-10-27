@@ -26,6 +26,29 @@ def reply(s,job,text,state='completed',**metadata):
         s.finish(c,job,{'state':state,'text':text,**metadata})
 
 
+def budget_partial(s,job,reason='CALL_BUDGET_REQUIRED'):
+    """AUTO at its ceiling: keep the phase result, finish with an explicit partial answer."""
+    try:
+        latest=collection.associated(s,job['project_id'],job['id'])
+    except Exception:
+        latest=[]
+    full=sum(1 for x in latest if x.get('association',{}).get('availability')=='fulltext')
+    restricted=sum(1 for x in latest if x.get('association',{}).get('availability')=='restricted')
+    text=(f'自动模式已达到本轮调用预算上限，先保留阶段成果：已收集 {len(latest)} 个来源，'
+          f'其中 {full} 份可读全文、{restricted} 项受限。完整的综合分析与逐条引文没有生成；'
+          '来源、阅读记录和已生成的阶段结果都已保留。可以调高预算后重试，'
+          '或在「研究选项」切换到「逐步确认」继续。')
+    try:
+        collection.checkpoint(s,job,'completed',decision='AUTO_BUDGET_PARTIAL')
+    except Exception:
+        pass
+    try:
+        from .timeline import activity
+        activity(s,job,'auto-budget','预算到顶，返回阶段成果','completed',detail=text,stamp='AUTO',reason=reason)
+    except Exception:
+        pass
+    reply(s,job,text,'partial_completed',reason=reason,partial=True)
+
 def pause(s,job,reason):
     collection.checkpoint(s,job,'awaiting_input',decision=reason)
     reply(s,job,{'NATIVE_SEARCH_UNSUPPORTED':'当前模型尚不支持可追溯的原生联网。可以在模型设置中选择支持的千问模型，或仅使用项目材料。',
@@ -180,7 +203,9 @@ def execute(s,job):
         from .native_search import spent
         total_budget=body.get('_auto_total_budget',body.get('token_budget',40000))
         remaining=total_budget-spent(s,job['id'])
-        if remaining<10000:return pause(s,job,'CALL_BUDGET_REQUIRED')
+        if remaining<10000:
+            if job['payload'].get('review_mode','auto')=='auto':return budget_partial(s,job)
+            return pause(s,job,'CALL_BUDGET_REQUIRED')
         collection.checkpoint(s,job,'analyzing',scope=scope,decision=None)
         bound={**body,'scope_snapshot':scope,'asset_ids':list(dict.fromkeys(w['asset_id'] for w in scope)),
             '_auto_total_budget':total_budget,'token_budget':remaining,'methods':body.get('methods') or methods_for(body['text'])}
@@ -197,5 +222,8 @@ def execute(s,job):
         recoverable={'NATIVE_SEARCH_UNSUPPORTED','MODEL_NOT_CONFIGURED','NATIVE_SEARCH_FAILED_USAGE_UNKNOWN','NATIVE_SEARCH_STRUCTURE_INVALID',
             'COLLECTION_REQUEST_LIMIT','COLLECTION_SOURCE_LIMIT','COLLECTION_DOWNLOAD_LIMIT','SOURCE_IMPORT_PENDING',
             'CALL_BUDGET_REQUIRED','PROJECT_BUDGET_REQUIRED','SOURCE_FETCH_INTERRUPTED','FINAL_ANSWER_NEEDS_REVIEW','FINAL_ANSWER_CITATION_INVALID','MODEL_OUTPUT_TRUNCATED','MODEL_REQUEST_FAILED_USAGE_UNKNOWN'}
-        if exc.code in recoverable:return pause(s,job,exc.code)
+        if exc.code in recoverable:
+            if exc.code in {'CALL_BUDGET_REQUIRED','PROJECT_BUDGET_REQUIRED'} and job['payload'].get('review_mode','auto')=='auto':
+                return budget_partial(s,job,exc.code)
+            return pause(s,job,exc.code)
         raise
