@@ -86,6 +86,8 @@ export default function UnifiedWorkspace() {
   const [panel, setPanel] = useState<Panel>('none');
   const [theme, setThemeState] = useState<Theme>(() => getTheme());
   const [halo, setHalo] = useState(() => localStorage.getItem('scriptorium_halo') === '1');
+  const [reviewMode, setReviewMode] = useState<'auto' | 'review'>(() => localStorage.getItem('scriptorium_review_mode') === 'review' ? 'review' : 'auto');
+  const chooseReviewMode = (value: 'auto' | 'review') => { setReviewMode(value); localStorage.setItem('scriptorium_review_mode', value); };
   const toggleHalo = () => { const next = !halo; setHalo(next); localStorage.setItem('scriptorium_halo', next ? '1' : '0'); if (next && theme !== 'dark') { setTheme('dark'); setThemeState('dark'); } };
   const toggleTheme = () => { const next = theme === 'light' ? 'dark' : 'light'; setTheme(next); setThemeState(next); };
   const [assetId, setAssetId] = useState('');
@@ -383,7 +385,7 @@ export default function UnifiedWorkspace() {
       const fingerprint=JSON.stringify([draft,tool,selected,selection,mode,participantId,personaId,method]);
       if(sendKey.current?.text!==fingerprint)sendKey.current={text:fingerprint,key:crypto.randomUUID()};
       await sendMessage(pid,conversationId,{text:draft,tool,
-          ...(selection ? {scope:[{asset_id:assetId,version_id:segments.find(s=>s.id===selection.segment_id)?.version_id,...selection}]} : {asset_ids:selected}), provider_mode:mode,
+          ...(selection ? {scope:[{asset_id:assetId,version_id:segments.find(s=>s.id===selection.segment_id)?.version_id,...selection}]} : {asset_ids:selected}), provider_mode:mode, review_mode:reviewMode,
           participant_id:participantId||null,persona_id:personaId||null,
           methods:method ? [method as 'situating.v1'|'immanent_critique.v1'|'parallax.v1'] : []},sendKey.current.key);
     }
@@ -491,7 +493,7 @@ export default function UnifiedWorkspace() {
         {conversationJobs.filter(j=>j.state==='failed'&&!timelineBlocks.some(b=>b.job_id===j.id)&&!intakes.some(i=>i.job_id===j.id&&['completed','awaiting_input'].includes(i.state))).slice(0,3).map(j=><TaskFailure key={j.id} error={j.error||''} onRetry={()=>void action(async()=>{await request(`${root}/jobs/${j.id}/retry`,{method:'POST'});await loadProject(pid);})} onMaterials={()=>setProjectOpen(true)} onAuto={()=>{setTool('auto');setNotice('已切换为自动。请重新提出研究问题，或补充你希望寻找的材料。');}} onSettings={()=>setSettingsOpen(true)}/>)}
       </div>
       </SectionBoundary><ResearchComposer draft={draft} onDraft={setDraft} onSend={()=>void action(send)} onUpload={f=>void action(()=>upload(f))}
-        disabled={!pid||readOnly||!workspaceReady} busy={busy} tool={tool} method={method} mode={mode} onMode={setMode}
+        disabled={!pid||readOnly||!workspaceReady} busy={busy} tool={tool} method={method} mode={mode} onMode={setMode} reviewMode={reviewMode} onReviewMode={chooseReviewMode}
         onTool={(t,m)=>{setTool(t);setMethod(m);if(t==='persona'||t==='subject'){setPanel('people');setLayout('split');}}} onPeople={()=>{setPanel('people');setLayout('split');}}
         selection={selection} onClearSelection={()=>setSelection(undefined)} materials={selected.map(id=>({id,name:String(materials.find(m=>m.id===id)?.metadata.title||materials.find(m=>m.id===id)?.name||'所选材料')}))}
         onRemoveMaterial={id=>setSelected(xs=>xs.filter(x=>x!==id))} answering={!!activeInterview?.current_question}
