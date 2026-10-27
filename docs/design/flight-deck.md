@@ -34,6 +34,18 @@
 - **视场**：文档区舷窗角标、通道标签、文稿工具栏、来源清单化、浮动选区、失败 caution 面板。
 - **HALOFLUX 环境光**（可选，默认关）：任务条 HALO 拨杆；同源 iframe、低透明度、暗角；打开自动切夜班。授权为非商业组件，见 [README 第三方视觉组件](../../README.md#第三方视觉组件)。
 
+## 最终截图
+
+2026-10-26，真实 3.5 工作台（API 8010），headless Edge 1440×900 / 480×900：
+
+| 场景 | 截图 |
+|---|---|
+| 白班任务台 1440 | [screens/light-1440.png](screens/light-1440.png) |
+| 会话与输入台 1440 | [screens/conversation-1440.png](screens/conversation-1440.png) |
+| 夜班 1440 | [screens/dark-1440.png](screens/dark-1440.png) |
+| HALOFLUX 环境光 1440 | [screens/halo-1440.png](screens/halo-1440.png) |
+| 窄屏 480 | [screens/mobile-480.png](screens/mobile-480.png) |
+
 ## 未完成
 
 - `workbench.css` 仍有约 190 处硬编码颜色；夜班下少数遗留面板仍偏亮，需逐条迁移到 token。
