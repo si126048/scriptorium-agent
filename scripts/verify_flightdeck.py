@@ -18,7 +18,7 @@ from pathlib import Path
 import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from browser_acceptance import Browser, CHECKS, check
+from browser_acceptance import Browser, CHECKS, check, set_value
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -94,7 +94,7 @@ def main() -> int:
               and int(str(snapshot).split(':')[1] or 0) > 0, snapshot)
         browser.js("const b=[...document.querySelectorAll('.wb-nav button')].find(x=>(x.textContent||'').includes('项目材料'));b?.click()")
         browser.require("!!document.querySelector('.wb-material-row')", 40, 'material list')
-        browser.js("const b=[...document.querySelectorAll('.wb-material-row button')].find(x=>(x.textContent||'').includes('可阅读'));b?.click()")
+        browser.js("const b=document.querySelector('.wb-material-row button');b?.click()")
         browser.require("!!document.querySelector('.uw-source p[data-source]')", 60, 'reader')
         check('FD-04 原文阅读器', True, browser.js(
             "return document.querySelectorAll('.uw-source p[data-source]').length + ' segments';"))
@@ -105,14 +105,30 @@ def main() -> int:
         selection = browser.wait("!!document.querySelector('.uw-selection blockquote')", 20, 'floating selection')
         check('FD-05 原文选区', bool(selected) and selection, selected)
 
+        set_value(browser, '.uw-selection textarea', '验收笔记：先记录当前理解。')
+        browser.js("const b=[...document.querySelectorAll('.uw-selection button')].find(x=>(x.textContent||'').includes('保存笔记与证据'));b?.click()")
+        browser.require("!!document.querySelector('.wb-artifact')", 60, 'note artifact')
+        note = browser.js("return (document.querySelector('.wb-artifact')||{}).innerText||''")
+        check('FD-06 选区保存笔记与证据', '验收笔记' in note, note[:80])
+        browser.js("document.querySelector('.wb-source-strip button')?.click()")
+        browser.require("!!document.querySelector('.uw-source mark')", 60, 'evidence highlight')
+        check('FD-07 证据回跳原文高亮', True, browser.js(
+            "return (document.querySelector('.uw-source mark')||{}).textContent||'';"))
+        browser.js("const tabs=[...document.querySelectorAll('.wb-document-tab')];tabs.at(-1)?.querySelector('button')?.click()")
+        browser.require("!!document.querySelector('.wb-artifact')", 30, 'note tab')
+        browser.js("document.querySelector('[aria-label=\"导出文稿\"]')?.click()")
+        export_panel = browser.wait("!!document.querySelector('.wb-inspector')", 20, 'export panel')
+        check('FD-08 导出面板', export_panel, browser.js(
+            "return (document.querySelector('.wb-inspector')||{}).innerText||'';"))
+
         browser.js("document.querySelector('.fd-toggle:not(.fd-halo-toggle)')?.click()")
         dark = browser.wait("document.documentElement.dataset.theme==='dark'", 10, 'night shift')
-        check('FD-06 白班/夜班切换', dark, browser.js("return document.documentElement.dataset.theme||'';"))
+        check('FD-09 白班/夜班切换', dark, browser.js("return document.documentElement.dataset.theme||'';"))
         browser.screenshot(out / 'flightdeck-dark.png')
         browser.send('Emulation.setDeviceMetricsOverride', width=480, height=900, deviceScaleFactor=1, mobile=True)
         time.sleep(1)
         overflow = browser.js("return document.documentElement.scrollWidth<=window.innerWidth+1")
-        check('FD-07 480px 无横向溢出', overflow,
+        check('FD-10 480px 无横向溢出', overflow,
               browser.js("return document.documentElement.scrollWidth+'/'+window.innerWidth"))
         browser.screenshot(out / 'flightdeck-480.png')
     finally:
