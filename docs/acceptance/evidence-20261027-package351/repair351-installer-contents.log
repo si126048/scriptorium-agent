@@ -1,0 +1,32 @@
+
+7-Zip 26.04 (x64) : Copyright (c) 1999-2026 Igor Pavlov : 2026-10-05
+
+Scanning the drive for archives:
+1 file, 141718908 bytes (136 MiB)
+
+Listing archive: D:\ai\hermeneut-agent\src-tauri\target\release\bundle\nsis\Scriptorium Agent_3.5.1_x64-setup.exe
+
+--
+Path = D:\ai\hermeneut-agent\src-tauri\target\release\bundle\nsis\Scriptorium Agent_3.5.1_x64-setup.exe
+Type = Nsis
+Physical Size = 141718908
+Method = LZMA:23
+Solid = +
+Headers Size = 74714
+Embedded Stub Size = 52736
+SubType = NSIS-3 Unicode
+
+   Date      Time    Attr         Size   Compressed  Name
+------------------- ----- ------------ ------------  ------------------------
+                    .....        12288    141666168  $PLUGINSDIR\System.dll
+2026-10-24 17:42:08 .....        26494               $PLUGINSDIR\modern-wizard.bmp
+                    .....         9728               $PLUGINSDIR\nsDialogs.dll
+                    .....        34304               $PLUGINSDIR\nsis_tauri_utils.dll
+                    .....        13316               $PLUGINSDIR\StartMenu.dll
+                    .....        15360               $PLUGINSDIR\NSISdl.dll
+                    .....         7168               $PLUGINSDIR\nsExec.dll
+2026-10-27 13:02:34 .....     13770752               scriptorium-desktop.exe
+2026-10-27 12:59:56 ....A    138952564               scriptorium-backend.exe
+                    .....                            uninstall.exe
+------------------- ----- ------------ ------------  ------------------------
+2026-10-27 13:02:34          152841974    141666168  10 files

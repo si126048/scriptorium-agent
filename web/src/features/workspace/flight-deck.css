@@ -239,3 +239,19 @@
 /* tab buttons inherit the global button fill; clear it so the tab surface wins in dark mode */
 .wb-document-tab>button{background:transparent!important;color:inherit!important;border:0!important;box-shadow:none!important}
 .wb-document-tab>button:hover{background:color-mix(in srgb,var(--fd-paper) 70%,transparent)!important}
+
+/* Decisions remain in their research turn, with readable controls in both shifts. */
+.fd-research-decision{padding:18px;min-width:0;overflow-wrap:anywhere}
+.fd-research-decision header{display:grid;gap:6px}
+.fd-decision-label{font:12px var(--fd-mono);color:var(--fd-ink-2)}
+.fd-research-decision h3{font-size:17px;line-height:1.5;margin:0}
+.fd-research-decision p,.fd-research-decision label,.fd-research-decision .wb-decision-impact{font-size:14px;line-height:1.8}
+.fd-research-decision .wb-decision-impact{color:var(--fd-ink-2)}
+.fd-research-decision label{display:grid;gap:6px;margin:12px 0}
+.fd-research-decision input{background:var(--fd-paper);color:var(--fd-ink);border:1px solid var(--fd-seam-strong);min-height:40px}
+.fd-research-decision .uw-inline-actions{display:flex;gap:8px;flex-wrap:wrap}
+.fd-research-decision .uw-inline-actions button,.rt-inline-decisions .wb-collection-decision button{min-height:40px;white-space:normal;font-size:14px;line-height:1.5;padding:8px 12px}
+.fd-decision-error{color:var(--fd-red);border-left:2px solid currentColor;padding:8px 12px;margin-top:12px;overflow-wrap:anywhere}
+.fd-decision-error p{margin:0}.fd-decision-error details{margin-top:6px}
+.wb-project-popover :focus-visible,.wb-select-content :focus-visible{outline:2px solid var(--fd-orange);outline-offset:2px}
+@media(max-width:600px){.fd-research-decision{padding:14px}.fd-research-decision .uw-inline-actions{flex-direction:column;align-items:stretch}.fd-research-decision .uw-inline-actions button{width:100%}}

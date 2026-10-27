@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-27",
+  "fixture": "isolated-postgresql-demo-provider",
+  "paid_calls": 0,
+  "width": 480,
+  "no_horizontal_overflow": true,
+  "auto_partial_to_complete_same_turn": true,
+  "draft_after_refresh": true,
+  "reselect_project_keeps_draft": true,
+  "review_keyboard_order": [
+    "additional_tokens",
+    "accept",
+    "reject"
+  ],
+  "focus_outline": "solid",
+  "decision_contrast_day": [
+    {
+      "ratio": 7.2544435480626355,
+      "text": "需要你的确认"
+    },
+    {
+      "ratio": 14.099953865943624,
+      "text": "研究额度不足"
+    },
+    {
+      "ratio": 14.099953865943624,
+      "text": "继续处理需要追加研究预算。"
+    },
+    {
+      "ratio": 7.2544435480626355,
+      "text": "追加额度仅用于当前研究；已有结果、来源和调用用量会保留。"
+    }
+  ],
+  "decision_contrast_night": [
+    {
+      "ratio": 7.572622695471634,
+      "text": "需要你的确认"
+    },
+    {
+      "ratio": 12.304468126502034,
+      "text": "研究额度不足"
+    },
+    {
+      "ratio": 12.304468126502034,
+      "text": "继续处理需要追加研究预算。"
+    },
+    {
+      "ratio": 7.572622695471634,
+      "text": "追加额度仅用于当前研究；已有结果、来源和调用用量会保留。"
+    }
+  ],
+  "decision_network_failure_keeps_card": true,
+  "decision_network_failure_announced_inline": true
+}

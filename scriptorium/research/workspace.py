@@ -141,6 +141,7 @@ def run_research(s, job):
             s.access(c, pid, principal, True)
             s.locked_job(c, job)
             settings = {'origin_job_id': job['id'], 'token_budget': payload.get('token_budget', 40000),
+                'review_mode': payload.get('review_mode', 'auto'),
                 'max_nodes': 6, 'max_rounds': 2, 'writer_reservation': 6000, 'nodes': ['final_answer'], 'provider_mode': payload.get('provider_mode', 'live')}
             c.execute(db.research_runs.insert().values(id=rid, project_id=pid, conversation_id=cid,
                 question=payload['text'], state='running', scope=scope, settings=settings,
@@ -231,6 +232,10 @@ def run_research(s, job):
             child_id = (step['result'] or {}).get('job_id')
             if not child_id:
                 if run['used_tokens'] + estimate > run['settings']['token_budget']:
+                    if payload.get('tool')=='auto' and payload.get('review_mode','auto')=='auto':
+                        from .automatic import finish_budget_partial
+                        finish_budget_partial(c,s,job)
+                        return
                     decision = {'id': db.uid(), 'run_id': rid, 'project_id': pid, 'kind': 'budget', 'state': 'pending',
                         'payload': {'question': '继续处理需要追加研究预算。', 'suggested_tokens': estimate,
                                  'completed_steps': len(rows(c, db.research_steps, db.research_steps.c.run_id == rid,
@@ -238,7 +243,7 @@ def run_research(s, job):
                     c.execute(db.decisions.insert().values(**decision))
                     c.execute(db.research_runs.update().where(db.research_runs.c.id == rid).values(state='awaiting_input'))
                     add_message(c, pid, cid, 'assistant', '已保留目前结果。继续研究前，请决定是否追加预算。',
-                        metadata={'decision_id': decision['id'], 'run_id': rid})
+                        metadata={'decision_id': decision['id'], 'run_id': rid, 'job_id': job['id']})
                     s.finish(c, job, {'run_id': rid, 'state': 'awaiting_input'})
                     return
                 prior = [r['result']['record_id'] for r in rows(c, db.research_steps, db.research_steps.c.run_id == rid,
@@ -246,6 +251,7 @@ def run_research(s, job):
                 child = s.enqueue(c, pid, 'method', {'method_id': p['method_id'], 'question': p.get('question', run['question']),
                     'segment_ids': list(dict.fromkeys(w['segment_id'] for w in batch)), 'windows': batch, 'prior_artifact_ids': prior,
                     'provider_mode': run['settings']['provider_mode'], 'max_input_chars': 12000,
+                    'review_mode': payload.get('review_mode', 'auto'),
                     'max_output_tokens': 3000, 'run_id': rid, 'principal': principal,
                     'asset_ids': list({w['asset_id'] for w in run['scope']}), 'conversation_id': cid,
                     'premise': p.get('premise')}, f'{rid}-{step["id"]}')
@@ -266,13 +272,17 @@ def run_research(s, job):
                             metadata={'run_id': rid, 'citation_job_id': child_id})
                 s.finish(c, job, {'run_id': rid, 'state': 'awaiting_input'})
                 return
-            if child.get('error') == 'CALL_BUDGET_REQUIRED':
+            if child.get('error') in {'CALL_BUDGET_REQUIRED','PROJECT_BUDGET_REQUIRED'}:
+                if payload.get('tool')=='auto' and payload.get('review_mode','auto')=='auto':
+                    from .automatic import finish_budget_partial
+                    finish_budget_partial(c,s,job,child['error'])
+                    return
                 did = db.uid()
                 c.execute(db.decisions.insert().values(id=did, run_id=rid, project_id=pid, kind='budget',
                     state='pending', payload={'question': '完整提示与修正调用需要追加预算。',
                     'suggested_tokens': max(40000, estimate)}, answer=None, created_at=db.now()))
                 c.execute(db.research_runs.update().where(db.research_runs.c.id == rid).values(state='awaiting_input'))
-                add_message(c, pid, cid, 'assistant', '已保存进度，需要确认额外调用预算。', metadata={'decision_id': did})
+                add_message(c, pid, cid, 'assistant', '已保存进度，需要确认额外调用预算。', metadata={'decision_id': did, 'run_id': rid, 'job_id': job['id']})
                 s.finish(c, job, {'run_id': rid, 'state': 'awaiting_input'})
                 return
             if child['state'] in {'queued', 'running'}:
@@ -315,7 +325,7 @@ def run_research(s, job):
                     answer=None, created_at=db.now()))
                 c.execute(db.research_runs.update().where(db.research_runs.c.id == rid).values(state='awaiting_input'))
                 add_message(c, pid, cid, 'assistant', '审查提出了一个需要你决定的研究方向。',
-                            metadata={'decision_id': did, 'run_id': rid})
+                            metadata={'decision_id': did, 'run_id': rid, 'job_id': job['id']})
                 s.finish(c, job, {'run_id': rid, 'state': 'awaiting_input'})
                 return
 

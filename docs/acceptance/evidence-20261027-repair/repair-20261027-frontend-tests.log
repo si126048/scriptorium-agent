@@ -1,0 +1,20 @@
+✔ long sources bound page size and retain every original code point (3.7832ms)
+✔ citation on a later page and across a boundary retains canonical offsets (2.8037ms)
+✔ empty sources and missing evidence do not invent a location (0.9186ms)
+✔ latest and fixed versions are distinct, undefined and empty latest are the same (0.7006ms)
+✔ concurrent flush callers await one write and see its failure (1.229ms)
+✔ a flush drains changes typed during an in-flight request (0.8429ms)
+✔ revision display preserves both original texts including unicode (0.2144ms)
+✔ CSL import keeps article, translated author and issued date as local metadata (0.4647ms)
+✔ unicode deltas use code points and duplicate events never append twice (1.136ms)
+✔ snapshot resumes the same block and offset gaps require a fresh snapshot (0.6067ms)
+✔ older execution cannot add a late block after recovery (0.1829ms)
+✔ completed markdown paragraphs stay stable while fenced content keeps blank lines (0.37ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 327.1334

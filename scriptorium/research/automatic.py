@@ -28,26 +28,49 @@ def reply(s,job,text,state='completed',**metadata):
 
 def budget_partial(s,job,reason='CALL_BUDGET_REQUIRED'):
     """AUTO at its ceiling: keep the phase result, finish with an explicit partial answer."""
-    try:
-        latest=collection.associated(s,job['project_id'],job['id'])
-    except Exception:
-        latest=[]
-    full=sum(1 for x in latest if x.get('association',{}).get('availability')=='fulltext')
-    restricted=sum(1 for x in latest if x.get('association',{}).get('availability')=='restricted')
+    with s.engine.begin() as c:
+        s.access(c,job['project_id'],job['payload']['principal'],True)
+        s.locked_job(c,job)
+        finish_budget_partial(c,s,job,reason)
+
+
+def finish_budget_partial(c,s,job,reason='CALL_BUDGET_REQUIRED'):
+    """Commit the run, intake, answer and timeline together under the coordinator lease."""
+    s.locked_job(c,job)
+    latest=rows(c,db.run_sources,db.run_sources.c.job_id==job['id'])
+    full=sum(x['payload'].get('availability')=='fulltext' for x in latest)
+    restricted=sum(x['payload'].get('availability')=='restricted' for x in latest)
+    run=next((r for r in rows(c,db.research_runs,db.research_runs.c.project_id==job['project_id'])
+              if r['settings'].get('origin_job_id')==job['id']),None)
+    artifacts=[]
+    if run:
+        artifacts=[x['result']['record_id'] for x in rows(c,db.research_steps,
+            db.research_steps.c.run_id==run['id'],db.research_steps.c.state=='succeeded')
+            if (x.get('result') or {}).get('record_id')]
+        c.execute(db.research_runs.update().where(db.research_runs.c.id==run['id']).values(state='partial_completed'))
     text=(f'自动模式已达到本轮调用预算上限，先保留阶段成果：已收集 {len(latest)} 个来源，'
           f'其中 {full} 份可读全文、{restricted} 项受限。完整的综合分析与逐条引文没有生成；'
-          '来源、阅读记录和已生成的阶段结果都已保留。可以调高预算后重试，'
-          '或在「研究选项」切换到「逐步确认」继续。')
-    try:
-        collection.checkpoint(s,job,'completed',decision='AUTO_BUDGET_PARTIAL')
-    except Exception:
-        pass
-    try:
-        from .timeline import activity
-        activity(s,job,'auto-budget','预算到顶，返回阶段成果','completed',detail=text,stamp='AUTO',reason=reason)
-    except Exception:
-        pass
-    reply(s,job,text,'partial_completed',reason=reason,partial=True)
+          '来源、阅读记录和已生成的阶段结果都已保留。可以在本回合追加额度后从检查点继续。')
+    intake=row(c,db.intakes,db.intakes.c.job_id==job['id'])
+    if intake:
+        c.execute(db.intakes.update().where(db.intakes.c.job_id==job['id']).values(state='completed',
+            revision=intake['revision']+1,payload={**intake['payload'],'decision':'AUTO_BUDGET_PARTIAL'}))
+        from .events import emit
+        emit(c,job['project_id'],job['payload']['conversation_id'],'research.phase',{'job_id':job['id'],'phase':'completed'})
+    from .timeline import put
+    if job.get('_timeline_generation'):
+        put(c,s,job,'auto-budget','activity','completed',{'title':'预算到顶，返回阶段成果',
+            'detail':text,'stamp':'AUTO','reason':reason,'artifact_ids':artifacts})
+    identifier='auto-'+job['id']+'-partial_completed'
+    metadata={'job_id':job['id'],'partial':True,'reason':reason}
+    message=row(c,db.messages,db.messages.c.id==identifier)
+    if not message:
+        add_message(c,job['project_id'],job['payload']['conversation_id'],'assistant',text,
+            artifacts,metadata,identifier=identifier)
+    else:
+        c.execute(db.messages.update().where(db.messages.c.id==identifier).values(content=text,artifact_ids=artifacts,metadata=metadata))
+    s.finish(c,job,{'state':'partial_completed','text':text,'partial':True,'reason':reason,
+        'artifact_ids':artifacts,**({'run_id':run['id']} if run else {})})
 
 def pause(s,job,reason):
     collection.checkpoint(s,job,'awaiting_input',decision=reason)

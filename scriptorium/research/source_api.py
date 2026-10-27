@@ -160,6 +160,7 @@ def install(app,service,identity):
             job=row(c,db.jobs,db.jobs.c.id==job_id)
             if value['revision']!=body.revision:raise ResearchError('REVISION_CONFLICT',409)
             p=dict(value['payload'])
+            partial=(job.get('result') or {}).get('state')=='partial_completed' and p.get('decision')=='AUTO_BUDGET_PARTIAL'
             if body.action=='resume':
                 if job['state'] not in {'failed','cancelled'}:raise ResearchError('RESEARCH_NOT_RESUMABLE',409)
                 for run in rows(c,db.research_runs,db.research_runs.c.project_id==project_id):
@@ -169,7 +170,7 @@ def install(app,service,identity):
                         child_id=(step['result'] or {}).get('job_id')
                         if child_id:c.execute(db.jobs.update().where(db.jobs.c.id==child_id,db.jobs.c.state.in_(['failed','cancelled'])).values(state='queued',attempts=0,lease_until=None,lease_token=None,error=None))
             else:
-                if value['state']!='awaiting_input':raise ResearchError('REVISION_CONFLICT',409)
+                if value['state']!='awaiting_input' and not (partial and body.action=='continue'):raise ResearchError('REVISION_CONFLICT',409)
                 if p.get('research_run_id') and not p.get('decision'):raise ResearchError('USE_RESEARCH_DECISION',409)
                 if job['state'] in {'running','queued','cancel_requested','cancelled'}:raise ResearchError('RESEARCH_NOT_RESUMABLE',409)
             payload={**job['payload'],'principal':principal,'writer_retry':body.action in {'continue','resume'}}
@@ -177,6 +178,15 @@ def install(app,service,identity):
                 p['limits']={k:p['limits'][k]+v for k,v in collection.DEFAULT_LIMITS.items()}
                 payload['token_budget']=min(1000000,payload.get('_auto_total_budget',payload.get('token_budget',40000))+40000)
                 payload['_auto_total_budget']=payload['token_budget']
+                for run in rows(c,db.research_runs,db.research_runs.c.project_id==project_id):
+                    if run['settings'].get('origin_job_id')!=job_id:continue
+                    c.execute(db.research_runs.update().where(db.research_runs.c.id==run['id']).values(state='running',
+                        settings={**run['settings'],'token_budget':min(1000000,run['settings']['token_budget']+40000)}))
+                    for step in rows(c,db.research_steps,db.research_steps.c.run_id==run['id'],db.research_steps.c.state!='succeeded'):
+                        child_id=(step['result'] or {}).get('job_id')
+                        if child_id:c.execute(db.jobs.update().where(db.jobs.c.id==child_id,
+                            db.jobs.c.state=='failed',db.jobs.c.error.in_(['CALL_BUDGET_REQUIRED','PROJECT_BUDGET_REQUIRED']))
+                            .values(state='queued',attempts=0,lease_until=None,lease_token=None,error=None))
                 p.update(discovered=bool(p.get('scope')),use_collected=bool(p.get('scope')))
                 for call in rows(c,db.discovery_calls,db.discovery_calls.c.job_id==job_id):
                     c.execute(db.discovery_calls.update().where(db.discovery_calls.c.id==call['id']).values(payload={**call['payload'],'retry_authorized':True}))
