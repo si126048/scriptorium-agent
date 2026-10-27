@@ -51,15 +51,15 @@
 
 - `workbench.css` 仍有约 154 处一次性色值；夜班下少数遗留面板仍偏亮，需逐条迁移到 token。
 - 动效只落地了拨杆、状态章与基础过渡；仪表摆针、阶段打勾、引文连线尚未实现。
-- 浏览器验收：`scripts/verify_flightdeck.py` 覆盖 10 项（任务条、项目选择器、时间线快照、原文阅读器、原文选区、保存笔记、证据回跳、导出面板、主题、480）。需在**独立启动**的 headless Edge 上运行，否则长期复用的实例会挂起：
+- 浏览器验收：`scripts/verify_flightdeck.py` 覆盖 12 项（任务条、项目选择器、时间线快照、原文阅读器、原文选区、保存笔记、证据回跳、导出面板、白班对比度、主题、夜班对比度、480）。需在**独立启动**的 headless Edge 上运行，否则长期复用的实例会挂起：
 
   ```powershell
-  python scripts/verify_flightdeck.py --no-launch --port 9569 --out output/acceptance-browser
-  # 2026-10-27：10/10 通过（含阅读器 4 段、选区、笔记、回跳高亮、导出 DOCX/MD/HTML、夜班、480）
+  python scripts/verify_flightdeck.py --no-launch --port 9576 --out output/acceptance-browser
+  # 2026-10-27：12/12 通过（含 AA 对比度：白班 6.18–15.41，夜班 8.76–14.23）
   ```
 
   时间线 DOM 已通过冷加载补读快照与回答去重修复；脚本仍只断言快照 API，`rt-turn` 的渲染另以截图确认，避免把浏览器环境的偶发挂起误报成 UI 回归。
-- 未做完整的对比度自动化与 480px 全流程截图。
+- 对比度只覆盖 5 个代表元素（标题、连接状态、回答、会话项、文稿标题），不是全站扫描。
 
 ## 验收边界
 

@@ -121,14 +121,31 @@ def main() -> int:
         check('FD-08 导出面板', export_panel, browser.js(
             "return (document.querySelector('.wb-inspector')||{}).innerText||'';"))
 
+        light_contrast = browser.js("""const rgb=c=>{const n=(c.match(/[0-9.]+/g)||[]).map(Number);return n.slice(0,3)};
+        const lum=v=>{v=v.map(x=>{x/=255;return x<=.03928?x/12.92:Math.pow((x+.055)/1.055,2.4)});return .2126*v[0]+.7152*v[1]+.0722*v[2]};
+        const bg=e=>{while(e){const c=getComputedStyle(e).backgroundColor;const n=(c.match(/[0-9.]+/g)||[]).map(Number);if(n.length>=3&&(n.length<4||n[3]>.9))return n.slice(0,3);e=e.parentElement}return [255,255,255]};
+        const ratio=(a,b)=>{const l1=lum(a),l2=lum(b);return (Math.max(l1,l2)+.05)/(Math.min(l1,l2)+.05)};
+        const sels=['.fd-crumb h1','.fd-status','.rt-answer','.wb-session.selected','.wb-document-title'];
+        return sels.map(s=>{const e=document.querySelector(s);if(!e)return s+':missing';return s+':'+ratio(rgb(getComputedStyle(e).color),bg(e)).toFixed(2)}).join(',');""")
+        light_values = [float(x.split(':')[1]) for x in light_contrast.split(',') if ':missing' not in x]
+        check('FD-09 白班对比度（AA 4.5）', bool(light_values) and min(light_values) >= 4.5, light_contrast)
+
         browser.js("document.querySelector('.fd-toggle:not(.fd-halo-toggle)')?.click()")
         dark = browser.wait("document.documentElement.dataset.theme==='dark'", 10, 'night shift')
-        check('FD-09 白班/夜班切换', dark, browser.js("return document.documentElement.dataset.theme||'';"))
+        dark_contrast = browser.js("""const rgb=c=>{const n=(c.match(/[0-9.]+/g)||[]).map(Number);return n.slice(0,3)};
+        const lum=v=>{v=v.map(x=>{x/=255;return x<=.03928?x/12.92:Math.pow((x+.055)/1.055,2.4)});return .2126*v[0]+.7152*v[1]+.0722*v[2]};
+        const bg=e=>{while(e){const c=getComputedStyle(e).backgroundColor;const n=(c.match(/[0-9.]+/g)||[]).map(Number);if(n.length>=3&&(n.length<4||n[3]>.9))return n.slice(0,3);e=e.parentElement}return [255,255,255]};
+        const ratio=(a,b)=>{const l1=lum(a),l2=lum(b);return (Math.max(l1,l2)+.05)/(Math.min(l1,l2)+.05)};
+        const sels=['.fd-crumb h1','.fd-status','.rt-answer','.wb-session.selected','.wb-document-title'];
+        return sels.map(s=>{const e=document.querySelector(s);if(!e)return s+':missing';return s+':'+ratio(rgb(getComputedStyle(e).color),bg(e)).toFixed(2)}).join(',');""")
+        dark_values = [float(x.split(':')[1]) for x in dark_contrast.split(',') if ':missing' not in x]
+        check('FD-11 夜班对比度（AA 4.5）', bool(dark_values) and min(dark_values) >= 4.5, dark_contrast)
+        check('FD-10 白班/夜班切换', dark, browser.js("return document.documentElement.dataset.theme||'';"))
         browser.screenshot(out / 'flightdeck-dark.png')
         browser.send('Emulation.setDeviceMetricsOverride', width=480, height=900, deviceScaleFactor=1, mobile=True)
         time.sleep(1)
         overflow = browser.js("return document.documentElement.scrollWidth<=window.innerWidth+1")
-        check('FD-10 480px 无横向溢出', overflow,
+        check('FD-12 480px 无横向溢出', overflow,
               browser.js("return document.documentElement.scrollWidth+'/'+window.innerWidth"))
         browser.screenshot(out / 'flightdeck-480.png')
     finally:
