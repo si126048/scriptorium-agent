@@ -168,6 +168,9 @@ export default function UnifiedWorkspace() {
       setHasOlder(result.length===80);setMessageLimit(80);
       if (active.current.pid !== projectId || active.current.cid !== conversationId) return;
       setMessages(result);
+      // Timeline blocks can race the event snapshot on a cold load; re-read once after history.
+      try { const snap = await request<{blocks:TimelineBlock[]}>(`${projectPath(projectId)}/conversations/${conversationId}/snapshot`,{signal:contextAbort.current.signal});
+        if (active.current.pid===projectId && active.current.cid===conversationId && snap.blocks?.length) setTimelineBlocks(snap.blocks); } catch {}
       setScrollPosition(c?.workspace.scroll || 0); setDocumentScroll(c?.workspace.document_scroll || 0);
       setTimeout(() => { if (feed.current) feed.current.scrollTop = c?.workspace.scroll || 0; }, 80);
       const w = c?.workspace;
