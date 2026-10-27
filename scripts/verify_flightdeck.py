@@ -92,14 +92,27 @@ def main() -> int:
         snapshot = browser.js(f"return (async()=>{{const r=await fetch('/api/v2/projects/{seeded['pid']}/conversations/{seeded['cid']}/snapshot');const j=await r.json();return r.status+':'+(j.blocks||[]).length;}})()")
         check('FD-03 时间线快照可读', str(snapshot).startswith('200:')
               and int(str(snapshot).split(':')[1] or 0) > 0, snapshot)
+        browser.js("const b=[...document.querySelectorAll('.wb-nav button')].find(x=>(x.textContent||'').includes('项目材料'));b?.click()")
+        browser.require("!!document.querySelector('.wb-material-row')", 40, 'material list')
+        browser.js("const b=[...document.querySelectorAll('.wb-material-row button')].find(x=>(x.textContent||'').includes('可阅读'));b?.click()")
+        browser.require("!!document.querySelector('.uw-source p[data-source]')", 60, 'reader')
+        check('FD-04 原文阅读器', True, browser.js(
+            "return document.querySelectorAll('.uw-source p[data-source]').length + ' segments';"))
+        selected = browser.js("""const p=document.querySelector('.uw-source p[data-source]');const t=p.textContent||'';const n=p.firstChild;
+          if(!n||t.length<4)return '';const r=document.createRange();r.setStart(n,0);r.setEnd(n,Math.min(8,t.length));
+          const s=window.getSelection();s.removeAllRanges();s.addRange(r);p.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}));
+          return s.toString();""")
+        selection = browser.wait("!!document.querySelector('.uw-selection blockquote')", 20, 'floating selection')
+        check('FD-05 原文选区', bool(selected) and selection, selected)
+
         browser.js("document.querySelector('.fd-toggle:not(.fd-halo-toggle)')?.click()")
         dark = browser.wait("document.documentElement.dataset.theme==='dark'", 10, 'night shift')
-        check('FD-04 白班/夜班切换', dark, browser.js("return document.documentElement.dataset.theme||'';"))
+        check('FD-06 白班/夜班切换', dark, browser.js("return document.documentElement.dataset.theme||'';"))
         browser.screenshot(out / 'flightdeck-dark.png')
         browser.send('Emulation.setDeviceMetricsOverride', width=480, height=900, deviceScaleFactor=1, mobile=True)
         time.sleep(1)
         overflow = browser.js("return document.documentElement.scrollWidth<=window.innerWidth+1")
-        check('FD-05 480px 无横向溢出', overflow,
+        check('FD-07 480px 无横向溢出', overflow,
               browser.js("return document.documentElement.scrollWidth+'/'+window.innerWidth"))
         browser.screenshot(out / 'flightdeck-480.png')
     finally:
