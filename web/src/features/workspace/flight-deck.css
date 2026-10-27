@@ -234,3 +234,8 @@
 .rt-answer a[href^="#anchor-"]{transition:color var(--m-fast),border-color var(--m-fast)}
 @keyframes fd-tick{from{transform:scale(.72);opacity:.35}to{transform:scale(1);opacity:1}}
 @keyframes fd-stamp{from{transform:rotate(-1.5deg) scale(.92);opacity:.3}to{transform:rotate(-1.5deg) scale(1);opacity:1}}
+
+
+/* tab buttons inherit the global button fill; clear it so the tab surface wins in dark mode */
+.wb-document-tab>button{background:transparent!important;color:inherit!important;border:0!important;box-shadow:none!important}
+.wb-document-tab>button:hover{background:color-mix(in srgb,var(--fd-paper) 70%,transparent)!important}
